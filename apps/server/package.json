@@ -1,0 +1,26 @@
+{
+  "name": "@ferred/server",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "ts-node-dev src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "@ferred/prisma": "workspace:*",
+    "@ferred/shared": "workspace:*",
+    "express": "^4.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "bcrypt": "^5.0.0",
+    "crypto-js": "^4.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.0.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/bcrypt": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node-dev": "^2.0.0"
+  }
+}

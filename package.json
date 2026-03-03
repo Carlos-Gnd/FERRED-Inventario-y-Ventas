@@ -1,0 +1,10 @@
+{
+  "name": "ferred-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter @ferred/electron --filter @ferred/renderer --filter @ferred/server dev",
+    "build": "pnpm --recursive build",
+    "test": "pnpm --recursive test"
+  }
+}
