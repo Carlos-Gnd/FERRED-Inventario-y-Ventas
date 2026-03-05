@@ -5,6 +5,7 @@ type InternetStatus = 'checking' | 'online' | 'offline';
 const CHECK_URL = 'https://www.gstatic.com/generate_204';
 const CHECK_TIMEOUT_MS = 3500;
 const CHECK_INTERVAL_MS = 15000;
+const MAX_TRANSIENT_FAILURES = 2;
 
 export function useNetworkStatus() {
   const [browserOnline, setBrowserOnline] = useState<boolean>(navigator.onLine);
@@ -12,12 +13,15 @@ export function useNetworkStatus() {
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
   const [isChecking, setIsChecking] = useState<boolean>(false);
   const mountedRef = useRef(true);
+  const consecutiveFailuresRef = useRef(0);
+  const hasConfirmedInternetRef = useRef(navigator.onLine);
 
   const checkInternet = useCallback(async () => {
     if (!navigator.onLine) {
       if (!mountedRef.current) return false;
       setBrowserOnline(false);
       setHasInternet(false);
+      consecutiveFailuresRef.current = 0;
       setLastCheckedAt(Date.now());
       return false;
     }
@@ -37,12 +41,17 @@ export function useNetworkStatus() {
       });
 
       if (!mountedRef.current) return true;
+      consecutiveFailuresRef.current = 0;
+      hasConfirmedInternetRef.current = true;
       setHasInternet(true);
       setLastCheckedAt(Date.now());
       return true;
     } catch {
       if (!mountedRef.current) return false;
-      setHasInternet(false);
+      consecutiveFailuresRef.current += 1;
+      const shouldGoOffline =
+        !hasConfirmedInternetRef.current || consecutiveFailuresRef.current >= MAX_TRANSIENT_FAILURES;
+      if (shouldGoOffline) setHasInternet(false);
       setLastCheckedAt(Date.now());
       return false;
     } finally {
@@ -62,6 +71,7 @@ export function useNetworkStatus() {
     const handleOffline = () => {
       setBrowserOnline(false);
       setHasInternet(false);
+      consecutiveFailuresRef.current = 0;
       setLastCheckedAt(Date.now());
     };
 
