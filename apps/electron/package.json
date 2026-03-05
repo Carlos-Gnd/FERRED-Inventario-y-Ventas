@@ -7,6 +7,7 @@
     "package": "electron-builder"
   },
   "dependencies": {
+    "dotenv": "^16.6.1",
     "electron-store": "^8.0.0"
   },
   "devDependencies": {
