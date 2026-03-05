@@ -8,15 +8,9 @@
     "seed": "ts-node seed.ts"
   },
   "devDependencies": {
-    "@types/bcrypt": "^6.0.0",
-    "@types/better-sqlite3": "^7.6.13",
-    "prisma": "^5.0.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "prisma": "^5.0.0"
   },
   "dependencies": {
-    "@prisma/client": "^5.0.0",
-    "bcrypt": "^6.0.0",
-    "better-sqlite3": "^12.6.2"
+    "@prisma/client": "^5.0.0"
   }
 }
