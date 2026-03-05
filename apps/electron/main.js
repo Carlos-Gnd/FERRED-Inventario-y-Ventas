@@ -2,11 +2,10 @@ const { app, BrowserWindow } = require('electron');
 const path = require('path');
 require('dotenv').config();
 
-// Arranca el servidor Express interno
-require('../server/src/index');
+const DEV_URL = process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173';
 
 function createWindow() {
-  const win = new BrowserWindow({
+  return new BrowserWindow({
     width: 1280,
     height: 800,
     webPreferences: {
@@ -14,13 +13,27 @@ function createWindow() {
       contextIsolation: true,
     },
   });
-
-  // En dev carga el servidor de Vite, en prod el build
-  if (process.env.NODE_ENV === 'development') {
-    win.loadURL('http://localhost:5173');
-  } else {
-    win.loadFile(path.join(__dirname, '../renderer/dist/index.html'));
-  }
 }
 
-app.whenReady().then(createWindow);
+async function loadRenderer(win) {
+  if (!app.isPackaged) {
+    for (let i = 0; i < 30; i += 1) {
+      try {
+        await win.loadURL(DEV_URL);
+        return;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+
+    await win.loadURL(`data:text/html,${encodeURIComponent('<h2>No se pudo abrir Vite en http://localhost:5173</h2><p>Ejecuta pnpm run dev y revisa que apps/renderer este arriba.</p>')}`);
+    return;
+  }
+
+  await win.loadFile(path.join(__dirname, '../renderer/dist/index.html'));
+}
+
+app.whenReady().then(async () => {
+  const win = createWindow();
+  await loadRenderer(win);
+});

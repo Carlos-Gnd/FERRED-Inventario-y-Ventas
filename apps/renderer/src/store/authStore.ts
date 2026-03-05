@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AuthUser } from '@ferred/shared/types/user.types';
+import type { AuthUser } from '@ferred/shared/types/user.types';
 
 interface AuthStore {
   user: AuthUser | null;

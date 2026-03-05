@@ -1,7 +1,12 @@
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import type { ReactNode } from 'react';
 
-export function AuthGuard() {
+type AuthGuardProps = {
+  children: ReactNode;
+};
+
+export function AuthGuard({ children }: AuthGuardProps) {
   const token = useAuthStore((s) => s.token);
-  return token ? <div>Protected Content</div> : <Navigate to="/login" />;
+  return token ? <>{children}</> : <Navigate to="/login" replace />;
 }
