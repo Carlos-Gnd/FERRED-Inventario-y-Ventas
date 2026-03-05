@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
 
 type Role = 'Administrador' | 'Cajero' | 'Bodeguero';
@@ -22,7 +22,9 @@ type UserForm = {
   status: UserStatus;
 };
 type SortOrder = 'RECENT_FIRST' | 'OLD_FIRST';
+type SelectOption = { value: string; label: string };
 const USERS_STORAGE_KEY = 'ferred.users.v1';
+const THEME_STORAGE_KEY = 'ferred.admin.theme';
 
 const initialUsers: User[] = [
   {
@@ -116,6 +118,128 @@ const emptyForm: UserForm = {
   status: 'ACTIVO',
 };
 
+const statusFilterOptions: SelectOption[] = [
+  { value: 'TODOS', label: 'Todos' },
+  { value: 'ACTIVO', label: 'Activo' },
+  { value: 'INACTIVO', label: 'Inactivo' },
+];
+
+const roleFilterOptions: SelectOption[] = [
+  { value: 'TODOS', label: 'Todos' },
+  { value: 'Administrador', label: 'Administrador' },
+  { value: 'Cajero', label: 'Cajero' },
+  { value: 'Bodeguero', label: 'Bodeguero' },
+];
+
+const sortOptions: SelectOption[] = [
+  { value: 'RECENT_FIRST', label: 'Mas reciente' },
+  { value: 'OLD_FIRST', label: 'Mas antiguo' },
+];
+
+const roleOptions: SelectOption[] = [
+  { value: 'Administrador', label: 'Administrador' },
+  { value: 'Cajero', label: 'Cajero' },
+  { value: 'Bodeguero', label: 'Bodeguero' },
+];
+
+const statusOptions: SelectOption[] = [
+  { value: 'ACTIVO', label: 'Activo' },
+  { value: 'INACTIVO', label: 'Inactivo' },
+];
+
+type CustomSelectProps = {
+  selectId: string;
+  openSelectId: string | null;
+  setOpenSelectId: (next: string | null) => void;
+  value: string;
+  options: SelectOption[];
+  onChange: (nextValue: string) => void;
+  ariaLabel: string;
+};
+
+function CustomSelect({
+  selectId,
+  openSelectId,
+  setOpenSelectId,
+  value,
+  options,
+  onChange,
+  ariaLabel,
+}: CustomSelectProps) {
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const open = openSelectId === selectId;
+
+  useEffect(() => {
+    if (!open) return;
+
+    function closeSelect() {
+      setOpenSelectId(null);
+    }
+
+    function onDocPointerDown(event: PointerEvent) {
+      if (!wrapperRef.current) return;
+      const target = event.target as Node;
+      if (!wrapperRef.current.contains(target)) closeSelect();
+    }
+
+    function onEscapeKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') closeSelect();
+    }
+
+    function onWindowScroll() {
+      closeSelect();
+    }
+
+    document.addEventListener('pointerdown', onDocPointerDown);
+    document.addEventListener('keydown', onEscapeKey);
+    window.addEventListener('scroll', onWindowScroll, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', onDocPointerDown);
+      document.removeEventListener('keydown', onEscapeKey);
+      window.removeEventListener('scroll', onWindowScroll, true);
+    };
+  }, [open, setOpenSelectId]);
+
+  const selected = options.find((option) => option.value === value)?.label ?? value;
+
+  return (
+    <div className={`custom-select ${open ? 'custom-select-open' : ''}`} ref={wrapperRef}>
+      <button
+        type="button"
+        className="dark-select custom-select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => setOpenSelectId(open ? null : selectId)}
+      >
+        <span>{selected}</span>
+        <svg className="custom-select-caret" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 10.5 12 15l5-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="custom-select-menu" role="listbox" aria-label={ariaLabel}>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`custom-select-option ${option.value === value ? 'custom-select-option-active' : ''}`}
+              onClick={() => {
+                onChange(option.value);
+                setOpenSelectId(null);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function loadUsersFromStorage(): User[] {
   if (typeof window === 'undefined') return initialUsers;
 
@@ -168,6 +292,12 @@ export default function AdminPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [openSelectId, setOpenSelectId] = useState<string | null>(null);
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === 'light' ? 'light' : 'dark';
+  });
 
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -205,12 +335,18 @@ export default function AdminPage() {
     return users[0].id;
   }, [selectedUserId, users]);
 
+  useEffect(() => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
+
   function openNewModal() {
     setForm(emptyForm);
+    setOpenSelectId(null);
     setNewOpen(true);
   }
 
   function openEditModal(user: User) {
+    setOpenSelectId(null);
     setSelectedUser(user);
     setForm({
       fullName: user.fullName,
@@ -224,6 +360,7 @@ export default function AdminPage() {
   }
 
   function openDeleteModal(user: User) {
+    setOpenSelectId(null);
     setSelectedUser(user);
     setDeleteOpen(true);
   }
@@ -307,7 +444,7 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="dark-admin-shell">
+    <main className={`dark-admin-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
       <aside className="dark-sidebar">
         <div>
           <div className="brand-box">
@@ -391,6 +528,33 @@ export default function AdminPage() {
       </aside>
 
       <section className="dark-content">
+        <header className="mobile-admin-head">
+          <div className="mobile-brand">
+            <span className="mobile-brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="12" height="12">
+                <path
+                  d="M21.7 7.3 16.7 2.3a1 1 0 0 0-1.4 0L12 5.6l-1.6-1.6a1 1 0 0 0-1.4 1.4L10.6 7 6.8 10.8l-1.7-1.7A2 2 0 0 0 2.3 12l1.9 1.9a2 2 0 0 0 2.8 0l1.7-1.7 3.8 3.8-1.6 1.6a1 1 0 1 0 1.4 1.4l1.6-1.6 3.3 3.3a1 1 0 0 0 1.4 0l5-5a1 1 0 0 0 0-1.4L18.4 12l3.3-3.3a1 1 0 0 0 0-1.4Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <strong>FERRED</strong>
+          </div>
+          <div className="mobile-head-actions">
+            <button className="top-icon-btn" title="Notificaciones">
+              <svg className="topbar-bell-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 22a2.5 2.5 0 0 0 2.35-1.67h-4.7A2.5 2.5 0 0 0 12 22Zm6-5H6c.9-.8 1.5-2.2 1.5-3.75V10a4.5 4.5 0 1 1 9 0v3.25C16.5 14.8 17.1 16.2 18 17Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+            <button className="mobile-user-btn" title="Perfil">
+              {authUser?.name?.charAt(0) ?? 'A'}
+            </button>
+          </div>
+        </header>
+
         <header className="content-topbar">
           <h1>Gestion de Usuarios</h1>
           <input
@@ -403,6 +567,17 @@ export default function AdminPage() {
             }}
           />
           <div className="topbar-actions">
+            <button
+              type="button"
+              className="theme-toggle-btn theme-toggle-btn-inline"
+              onClick={() => setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+              aria-label="Cambiar apariencia"
+            >
+              <span className="theme-toggle-icon" aria-hidden="true">
+                {themeMode === 'dark' ? '☀' : '◐'}
+              </span>
+              <span>{themeMode === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
+            </button>
             <button className="top-icon-btn" title="Notificaciones">
               <svg className="topbar-bell-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -490,48 +665,48 @@ export default function AdminPage() {
             <div className="filter-panel">
               <label>
                 Estado
-                <select
-                  className="dark-select"
+                <CustomSelect
+                  selectId="filter-status"
+                  openSelectId={openSelectId}
+                  setOpenSelectId={setOpenSelectId}
+                  ariaLabel="Filtrar por estado"
                   value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value as 'TODOS' | UserStatus);
+                  options={statusFilterOptions}
+                  onChange={(next) => {
+                    setStatusFilter(next as 'TODOS' | UserStatus);
                     setCurrentPage(1);
                   }}
-                >
-                  <option value="TODOS">Todos</option>
-                  <option value="ACTIVO">Activo</option>
-                  <option value="INACTIVO">Inactivo</option>
-                </select>
+                />
               </label>
               <label>
                 Rol
-                <select
-                  className="dark-select"
+                <CustomSelect
+                  selectId="filter-role"
+                  openSelectId={openSelectId}
+                  setOpenSelectId={setOpenSelectId}
+                  ariaLabel="Filtrar por rol"
                   value={roleFilter}
-                  onChange={(e) => {
-                    setRoleFilter(e.target.value as 'TODOS' | Role);
+                  options={roleFilterOptions}
+                  onChange={(next) => {
+                    setRoleFilter(next as 'TODOS' | Role);
                     setCurrentPage(1);
                   }}
-                >
-                  <option value="TODOS">Todos</option>
-                  <option value="Administrador">Administrador</option>
-                  <option value="Cajero">Cajero</option>
-                  <option value="Bodeguero">Bodeguero</option>
-                </select>
+                />
               </label>
               <label>
                 Orden
-                <select
-                  className="dark-select"
+                <CustomSelect
+                  selectId="filter-sort"
+                  openSelectId={openSelectId}
+                  setOpenSelectId={setOpenSelectId}
+                  ariaLabel="Orden de lista"
                   value={sortOrder}
-                  onChange={(e) => {
-                    setSortOrder(e.target.value as SortOrder);
+                  options={sortOptions}
+                  onChange={(next) => {
+                    setSortOrder(next as SortOrder);
                     setCurrentPage(1);
                   }}
-                >
-                  <option value="RECENT_FIRST">Mas reciente</option>
-                  <option value="OLD_FIRST">Mas antiguo</option>
-                </select>
+                />
               </label>
             </div>
           )}
@@ -588,6 +763,40 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+          <div className="mobile-users-list">
+            {pagedUsers.map((u) => (
+              <article
+                key={u.id}
+                className={`mobile-user-card ${selectedUserId === u.id ? 'mobile-user-card-selected' : ''}`}
+                onClick={() => setSelectedUserId(u.id)}
+              >
+                <div className="mobile-user-row">
+                  <div className="name-cell">
+                    <span className="name-avatar">{getInitials(u.fullName)}</span>
+                    <div>
+                      <strong>{u.fullName}</strong>
+                      <small>@{u.username}</small>
+                    </div>
+                  </div>
+                  <button
+                    className={`row-check ${selectedUserId === u.id ? 'row-check-active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedUserId(u.id);
+                    }}
+                    aria-label={`Seleccionar ${u.fullName}`}
+                  />
+                </div>
+                <p className="mobile-user-email">{u.email}</p>
+                <div className="mobile-user-meta">
+                  <span className={`role-pill role-${u.role.toLowerCase()}`}>{u.role}</span>
+                  <span className={`status-pill ${u.status === 'ACTIVO' ? 'status-active' : 'status-inactive'}`}>
+                    {u.status}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
           <div className="table-footer">
             <small>
               Mostrando {pagedUsers.length} de {filteredUsers.length} usuarios
@@ -620,6 +829,63 @@ export default function AdminPage() {
           </div>
         </div>
       </section>
+      <nav className="mobile-bottom-nav" aria-label="Navegacion principal">
+        <button className="mobile-nav-item">
+          <span className="mobile-nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M4 4h7v7H4V4Zm9 0h7v5h-7V4ZM13 11h7v9h-7v-9ZM4 13h7v7H4v-7Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <small>Inicio</small>
+        </button>
+        <button className="mobile-nav-item">
+          <span className="mobile-nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M4 7.5 12 4l8 3.5-8 3.5L4 7.5Zm2 3.1 5 2.2v6L6 16.6v-6Zm12 0v6l-5 2.2v-6l5-2.2Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <small>Stock</small>
+        </button>
+        <button className="mobile-nav-item mobile-nav-item-active">
+          <span className="mobile-nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M7 5H5l-1 2H2v2h2l2.6 8.1A2 2 0 0 0 8.5 19H18v-2H8.5l-.5-2H18a2 2 0 0 0 1.9-1.4L22 7H7.4L7 5Zm2 15a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <small>Ventas</small>
+        </button>
+        <button className="mobile-nav-item">
+          <span className="mobile-nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M4 19h16v1.8H4V19Zm2-2V9h2v8H6Zm5 0V4h2v13h-2Zm5 0v-6h2v6h-2Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <small>Stats</small>
+        </button>
+        <button className="mobile-nav-item">
+          <span className="mobile-nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="m19.14 12.94.04-.94-.04-.94 2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.14 7.14 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.23-1.13.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58-.04.94.04.94-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.58-.23 1.13-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <small>Perfil</small>
+        </button>
+      </nav>
 
       {newOpen && (
         <div className="modal-overlay">
@@ -671,26 +937,27 @@ export default function AdminPage() {
               <div className="two-col">
                 <label>
                   Rol
-                  <select
-                    className="dark-select"
+                  <CustomSelect
+                    selectId="create-role"
+                    openSelectId={openSelectId}
+                    setOpenSelectId={setOpenSelectId}
+                    ariaLabel="Rol de usuario"
                     value={form.role}
-                    onChange={(e) => setForm((p) => ({ ...p, role: e.target.value as Role }))}
-                  >
-                    <option value="Administrador">Administrador</option>
-                    <option value="Cajero">Cajero</option>
-                    <option value="Bodeguero">Bodeguero</option>
-                  </select>
+                    options={roleOptions}
+                    onChange={(next) => setForm((p) => ({ ...p, role: next as Role }))}
+                  />
                 </label>
                 <label>
                   Estado
-                  <select
-                    className="dark-select"
+                  <CustomSelect
+                    selectId="create-status"
+                    openSelectId={openSelectId}
+                    setOpenSelectId={setOpenSelectId}
+                    ariaLabel="Estado de usuario"
                     value={form.status}
-                    onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as UserStatus }))}
-                  >
-                    <option value="ACTIVO">Activo</option>
-                    <option value="INACTIVO">Inactivo</option>
-                  </select>
+                    options={statusOptions}
+                    onChange={(next) => setForm((p) => ({ ...p, status: next as UserStatus }))}
+                  />
                 </label>
               </div>
             </div>
@@ -756,26 +1023,27 @@ export default function AdminPage() {
               <div className="two-col">
                 <label>
                   Rol
-                  <select
-                    className="dark-select"
+                  <CustomSelect
+                    selectId="edit-role"
+                    openSelectId={openSelectId}
+                    setOpenSelectId={setOpenSelectId}
+                    ariaLabel="Rol de usuario"
                     value={form.role}
-                    onChange={(e) => setForm((p) => ({ ...p, role: e.target.value as Role }))}
-                  >
-                    <option value="Administrador">Administrador</option>
-                    <option value="Cajero">Cajero</option>
-                    <option value="Bodeguero">Bodeguero</option>
-                  </select>
+                    options={roleOptions}
+                    onChange={(next) => setForm((p) => ({ ...p, role: next as Role }))}
+                  />
                 </label>
                 <label>
                   Estado
-                  <select
-                    className="dark-select"
+                  <CustomSelect
+                    selectId="edit-status"
+                    openSelectId={openSelectId}
+                    setOpenSelectId={setOpenSelectId}
+                    ariaLabel="Estado de usuario"
                     value={form.status}
-                    onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as UserStatus }))}
-                  >
-                    <option value="ACTIVO">Activo</option>
-                    <option value="INACTIVO">Inactivo</option>
-                  </select>
+                    options={statusOptions}
+                    onChange={(next) => setForm((p) => ({ ...p, status: next as UserStatus }))}
+                  />
                 </label>
               </div>
             </div>
