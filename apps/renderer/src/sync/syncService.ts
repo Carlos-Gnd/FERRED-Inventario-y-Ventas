@@ -14,7 +14,7 @@ type CreateLocalChangeArgs = {
   entity: EntityName;
   operation: OperationType;
   record: AnyRecord;       // lo que guardas local
-  payloadForServer?: any;  // si quieres enviar un DTO diferente al record
+  payloadForServer?: unknown;  // si quieres enviar un DTO diferente al record
 };
 
 class SyncService {

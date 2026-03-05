@@ -5,7 +5,7 @@
     "generate": "prisma generate",
     "migrate:local": "prisma migrate dev --schema=./schema.prisma",
     "migrate:cloud": "DATABASE_URL=$SUPABASE_URL prisma migrate deploy",
-    "seed": "ts-node seed.ts"
+    "seed": "node seed.js"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
