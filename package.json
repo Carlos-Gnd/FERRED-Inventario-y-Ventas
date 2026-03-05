@@ -5,6 +5,11 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @ferred/electron --filter ferred-sync --filter @ferred/server dev",
     "build": "pnpm --recursive build",
-    "test": "pnpm --recursive test"
+    "test": "pnpm --recursive test",
+    "prisma:generate": "prisma generate --schema=schema.prisma"
+  },
+  "devDependencies": {
+    "@prisma/client": "^5.22.0",
+    "prisma": "^5.22.0"
   }
 }

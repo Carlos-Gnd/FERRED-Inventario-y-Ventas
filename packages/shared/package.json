@@ -1,5 +1,11 @@
 {
   "name": "@ferred/shared",
   "version": "1.0.0",
-  "main": "index.ts"
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./types/user.types": "./types/user.types.ts",
+    "./constants": "./constants/index.ts"
+  }
 }

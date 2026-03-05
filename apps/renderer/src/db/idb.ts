@@ -55,7 +55,12 @@ async function tx<T>(
         transaction.onabort = () => reject(transaction.error);
       })
       .catch((e) => {
-        try { transaction.abort(); } catch {}
+        try {
+          transaction.abort();
+        } catch (abortError) {
+          reject(abortError);
+          return;
+        }
         reject(e);
       });
   });

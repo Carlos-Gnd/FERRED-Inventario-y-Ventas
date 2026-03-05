@@ -1,7 +1,7 @@
 export type EntityName = "sale" | "inventoryMovement" | "product";
 export type OperationType = "CREATE" | "UPDATE" | "DELETE";
 
-export type AnyRecord = Record<string, any> & {
+export type AnyRecord = Record<string, unknown> & {
   id: string;
   updatedAt: number; // epoch ms
 };
@@ -12,7 +12,7 @@ export type OutboxItem = {
   entity: EntityName;
   operation: OperationType;
   recordId: string;
-  payload: any;
+  payload: unknown;
   createdAt: number;
   status: "PENDING" | "SYNCING" | "DONE" | "ERROR";
   retryCount: number;

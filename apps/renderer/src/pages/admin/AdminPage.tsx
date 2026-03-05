@@ -318,34 +318,22 @@ export default function AdminPage() {
   }, [search, users, statusFilter, roleFilter, sortOrder]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const pagedUsers = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
+    const start = (safeCurrentPage - 1) * pageSize;
     return filteredUsers.slice(start, start + pageSize);
-  }, [filteredUsers, currentPage]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, statusFilter, roleFilter, sortOrder]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  }, [filteredUsers, safeCurrentPage]);
 
   useEffect(() => {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   }, [users]);
 
-  useEffect(() => {
-    if (!users.length) {
-      setSelectedUserId(null);
-      return;
-    }
-
-    setSelectedUserId((prev) => (prev && users.some((u) => u.id === prev) ? prev : users[0].id));
-  }, [users]);
+  const effectiveSelectedUserId = useMemo(() => {
+    if (!users.length) return null;
+    if (selectedUserId && users.some((u) => u.id === selectedUserId)) return selectedUserId;
+    return users[0].id;
+  }, [selectedUserId, users]);
 
   useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
@@ -378,14 +366,14 @@ export default function AdminPage() {
   }
 
   function openEditForSelected() {
-    if (!selectedUserId) return;
-    const user = users.find((u) => u.id === selectedUserId);
+    if (!effectiveSelectedUserId) return;
+    const user = users.find((u) => u.id === effectiveSelectedUserId);
     if (user) openEditModal(user);
   }
 
   function openDeleteForSelected() {
-    if (!selectedUserId) return;
-    const user = users.find((u) => u.id === selectedUserId);
+    if (!effectiveSelectedUserId) return;
+    const user = users.find((u) => u.id === effectiveSelectedUserId);
     if (user) openDeleteModal(user);
   }
 
@@ -573,7 +561,10 @@ export default function AdminPage() {
             className="dark-field top-search"
             placeholder="🔎 Buscar por nombre, correo o rol..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
           />
           <div className="topbar-actions">
             <button
@@ -622,7 +613,11 @@ export default function AdminPage() {
                 </svg>
                 Nuevo
               </button>
-              <button className="btn btn-toolbar-secondary" onClick={openEditForSelected} disabled={!selectedUserId}>
+              <button
+                className="btn btn-toolbar-secondary"
+                onClick={openEditForSelected}
+                disabled={!effectiveSelectedUserId}
+              >
                 <svg className="toolbar-action-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     d="m4 16.25 9.3-9.29 3.75 3.75L7.75 20H4v-3.75Zm14.7-9.79-1.16 1.16-3.75-3.75 1.16-1.16a1.5 1.5 0 0 1 2.12 0l1.63 1.63a1.5 1.5 0 0 1 0 2.12Z"
@@ -631,7 +626,11 @@ export default function AdminPage() {
                 </svg>
                 Modificar
               </button>
-              <button className="btn btn-toolbar-critical" onClick={openDeleteForSelected} disabled={!selectedUserId}>
+              <button
+                className="btn btn-toolbar-critical"
+                onClick={openDeleteForSelected}
+                disabled={!effectiveSelectedUserId}
+              >
                 <svg className="toolbar-trash-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     d="M9 3h6m-9 3h12m-9 3v8m3-8v8m3-8v8M8 6l.7 12a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9L16 6"
@@ -673,7 +672,10 @@ export default function AdminPage() {
                   ariaLabel="Filtrar por estado"
                   value={statusFilter}
                   options={statusFilterOptions}
-                  onChange={(next) => setStatusFilter(next as 'TODOS' | UserStatus)}
+                  onChange={(next) => {
+                    setStatusFilter(next as 'TODOS' | UserStatus);
+                    setCurrentPage(1);
+                  }}
                 />
               </label>
               <label>
@@ -685,7 +687,10 @@ export default function AdminPage() {
                   ariaLabel="Filtrar por rol"
                   value={roleFilter}
                   options={roleFilterOptions}
-                  onChange={(next) => setRoleFilter(next as 'TODOS' | Role)}
+                  onChange={(next) => {
+                    setRoleFilter(next as 'TODOS' | Role);
+                    setCurrentPage(1);
+                  }}
                 />
               </label>
               <label>
@@ -697,7 +702,10 @@ export default function AdminPage() {
                   ariaLabel="Orden de lista"
                   value={sortOrder}
                   options={sortOptions}
-                  onChange={(next) => setSortOrder(next as SortOrder)}
+                  onChange={(next) => {
+                    setSortOrder(next as SortOrder);
+                    setCurrentPage(1);
+                  }}
                 />
               </label>
             </div>
@@ -721,12 +729,12 @@ export default function AdminPage() {
                 {pagedUsers.map((u) => (
                   <tr
                     key={u.id}
-                    className={selectedUserId === u.id ? 'row-selected' : ''}
+                    className={effectiveSelectedUserId === u.id ? 'row-selected' : ''}
                     onClick={() => setSelectedUserId(u.id)}
                   >
                     <td className="col-check">
                       <button
-                        className={`row-check ${selectedUserId === u.id ? 'row-check-active' : ''}`}
+                        className={`row-check ${effectiveSelectedUserId === u.id ? 'row-check-active' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedUserId(u.id);
@@ -794,13 +802,17 @@ export default function AdminPage() {
               Mostrando {pagedUsers.length} de {filteredUsers.length} usuarios
             </small>
             <div className="pager">
-              <button className="pager-btn" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>
+              <button
+                className="pager-btn"
+                disabled={safeCurrentPage === 1}
+                onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+              >
                 ‹
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
-                  className={`pager-btn ${currentPage === page ? 'pager-btn-active' : ''}`}
+                  className={`pager-btn ${safeCurrentPage === page ? 'pager-btn-active' : ''}`}
                   onClick={() => setCurrentPage(page)}
                 >
                   {page}
@@ -808,8 +820,8 @@ export default function AdminPage() {
               ))}
               <button
                 className="pager-btn"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={safeCurrentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               >
                 ›
               </button>

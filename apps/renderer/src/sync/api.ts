@@ -8,7 +8,7 @@ export type PushOperationPayload = {
   entity: EntityName;
   operation: OperationType;
   recordId: string;
-  payload: any;
+  payload: unknown;
   createdAt: number;
 };
 
@@ -26,7 +26,7 @@ export type PullResponse = {
   ok: true;
   changes: Array<{
     entity: EntityName;
-    record: any;
+    record: unknown;
   }>;
   newPulledAt: number;
 };
@@ -45,8 +45,9 @@ export type PullResponse = {
  * Simula enviar operación al servidor
  */
 export async function pushOperation(
-  _op: PushOperationPayload
+  op: PushOperationPayload
 ): Promise<PushResponse> {
+  void op;
   // Simula delay de red
   await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -60,8 +61,9 @@ export async function pushOperation(
  * Simula traer cambios del servidor
  */
 export async function pullChanges(
-  _lastPulledAt: number
+  lastPulledAt: number
 ): Promise<PullResponse | { ok: false; message: string }> {
+  void lastPulledAt;
   // Simula delay de red
   await new Promise((resolve) => setTimeout(resolve, 200));
 
