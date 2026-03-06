@@ -547,6 +547,7 @@ export default function AdminPage() {
         <header className="mobile-admin-head">
           <div className="mobile-brand">
             <span className="mobile-brand-mark" aria-hidden="true">
+<<<<<<< Updated upstream
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none">
                 <path
                   d="M14.1 4.1a3.6 3.6 0 0 0 4.9 4.9l-4.9 4.9-2.6-2.6 4.9-4.9Z"
@@ -567,6 +568,12 @@ export default function AdminPage() {
                   stroke="currentColor"
                   strokeWidth="2.2"
                   strokeLinecap="round"
+=======
+              <svg viewBox="0 0 24 24" width="12" height="12">
+                <path
+                  d="M21.7 7.3 16.7 2.3a1 1 0 0 0-1.4 0L12 5.6l-1.6-1.6a1 1 0 0 0-1.4 1.4L10.6 7 6.8 10.8l-1.7-1.7A2 2 0 0 0 2.3 12l1.9 1.9a2 2 0 0 0 2.8 0l1.7-1.7 3.8 3.8-1.6 1.6a1 1 0 1 0 1.4 1.4l1.6-1.6 3.3 3.3a1 1 0 0 0 1.4 0l5-5a1 1 0 0 0 0-1.4L18.4 12l3.3-3.3a1 1 0 0 0 0-1.4Z"
+                  fill="currentColor"
+>>>>>>> Stashed changes
                 />
               </svg>
             </span>
