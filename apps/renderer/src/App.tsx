@@ -17,15 +17,18 @@ export default function App() {
 
     if (status !== 'online' && status !== 'offline') return;
 
-    setNotificationStatus(status);
-    setIsNotificationVisible(true);
+    const showId = window.setTimeout(() => {
+      setNotificationStatus(status);
+      setIsNotificationVisible(true);
+    }, 0);
 
-    const timeoutId = window.setTimeout(() => {
+    const hideId = window.setTimeout(() => {
       setIsNotificationVisible(false);
     }, 2000);
 
     return () => {
-      window.clearTimeout(timeoutId);
+      window.clearTimeout(showId);
+      window.clearTimeout(hideId);
     };
   }, [status]);
 
