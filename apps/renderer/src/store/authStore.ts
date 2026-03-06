@@ -1,16 +1,25 @@
-import { create } from 'zustand';
-import type { AuthUser } from '@ferred/shared';
+// src/store/authStore.ts
 
-interface AuthStore {
-  user: AuthUser | null;
+import { create } from "zustand";
+
+interface User {
+  nombre: string;
+  rol: "ADMINISTRADOR" | "CAJERO" | "BODEGA";
+  sucursal: string;
+}
+
+interface AuthState {
   token: string | null;
-  setAuth: (user: AuthUser, token: string) => void;
+  user: User | null;
+  setToken: (token: string) => void;
+  setUser: (user: User) => void;
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
+export const useAuthStore = create<AuthState>((set) => ({
   token: null,
-  setAuth: (user, token) => set({ user, token }),
-  logout: () => set({ user: null, token: null }),
+  user: null,
+  setToken: (token) => set({ token }),
+  setUser: (user) => set({ user }),
+  logout: () => set({ token: null, user: null }),
 }));
