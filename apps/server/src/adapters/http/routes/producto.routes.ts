@@ -7,7 +7,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma }         from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
-import { logPendiente, OfflineCache, SyncService } from '../../adapters/sync/sync.service';
+import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
 
 export const productoRoutes = Router();
 
