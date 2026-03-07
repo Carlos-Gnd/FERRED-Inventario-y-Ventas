@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../../services/api.client';
 import { Button } from '../../components/ui/Button';
 import { Input }  from '../../components/ui/Input';
@@ -15,11 +15,94 @@ function calcVenta(costo: number, ganancia: number, iva: boolean) {
   const venta = costo * (1 + ganancia / 100);
   return { venta: Math.round(venta * 100) / 100, conIva: iva ? Math.round(venta * 1.13 * 100) / 100 : venta };
 }
-
 function stockBadge(stock: number, min: number): { label: string; variant: 'success' | 'warning' | 'danger' } {
-  if (stock === 0)        return { label: 'SIN STOCK', variant: 'danger' };
-  if (stock <= min)       return { label: 'REVISAR',   variant: 'warning' };
-  return                         { label: 'OK',         variant: 'success' };
+  if (stock === 0)  return { label: 'SIN STOCK', variant: 'danger' };
+  if (stock <= min) return { label: 'REVISAR',   variant: 'warning' };
+  return                   { label: 'OK',         variant: 'success' };
+}
+
+// ─── Formulario estable (no se re-monta con cada keystroke) ──────────────────
+interface ProductFormProps {
+  form: typeof EMPTY;
+  formErr: Record<string, string>;
+  saving: boolean;
+  categorias: Categoria[];
+  onChange: (key: keyof typeof EMPTY, value: string | boolean) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}
+
+function ProductForm({ form, formErr, saving, categorias, onChange, onSave, onCancel }: ProductFormProps) {
+  const catOptions = [{ value: '', label: 'Sin categoría' }, ...categorias.map(c => ({ value: String(c.id), label: c.nombre }))];
+  const previewPrices = calcVenta(Number(form.precioCompra) || 0, Number(form.porcentajeGanancia) || 0, form.tieneIva);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+        <div style={{ gridColumn: '1' }}>
+          <Input label="Nombre del producto" placeholder="Ej: Martillo de Uña 16oz"
+            value={form.nombre}
+            onChange={v => onChange('nombre', v)}
+            error={formErr.nombre} />
+        </div>
+        <Select label="U. Medida" options={UNIDAD_OPTIONS} value={form.tipoUnidad}
+          onChange={v => onChange('tipoUnidad', v)} />
+        <Input label="Stock inicial" type="number" placeholder="0"
+          value={form.stockActual} onChange={v => onChange('stockActual', v)} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <Select label="Categoría" options={catOptions} value={form.categoriaId}
+          onChange={v => onChange('categoriaId', v)} />
+        <Input label="Stock mínimo" type="number" placeholder="0"
+          value={form.stockMinimo} onChange={v => onChange('stockMinimo', v)} />
+      </div>
+
+      <Input label="Código de barras (opcional)" placeholder="Ej: 7501234567890"
+        value={form.codigoBarras} onChange={v => onChange('codigoBarras', v)} />
+
+      {/* Estructura de precios */}
+      <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px' }}>
+        <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
+          Estructura de precios
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+          <Input label="Costo base ($)" type="number" placeholder="0.00"
+            value={form.precioCompra} onChange={v => onChange('precioCompra', v)} />
+          <Input label="Ganancia %" type="number" placeholder="30"
+            value={form.porcentajeGanancia} onChange={v => onChange('porcentajeGanancia', v)} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <input type="checkbox" id="iva-check" checked={form.tieneIva}
+            onChange={e => onChange('tieneIva', e.target.checked)}
+            style={{ accentColor: 'var(--accent)' }} />
+          <label htmlFor="iva-check" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+            Incluir IVA (13%)
+          </label>
+        </div>
+        <div style={{
+          background: 'var(--accent-glow)', border: '1px solid var(--border)',
+          borderRadius: '6px', padding: '10px 14px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Precio de venta {form.tieneIva ? '(con IVA)' : ''}
+          </span>
+          <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace' }}>
+            ${form.tieneIva ? previewPrices.conIva.toFixed(2) : previewPrices.venta.toFixed(2)}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+        <Button variant="ghost" onClick={onCancel} style={{ flex: 1 }}>Cancelar</Button>
+        <Button loading={saving} onClick={onSave} style={{ flex: 1 }}
+          icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>}>
+          Guardar Producto
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default function ProductsPage() {
@@ -31,13 +114,16 @@ export default function ProductsPage() {
   const [selected,    setSelected]    = useState<number | null>(null);
   const [toast,       setToast]       = useState<ToastData | null>(null);
   const [criticos,    setCriticos]    = useState(0);
-
   const [modalNew,    setModalNew]    = useState(false);
   const [modalEdit,   setModalEdit]   = useState(false);
   const [modalDelete, setModalDelete] = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [formErr,     setFormErr]     = useState<Record<string, string>>({});
   const [form,        setForm]        = useState({ ...EMPTY });
+
+  // Usamos ref para el search debounce — evita re-renders innecesarios
+  const buscarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [debouncedBuscar, setDebouncedBuscar] = useState('');
 
   const showToast = (msg: string, type: ToastData['type']) => {
     setToast({ msg, type });
@@ -48,34 +134,52 @@ export default function ProductsPage() {
     api.get('/categorias').then(r => setCategorias(r.data)).catch(() => {});
   }, []);
 
+  // Debounce search para no re-renderizar con cada tecla
+  function handleBuscar(v: string) {
+    setBuscar(v);
+    if (buscarTimer.current) clearTimeout(buscarTimer.current);
+    buscarTimer.current = setTimeout(() => setDebouncedBuscar(v), 350);
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params: Record<string, string> = {};
-      if (buscar) params.buscar = buscar;
+      if (debouncedBuscar) params.buscar = debouncedBuscar;
       if (catFilter) params.categoriaId = catFilter;
       const { data } = await api.get('/productos', { params });
       setProductos(data);
       setCriticos(data.filter((p: Producto) => p.stockActual === 0 || p.stockActual <= p.stockMinimo).length);
     } catch { showToast('Error al cargar productos', 'error'); }
     finally { setLoading(false); }
-  }, [buscar, catFilter]);
+  }, [debouncedBuscar, catFilter]);
 
   useEffect(() => { load(); }, [load]);
 
   const selectedProd = productos.find(p => p.id === selected);
 
-  function openNew() { setForm({ ...EMPTY }); setFormErr({}); setModalNew(true); }
+  function openNew()  { setForm({ ...EMPTY }); setFormErr({}); setModalNew(true); }
   function openEdit() {
     if (!selectedProd) return;
     setForm({
-      nombre: selectedProd.nombre, categoriaId: String(selectedProd.categoriaId ?? ''),
-      codigoBarras: selectedProd.codigoBarras ?? '', tipoUnidad: selectedProd.tipoUnidad ?? 'UNIDAD',
-      precioCompra: String(selectedProd.precioCompra ?? ''), porcentajeGanancia: String(selectedProd.porcentajeGanancia ?? '30'),
-      tieneIva: selectedProd.tieneIva, stockActual: String(selectedProd.stockActual), stockMinimo: String(selectedProd.stockMinimo),
+      nombre: selectedProd.nombre,
+      categoriaId: String(selectedProd.categoriaId ?? ''),
+      codigoBarras: selectedProd.codigoBarras ?? '',
+      tipoUnidad: selectedProd.tipoUnidad ?? 'UNIDAD',
+      precioCompra: String(selectedProd.precioCompra ?? ''),
+      porcentajeGanancia: String(selectedProd.porcentajeGanancia ?? '30'),
+      tieneIva: selectedProd.tieneIva,
+      stockActual: String(selectedProd.stockActual),
+      stockMinimo: String(selectedProd.stockMinimo),
     });
     setFormErr({});
     setModalEdit(true);
+  }
+
+  // Actualiza campo del form SIN re-montar el componente
+  function handleFormChange(key: keyof typeof EMPTY, value: string | boolean) {
+    setForm(f => ({ ...f, [key]: value }));
+    if (typeof value === 'string') setFormErr(e => ({ ...e, [key]: '' }));
   }
 
   function validate() {
@@ -89,13 +193,15 @@ export default function ProductsPage() {
     if (!validate()) return;
     setSaving(true);
     const payload = {
-      nombre: form.nombre, codigoBarras: form.codigoBarras || undefined,
+      nombre: form.nombre,
+      codigoBarras: form.codigoBarras || undefined,
       tipoUnidad: form.tipoUnidad as TipoUnidad,
       categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
       precioCompra: form.precioCompra ? Number(form.precioCompra) : undefined,
       porcentajeGanancia: form.porcentajeGanancia ? Number(form.porcentajeGanancia) : undefined,
       tieneIva: form.tieneIva,
-      stockActual: Number(form.stockActual), stockMinimo: Number(form.stockMinimo),
+      stockActual: Number(form.stockActual),
+      stockMinimo: Number(form.stockMinimo),
     };
     try {
       if (modalNew) {
@@ -125,66 +231,10 @@ export default function ProductsPage() {
 
   const catOptions = [{ value: '', label: 'Todas las categorías' }, ...categorias.map(c => ({ value: String(c.id), label: c.nombre }))];
 
-  const previewPrices = calcVenta(Number(form.precioCompra) || 0, Number(form.porcentajeGanancia) || 0, form.tieneIva);
-
-  const ProductForm = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-        <div style={{ gridColumn: '1' }}>
-          <Input label="Nombre del producto" placeholder="Ej: Martillo de Uña 16oz"
-            value={form.nombre} onChange={v => { setForm(f => ({ ...f, nombre: v })); setFormErr(e => ({ ...e, nombre: '' })); }}
-            error={formErr.nombre} />
-        </div>
-        <Select label="U. Medida" options={UNIDAD_OPTIONS} value={form.tipoUnidad} onChange={v => setForm(f => ({ ...f, tipoUnidad: v }))} />
-        <Input label="Stock inicial" type="number" placeholder="0" value={form.stockActual} onChange={v => setForm(f => ({ ...f, stockActual: v }))} />
-      </div>
-
-      <Select label="Categoría" options={catOptions} value={form.categoriaId} onChange={v => setForm(f => ({ ...f, categoriaId: v }))} />
-
-      <Input label="Descripción técnica" placeholder="Especificaciones, material, dimensiones..." rows={2}
-        value={form.codigoBarras} onChange={v => setForm(f => ({ ...f, codigoBarras: v }))} />
-
-      {/* Price structure */}
-      <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px' }}>
-        <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
-          Estructura de precios
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-          <Input label="Costo base ($)" type="number" placeholder="0.00" value={form.precioCompra} onChange={v => setForm(f => ({ ...f, precioCompra: v }))} />
-          <Input label="Ganancia %" type="number" placeholder="30" value={form.porcentajeGanancia} onChange={v => setForm(f => ({ ...f, porcentajeGanancia: v }))} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-          <input type="checkbox" id="iva" checked={form.tieneIva} onChange={e => setForm(f => ({ ...f, tieneIva: e.target.checked }))} style={{ accentColor: 'var(--accent)' }} />
-          <label htmlFor="iva" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>Incluir IVA (13%)</label>
-        </div>
-        <div style={{
-          background: 'var(--accent-glow)', border: '1px solid var(--border)',
-          borderRadius: '6px', padding: '10px 14px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            Precio de venta {form.tieneIva ? '(con IVA)' : ''}
-          </span>
-          <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace' }}>
-            ${form.tieneIva ? previewPrices.conIva.toFixed(2) : previewPrices.venta.toFixed(2)}
-          </span>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-        <Button variant="ghost" onClick={() => { setModalNew(false); setModalEdit(false); }} style={{ flex: 1 }}>Cancelar</Button>
-        <Button loading={saving} onClick={handleSave} style={{ flex: 1 }}
-          icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>}>
-          Guardar Producto
-        </Button>
-      </div>
-    </div>
-  );
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeUp 0.4s ease' }}>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>Gestión de Productos</h2>
           <p style={{ marginTop: '4px', fontSize: '13px', color: 'var(--text-muted)' }}>Administración y control de productos</p>
@@ -209,7 +259,7 @@ export default function ProductsPage() {
         </Button>
         <div style={{ flex: 1 }} />
         <div style={{ width: '220px' }}>
-          <Input value={buscar} onChange={setBuscar} placeholder="Buscar por SKU, nombre o categoría..."
+          <Input value={buscar} onChange={handleBuscar} placeholder="Buscar producto..."
             icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>} />
         </div>
         <div style={{ width: '180px' }}>
@@ -217,8 +267,8 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
               <th style={{ width: '40px', padding: '12px 16px' }}><input type="checkbox" style={{ accentColor: 'var(--accent)' }} /></th>
@@ -236,8 +286,7 @@ export default function ProductsPage() {
               const sb = stockBadge(p.stockActual, p.stockMinimo);
               const isCrit = p.stockActual === 0;
               return (
-                <tr
-                  key={p.id}
+                <tr key={p.id}
                   onClick={() => setSelected(s => s === p.id ? null : p.id)}
                   style={{
                     borderTop: '1px solid var(--border)',
@@ -254,7 +303,7 @@ export default function ProductsPage() {
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     {p.categoria ? (
-                      <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, background: 'rgba(59,130,246,0.1)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, background: 'rgba(59,130,246,0.1)', color: 'var(--accent)', textTransform: 'uppercase' }}>
                         {p.categoria.nombre}
                       </span>
                     ) : <span style={{ color: 'var(--text-subtle)', fontSize: '12px' }}>—</span>}
@@ -287,12 +336,14 @@ export default function ProductsPage() {
 
       <Modal open={modalNew} onClose={() => setModalNew(false)} title="Nuevo Producto" subtitle="Registro de inventario FERRED" maxWidth={600}
         icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>}>
-        <ProductForm />
+        <ProductForm form={form} formErr={formErr} saving={saving} categorias={categorias}
+          onChange={handleFormChange} onSave={handleSave} onCancel={() => setModalNew(false)} />
       </Modal>
 
       <Modal open={modalEdit} onClose={() => setModalEdit(false)} title="Modificar Producto" subtitle="Edición de datos" maxWidth={600}
         icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>}>
-        <ProductForm />
+        <ProductForm form={form} formErr={formErr} saving={saving} categorias={categorias}
+          onChange={handleFormChange} onSave={handleSave} onCancel={() => setModalEdit(false)} />
       </Modal>
 
       <ConfirmDelete
@@ -300,7 +351,6 @@ export default function ProductsPage() {
         onConfirm={handleDelete} name={selectedProd?.nombre ?? ''}
         warning="Se desactivará el producto. El historial de ventas se conserva."
       />
-
       <Toast data={toast} />
     </div>
   );

@@ -16,7 +16,7 @@ interface NavItem { label: string; to: string; icon: React.ReactNode; roles: Use
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',   to: '/dashboard',  icon: <IcoDashboard />,   roles: ['ADMIN', 'CAJERO', 'BODEGA'] },
-  { label: 'Inventario',  to: '/productos',  icon: <IcoInventory />,   roles: ['ADMIN', 'BODEGA'] },
+  { label: 'Productos',  to: '/productos',  icon: <IcoInventory />,   roles: ['ADMIN', 'BODEGA'] },
   { label: 'Ventas',      to: '/ventas',     icon: <IcoSales />,       roles: ['ADMIN', 'CAJERO'], badge: 'Pronto' },
   { label: 'Categorías',  to: '/categorias', icon: <IcoCategories />,  roles: ['ADMIN'] },
   { label: 'Usuarios',    to: '/usuarios',   icon: <IcoUsers />,       roles: ['ADMIN'] },

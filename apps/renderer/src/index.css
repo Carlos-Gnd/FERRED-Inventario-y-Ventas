@@ -109,37 +109,37 @@ html, body, #root {
   0%,100% { opacity: 1; }
   50%     { opacity: 0.4; }
 }
-
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 
-/* Sidebar deslizable en móvil */
 .sidebar-wrapper {
   display: flex;
   flex-shrink: 0;
 }
 
+/* ── BOTTOM NAV ──────────────────────────────────────────── */
+.bottom-nav {
+  display: none !important;
+}
+
 @media (max-width: 768px) {
+  /* Ocultar sidebar, mostrar bottom nav */
   .sidebar-wrapper {
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-    z-index: 50;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
+    display: none !important;
   }
-  .sidebar-wrapper.open {
-    transform: translateX(0);
-  }
-  .mobile-overlay {
-    display: block !important;
-  }
-  .hamburger-btn {
+  .bottom-nav {
     display: flex !important;
   }
-  .sidebar-close-btn {
-    display: flex !important;
+  /* Espacio para que el contenido no quede tapado */
+  main {
+    padding-bottom: 80px !important;
   }
+  /* Ocultar textos en topbar */
   .hide-sm {
     display: none !important;
+  }
+  /* Mostrar hamburger (por si se usa en algún lugar) */
+  .hamburger-btn {
+    display: flex !important;
   }
 }
 
@@ -149,7 +149,7 @@ html, body, #root {
   }
 }
 
-/* Grid responsivo para stats del dashboard */
+/* ── GRIDS RESPONSIVOS ───────────────────────────────────── */
 @media (max-width: 900px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr) !important;
@@ -165,18 +165,8 @@ html, body, #root {
   }
 }
 
-/* Tabla scrollable en móvil */
+/* ── TABLAS SCROLLABLES ──────────────────────────────────── */
 .table-responsive {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-}
-
-/* Acciones en tabla — stack en móvil */
-@media (max-width: 640px) {
-  .action-bar {
-    flex-wrap: wrap;
-  }
-  .action-bar > * {
-    flex-shrink: 0;
-  }
 }
