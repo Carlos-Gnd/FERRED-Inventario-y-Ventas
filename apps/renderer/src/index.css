@@ -109,3 +109,74 @@ html, body, #root {
   0%,100% { opacity: 1; }
   50%     { opacity: 0.4; }
 }
+
+/* ── RESPONSIVE ──────────────────────────────────────────── */
+
+/* Sidebar deslizable en móvil */
+.sidebar-wrapper {
+  display: flex;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .sidebar-wrapper {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+  .sidebar-wrapper.open {
+    transform: translateX(0);
+  }
+  .mobile-overlay {
+    display: block !important;
+  }
+  .hamburger-btn {
+    display: flex !important;
+  }
+  .sidebar-close-btn {
+    display: flex !important;
+  }
+  .hide-sm {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .hide-xs {
+    display: none !important;
+  }
+}
+
+/* Grid responsivo para stats del dashboard */
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .charts-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 500px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* Tabla scrollable en móvil */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Acciones en tabla — stack en móvil */
+@media (max-width: 640px) {
+  .action-bar {
+    flex-wrap: wrap;
+  }
+  .action-bar > * {
+    flex-shrink: 0;
+  }
+}
