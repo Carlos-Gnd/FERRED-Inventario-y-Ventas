@@ -1,52 +1,52 @@
-import express from 'express';
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
 
-// Construir DATABASE_URL desde BRANCH_ID
+// Cargar .env primero
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+// Construir DATABASE_URL con ruta ABSOLUTA basada en __dirname
+// __dirname = .../apps/server/src  → subir 3 niveles llega a ferred/
 const branchId = process.env.BRANCH_ID || '1';
-process.env.DATABASE_URL = `file:../../data/ferred_branch${branchId}.db`;
+const dbPath = path.resolve(__dirname, '..', '..', '..', 'data', `ferred_branch${branchId}.db`);
+process.env.DATABASE_URL = `file:${dbPath}`;
 
-import { authRoutes }      from './adapters/http/routes/auth.routes';
-import { usuarioRoutes }   from './adapters/http/routes/usuario.routes';
-import { productRoutes }   from './adapters/http/routes/product.routes';
-import { inventoryRoutes } from './adapters/http/routes/inventory.routes';
-import { saleRoutes }      from './adapters/http/routes/sale.routes';
-import { reportRoutes }    from './adapters/http/routes/report.routes';
-import { syncRoutes }      from './adapters/http/routes/sync.routes';
-import { errorHandler }    from './adapters/http/middleware/errorHandler';
-import { jwtMiddleware }   from './adapters/http/middleware/jwtMiddleware';
-import { SyncService }     from './adapters/sync/SyncService';
+console.log(`🗄️  DATABASE_URL: file:${dbPath}`);
+
+import express from 'express';
+import cors from 'cors';
+import { authRoutes }       from './adapters/http/routes/auth.routes';
+import { usuarioRoutes }    from './adapters/http/routes/usuario.routes';
+import { categoriaRoutes }  from './adapters/http/routes/categoria.routes';
+import { productoRoutes }   from './adapters/http/routes/producto.routes';
+import { inventarioRoutes } from './adapters/http/routes/inventario.routes';
+import { errorMiddleware }  from './adapters/http/middleware/error.middleware';
+import { jwtMiddleware }    from './adapters/http/middleware/jwt.middleware';
+import { SyncService }      from './adapters/sync/sync.service';
 
 const app = express();
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
-  next();
-});
+
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 // Rutas públicas
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
+app.get('/health', (_req, res) => res.json({ ok: true, branch: branchId }));
 
-// Rutas protegidas
+// Rutas protegidas (requieren JWT)
 app.use(jwtMiddleware);
-app.use('/usuarios',  usuarioRoutes);
-app.use('/productos', productRoutes);
-app.use('/products',  productRoutes);
-app.use('/inventory', inventoryRoutes);
-app.use('/sales',     saleRoutes);
-app.use('/reports',   reportRoutes);
-app.use('/sync',      syncRoutes);
+app.use('/api/usuarios',   usuarioRoutes);
+app.use('/api/categorias', categoriaRoutes);
+app.use('/api/productos',  productoRoutes);
+app.use('/api/inventario', inventarioRoutes);
 
-app.use(errorHandler);
+// Manejo global de errores
+app.use(errorMiddleware);
 
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT ?? 3001);
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`Sucursal activa: ${branchId}`);
+  console.log(`✅ Servidor FERRED corriendo en http://localhost:${PORT}`);
+  console.log(`📦 Sucursal activa: ${branchId}`);
+  console.log(`🗄️  BD: ferred_branch${branchId}.db`);
 });
 
-// Arranca el servicio de sincronización en background
 SyncService.start();

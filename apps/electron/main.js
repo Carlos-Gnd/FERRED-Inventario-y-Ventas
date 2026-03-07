@@ -1,39 +1,211 @@
-const { app, BrowserWindow } = require('electron');
-const path = require('path');
-require('dotenv').config();
+'use strict';
 
-const DEV_URL = process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173';
+const { app, BrowserWindow, shell, ipcMain, Menu, Tray, nativeImage } = require('electron');
+const path    = require('path');
+const { fork } = require('child_process');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-function createWindow() {
-  return new BrowserWindow({
-    width: 1280,
-    height: 800,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-    },
-  });
-}
+// ── Importar handlers IPC ────────────────────────────────────
+require('./ipc/printer.ipc');
+require('./ipc/server.ipc');
 
-async function loadRenderer(win) {
-  if (!app.isPackaged) {
-    for (let i = 0; i < 30; i += 1) {
-      try {
-        await win.loadURL(DEV_URL);
-        return;
-      } catch {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-    }
+// ── Config ───────────────────────────────────────────────────
+const DEV_URL    = process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173';
+const BRANCH_ID  = process.env.BRANCH_ID || '1';
+const IS_DEV     = !app.isPackaged;
+const IS_WIN     = process.platform === 'win32';
 
-    await win.loadURL(`data:text/html,${encodeURIComponent('<h2>No se pudo abrir Vite en http://localhost:5173</h2><p>Ejecuta pnpm run dev y revisa que apps/renderer este arriba.</p>')}`);
+let mainWindow = null;
+let serverProcess = null;
+let tray = null;
+
+// ── Arrancar servidor Express embebido ───────────────────────
+function startServer() {
+  if (IS_DEV) {
+    // En dev el servidor corre con `pnpm dev:server` separado
+    console.log('[Electron] Modo DEV — servidor debe estar corriendo en localhost:3001');
     return;
   }
 
-  await win.loadFile(path.join(__dirname, '../renderer/dist/index.html'));
+  const serverEntry = path.join(process.resourcesPath, 'server', 'dist', 'index.js');
+
+  // Pasar DATABASE_URL al proceso hijo
+  const env = {
+    ...process.env,
+    BRANCH_ID,
+    NODE_ENV: 'production',
+    DATABASE_URL: `file:${path.join(app.getPath('userData'), `ferred_branch${BRANCH_ID}.db`)}`,
+  };
+
+  serverProcess = fork(serverEntry, [], { env, silent: false });
+
+  serverProcess.on('error', (err) => console.error('[Server]', err));
+  serverProcess.on('exit',  (code) => console.log(`[Server] salió con código ${code}`));
+
+  console.log(`[Electron] Servidor embebido iniciado (PID ${serverProcess.pid})`);
 }
 
+// ── Crear ventana principal ──────────────────────────────────
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width:           1280,
+    height:          800,
+    minWidth:        900,
+    minHeight:       600,
+    backgroundColor: '#0F172A',   // evita flash blanco al cargar
+    show:            false,       // mostrar solo cuando esté listo
+    titleBarStyle:   IS_WIN ? 'default' : 'hiddenInset',
+    icon:            path.join(__dirname, 'resources', 'icon.png'),
+    webPreferences: {
+      preload:          path.join(__dirname, 'preload.js'),
+      contextIsolation: true,       // seguridad: ON
+      nodeIntegration:  false,      // seguridad: OFF
+      sandbox:          false,      // necesario para preload con require
+      webSecurity:      !IS_DEV,    // relajar en dev para hot-reload
+    },
+  });
+
+  // Mostrar cuando el contenido esté listo (evita flash)
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    if (IS_DEV) mainWindow.webContents.openDevTools({ mode: 'detach' });
+  });
+
+  // Abrir links externos en el navegador del SO
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  mainWindow.on('closed', () => { mainWindow = null; });
+
+  return mainWindow;
+}
+
+// ── Cargar renderer ──────────────────────────────────────────
+async function loadRenderer(win) {
+  if (IS_DEV) {
+    // Reintentar hasta que Vite esté listo
+    for (let i = 0; i < 30; i++) {
+      try {
+        await win.loadURL(DEV_URL);
+        console.log('[Electron] Renderer cargado desde Vite en', DEV_URL);
+        return;
+      } catch {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+    await win.loadURL(
+      `data:text/html,${encodeURIComponent(
+        '<body style="font-family:sans-serif;padding:2rem;background:#0F172A;color:#F8FAFC">' +
+        '<h2>⚠ No se pudo conectar con el renderer</h2>' +
+        '<p>Asegurate de correr <code>pnpm dev:renderer</code> en otra terminal.</p></body>'
+      )}`
+    );
+    return;
+  }
+
+  // En producción cargar el build de Vite
+  const indexPath = path.join(__dirname, '..', 'renderer', 'dist', 'index.html');
+  await win.loadFile(indexPath);
+}
+
+// ── Tray (bandeja del sistema) ───────────────────────────────
+function createTray() {
+  const iconPath = path.join(__dirname, 'resources', 'icon-tray.png');
+  const icon     = nativeImage.createFromPath(iconPath);
+  tray           = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
+
+  const menu = Menu.buildFromTemplate([
+    { label: 'Abrir FERRED',  click: () => mainWindow?.show() },
+    { type:  'separator' },
+    { label: `Sucursal ${BRANCH_ID}`, enabled: false },
+    { type:  'separator' },
+    { label: 'Salir', click: () => { app.isQuitting = true; app.quit(); } },
+  ]);
+
+  tray.setToolTip(`FERRED — Sucursal ${BRANCH_ID}`);
+  tray.setContextMenu(menu);
+  tray.on('double-click', () => mainWindow?.show());
+}
+
+// ── Menú de aplicación ───────────────────────────────────────
+function buildMenu() {
+  const template = [
+    {
+      label: 'FERRED',
+      submenu: [
+        { label: 'Acerca de FERRED', role: 'about' },
+        { type: 'separator' },
+        { label: 'Salir', accelerator: IS_WIN ? 'Alt+F4' : 'CmdOrCtrl+Q', click: () => app.quit() },
+      ],
+    },
+    {
+      label: 'Ver',
+      submenu: [
+        { label: 'Recargar', role: 'reload' },
+        { label: 'Forzar recarga', role: 'forceReload' },
+        { type: 'separator' },
+        { label: 'Zoom +', role: 'zoomIn' },
+        { label: 'Zoom −', role: 'zoomOut' },
+        { label: 'Tamaño real', role: 'resetZoom' },
+        { type: 'separator' },
+        { label: 'Pantalla completa', role: 'togglefullscreen' },
+        ...(IS_DEV ? [{ type: 'separator' }, { label: 'DevTools', role: 'toggleDevTools' }] : []),
+      ],
+    },
+    {
+      label: 'Ventana',
+      submenu: [
+        { label: 'Minimizar', role: 'minimize' },
+        { label: 'Cerrar', role: 'close' },
+      ],
+    },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+// ── IPC: básicos desde renderer ──────────────────────────────
+ipcMain.handle('get-branch-id', () => BRANCH_ID);
+ipcMain.handle('get-app-version', () => app.getVersion());
+ipcMain.handle('get-user-data-path', () => app.getPath('userData'));
+
+ipcMain.on('window-minimize', () => mainWindow?.minimize());
+ipcMain.on('window-maximize', () => {
+  if (mainWindow?.isMaximized()) mainWindow.unmaximize();
+  else mainWindow?.maximize();
+});
+ipcMain.on('window-close', () => mainWindow?.close());
+
+// ── Ciclo de vida de la app ──────────────────────────────────
 app.whenReady().then(async () => {
+  buildMenu();
+  startServer();
+
   const win = createWindow();
+  createTray();
   await loadRenderer(win);
+});
+
+// Mantener app viva en macOS al cerrar última ventana
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    const win = createWindow();
+    loadRenderer(win);
+  }
+});
+
+// Apagar servidor al cerrar app
+app.on('before-quit', () => {
+  app.isQuitting = true;
+  if (serverProcess) {
+    serverProcess.kill();
+    serverProcess = null;
+  }
+  tray?.destroy();
 });

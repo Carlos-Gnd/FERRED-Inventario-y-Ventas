@@ -1,25 +1,42 @@
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
+import path from 'node:path';
 
-dotenv.config();
+const envPaths = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '../../.env'),
+];
+
+for (const envPath of envPaths) {
+  dotenv.config({ path: envPath, override: false });
+}
 
 function required(name: string): string {
   const val = process.env[name];
-  if (!val) throw new Error(`Falta variable de entorno: ${name}`);
+  if (!val) throw new Error(`Variable de entorno requerida: ${name}`);
   return val;
 }
 
 export const env = {
-  port: Number(process.env.PORT ?? 3000),
+  port:     Number(process.env.PORT ?? 3001),
+  branchId: Number(process.env.BRANCH_ID ?? 1),
+  nodeEnv:  process.env.NODE_ENV ?? 'development',
 
-  db: {
-    host: required("DB_HOST"),
-    user: required("DB_USER"),
-    password: process.env.DB_PASSWORD ?? "",
-    database: required("DB_NAME"),
-    port: Number(process.env.DB_PORT ?? 3306),
+  jwt: {
+    secret:    required('JWT_SECRET'),
+    expiresIn: (process.env.JWT_EXPIRES_IN ?? '90d') as string,
   },
 
-  bcrypt: {
-    saltRounds: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
+  crypto: {
+    secret: required('CRYPTO_SECRET'),
   },
-};
+
+  supabase: {
+    url:        required('SUPABASE_URL'),
+    serviceKey: required('SUPABASE_SERVICE_KEY'),
+  },
+
+  dte: {
+    env:        process.env.DTE_ENV ?? 'sandbox',
+    sandboxUrl: process.env.DTE_SANDBOX_URL ?? 'https://apitest.dtes.mh.gob.sv',
+  },
+} as const;

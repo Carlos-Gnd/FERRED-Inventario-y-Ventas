@@ -1,25 +1,33 @@
-// src/store/authStore.ts
-
-import { create } from "zustand";
-
-interface User {
-  nombre: string;
-  rol: "ADMINISTRADOR" | "CAJERO" | "BODEGA";
-  sucursal: string;
-}
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { AuthUser } from '../types';
 
 interface AuthState {
-  token: string | null;
-  user: User | null;
-  setToken: (token: string) => void;
-  setUser: (user: User) => void;
-  logout: () => void;
+  token:           string | null;
+  usuario:         AuthUser | null;
+  isAuthenticated: boolean;
+
+  // Acción unificada — nunca más setToken + setUser por separado
+  setAuth:  (usuario: AuthUser, token: string) => void;
+  logout:   () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  token: null,
-  user: null,
-  setToken: (token) => set({ token }),
-  setUser: (user) => set({ user }),
-  logout: () => set({ token: null, user: null }),
-}));
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      token:           null,
+      usuario:         null,
+      isAuthenticated: false,
+
+      setAuth: (usuario, token) =>
+        set({ usuario, token, isAuthenticated: true }),
+
+      logout: () =>
+        set({ usuario: null, token: null, isAuthenticated: false }),
+    }),
+    {
+      name:    'ferred-auth',      // clave en localStorage
+      version: 1,
+    }
+  )
+);
