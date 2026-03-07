@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // DATABASE_URL usa pgBouncer (puerto 6543) → para queries normales
+  url       = env("DATABASE_URL")
+  // DIRECT_URL usa conexión directa (puerto 5432) → para migraciones
+  directUrl = env("DIRECT_URL")
 }
 
 model Sucursal {
@@ -14,6 +17,7 @@ model Sucursal {
   telefono  String?
   usuarios  Usuario[]
   facturas  FacturaDte[]
+  stocks    StockSucursal[]
   @@map("sucursales")
 }
 
@@ -21,6 +25,7 @@ model Categoria {
   id          Int    @id @default(autoincrement())
   nombre      String @unique
   descripcion String?
+  activo      Boolean @default(true)
   productos   Producto[]
   @@map("categorias")
 }
@@ -57,7 +62,21 @@ model Producto {
   creadoEn           DateTime @default(now()) @map("creado_en")
   categoria          Categoria?    @relation(fields: [categoriaId], references: [id])
   detallesVenta      DetalleVenta[]
+  stocks             StockSucursal[]
   @@map("productos")
+}
+
+model StockSucursal {
+  id            Int      @id @default(autoincrement())
+  productoId    Int      @map("producto_id")
+  sucursalId    Int      @map("sucursal_id")
+  cantidad      Int      @default(0)
+  minimo        Int      @default(0)
+  actualizadoEn DateTime @default(now()) @updatedAt @map("actualizado_en")
+  producto      Producto  @relation(fields: [productoId], references: [id])
+  sucursal      Sucursal  @relation(fields: [sucursalId], references: [id])
+  @@unique([productoId, sucursalId])
+  @@map("stock_sucursal")
 }
 
 model FacturaDte {
@@ -73,6 +92,7 @@ model FacturaDte {
   total            Float?
   dteJson          String?  @map("dte_json")
   estado           String   @default("SIMULADO")
+  sincronizado     Boolean  @default(true)
   creadoEn         DateTime @default(now()) @map("creado_en")
   sucursal         Sucursal?    @relation(fields: [sucursalId], references: [id])
   usuario          Usuario?     @relation(fields: [usuarioId], references: [id])
@@ -99,6 +119,8 @@ model SyncLog {
   operacion String
   payload   String
   status    String    @default("PENDIENTE")
+  intentos  Int       @default(0)
+  error     String?
   creadoEn  DateTime  @default(now()) @map("creado_en")
   sincEn    DateTime? @map("sinc_en")
   usuario   Usuario?  @relation(fields: [usuarioId], references: [id])
