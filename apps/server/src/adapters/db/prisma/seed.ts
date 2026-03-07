@@ -1,4 +1,3 @@
-// Cargar .env ANTES de cualquier import
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
@@ -7,8 +6,7 @@ config({ path: resolve(process.cwd(), '.env') });
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
-// DATABASE_URL viene directo del .env — sin cálculos de rutas
-console.log(`🗄️  DATABASE_URL: ${process.env.DATABASE_URL}`);
+console.log(`🗄️  DATABASE_URL: ${process.env.DATABASE_URL?.substring(0, 50)}...`);
 
 const prisma = new PrismaClient();
 
