@@ -5,42 +5,41 @@
   "main": "main.js",
   "private": true,
   "scripts": {
-    "dev":     "electron .",
-    "build":   "electron-builder",
+    "dev": "electron .",
+    "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
   },
   "dependencies": {
-    "dotenv":          "^16.4.5",
-    "electron-store":  "^8.0.0"
+    "dotenv": "^16.4.5",
+    "electron-store": "^8.0.0"
   },
   "optionalDependencies": {
     "electron-pos-printer": "^3.0.9"
   },
   "devDependencies": {
-    "electron":         "^30.0.0",
+    "electron": "^3.0.9",
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId":       "sv.ferred.app",
+    "appId": "sv.ferred.app",
     "productName": "FERRED",
-    "copyright":   "© 2026 Ferred. Todos los derechos reservados.",
-    "asar":        true,
-
+    "copyright": "© 2026 Ferred. Todos los derechos reservados.",
+    "asar": true,
     "directories": {
-      "output":    "../../dist-electron",
+      "output": "../../dist-electron",
       "buildResources": "resources"
     },
-
     "extraResources": [
       {
         "from": "../server/dist",
-        "to":   "server/dist",
-        "filter": ["**/*"]
+        "to": "server/dist",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
-
     "files": [
       "main.js",
       "preload.js",
@@ -49,32 +48,50 @@
       "resources/**/*",
       "!node_modules/**"
     ],
-
     "win": {
-      "target":    [{ "target": "nsis", "arch": ["x64"] }],
-      "icon":      "resources/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.ico",
       "requestedExecutionLevel": "requireAdministrator"
     },
     "nsis": {
-      "oneClick":              false,
+      "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName":          "FERRED"
+      "shortcutName": "FERRED"
     },
-
     "mac": {
-      "target":  [{ "target": "dmg", "arch": ["x64", "arm64"] }],
-      "icon":    "resources/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.icns",
       "category": "public.app-category.business"
     },
-
     "linux": {
-      "target": [{ "target": "AppImage", "arch": ["x64"] }],
-      "icon":   "resources/icon.png",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.png",
       "category": "Office"
     },
-
     "publish": null
   }
 }
