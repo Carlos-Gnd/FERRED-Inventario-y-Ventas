@@ -1,111 +1,121 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuthStore }    from '../../store/authStore';
-import { useThemeStore }   from '../../store/themeStore';
+/**
+ * Topbar.tsx
+ * T-07.3: Muestra indicador de conectividad en tiempo real
+ * Muestra badge de pendientes de sync cuando hay registros sin subir
+ */
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
-const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  '/dashboard':  { title: 'Resumen General',      subtitle: 'Dashboard' },
-  '/usuarios':   { title: 'Gestión de Usuarios',  subtitle: 'Panel de Control' },
-  '/categorias': { title: 'Panel de Categorías',  subtitle: 'Panel de Control' },
-  '/productos':  { title: 'Control de Productos', subtitle: 'Panel de Control' },
-  '/ventas':     { title: 'Ventas / POS',         subtitle: 'Panel de Control' },
-  '/reportes':   { title: 'Reportes',             subtitle: 'Panel de Control' },
-  '/ajustes':    { title: 'Ajustes',              subtitle: 'Panel de Control' },
-};
-
-interface Props { onMenuClick?: () => void; }
-
-export function Topbar({ onMenuClick }: Props) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { logout } = useAuthStore();
+export function Topbar() {
+  const navigate   = useNavigate();
+  const { usuario, logout } = useAuthStore();
   const { isDark, toggleTheme } = useThemeStore();
-  const { isOnline } = useNetworkStatus();
-
-  const pageInfo = PAGE_TITLES[location.pathname] ?? { title: 'FERRED', subtitle: '' };
+  const { status, isOnline, syncState } = useNetworkStatus();
 
   function handleLogout() { logout(); navigate('/login'); }
 
-  return (
-    <header style={{
-      height: '56px', display: 'flex', alignItems: 'center',
-      padding: '0 16px', background: 'var(--bg-surface)',
-      borderBottom: '1px solid var(--border)', gap: '12px', flexShrink: 0,
-    }}>
-      {/* Hamburger — solo móvil */}
-      <button
-        onClick={onMenuClick}
-        className="hamburger-btn"
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: 'var(--text-muted)', padding: '6px', borderRadius: '6px',
-          display: 'none', alignItems: 'center',
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-      </button>
+  const initials = (name: string) =>
+    name.trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('');
 
-      {/* Page title */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h1 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {pageInfo.title}
-        </h1>
-        {pageInfo.subtitle && (
-          <span style={{ fontSize: '10px', color: 'var(--text-subtle)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            {pageInfo.subtitle}
+  // ── Indicador de red ────────────────────────────────────────
+  const NetIndicator = () => {
+    if (status === 'checking') return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--warning)', animation: 'pulse 1s infinite' }} />
+        <span style={{ fontSize: '11px', color: 'var(--warning)' }}>Verificando...</span>
+      </div>
+    );
+
+    if (!isOnline) return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px',
+        padding: '4px 10px', background: 'rgba(239,68,68,0.1)',
+        border: '1px solid rgba(239,68,68,0.25)', borderRadius: '20px' }}>
+        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--danger)' }} />
+        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--danger)' }}>Sin conexión</span>
+        {syncState.pendientes > 0 && (
+          <span style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 700 }}>
+            · {syncState.pendientes} pendientes
           </span>
         )}
       </div>
+    );
 
-      {/* Connection dot */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-        <span style={{
-          width: '7px', height: '7px', borderRadius: '50%',
-          background: isOnline ? 'var(--success)' : 'var(--warning)',
-        }} />
-        <span className="hide-xs" style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>
-          {isOnline ? 'En línea' : 'Sin conexión'}
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px',
+        padding: '4px 10px', background: 'rgba(16,185,129,0.08)',
+        border: '1px solid rgba(16,185,129,0.2)', borderRadius: '20px' }}>
+        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--success)' }} />
+        <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--success)' }}>En línea</span>
+        {syncState.pendientes > 0 && (
+          <span style={{ fontSize: '10px', color: 'var(--warning)', fontWeight: 700 }}>
+            · {syncState.pendientes} por sincronizar
+          </span>
+        )}
+        {syncState.errores > 0 && (
+          <span style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 700 }}>
+            · {syncState.errores} errores
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <header style={{
+      height: '52px',
+      borderBottom: '1px solid var(--border)',
+      background: 'var(--bg-surface)',
+      display: 'flex', alignItems: 'center',
+      padding: '0 20px', gap: '12px',
+      flexShrink: 0,
+    }}>
+      {/* Nombre de sucursal */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-subtle)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }} className="hide-sm">
+          Sucursal {usuario?.sucursalId ?? 1}
         </span>
       </div>
 
+      <div style={{ flex: 1 }} />
+
+      {/* Indicador de red — oculto en xs */}
+      <div className="hide-xs">
+        <NetIndicator />
+      </div>
+
       {/* Theme toggle */}
-      <button
-        onClick={toggleTheme}
-        title={isDark ? 'Modo claro' : 'Modo oscuro'}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '6px',
-          padding: '6px 10px', background: 'var(--bg-base)',
-          border: '1px solid var(--border)', borderRadius: '20px',
-          color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
-        }}
-      >
-        <span style={{ fontSize: '13px' }}>{isDark ? '☀️' : '🌙'}</span>
-        <span className="hide-sm">{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
+      <button onClick={toggleTheme} style={{
+        width: '32px', height: '32px', borderRadius: '6px',
+        background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px',
+      }} title={isDark ? 'Modo claro' : 'Modo oscuro'}>
+        {isDark ? '☀️' : '🌙'}
       </button>
 
-      {/* Logout */}
-      <button
-        onClick={handleLogout}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '6px',
-          background: 'none', border: '1px solid var(--border)',
-          borderRadius: '6px', padding: '6px 10px',
-          color: 'var(--text-muted)', cursor: 'pointer',
-          fontSize: '12px', fontWeight: 500, fontFamily: 'inherit',
-          flexShrink: 0,
+      {/* Usuario */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="hide-sm" style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{usuario?.nombre}</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{usuario?.rol}</div>
+        </div>
+        <div style={{
+          width: '32px', height: '32px', borderRadius: '50%',
+          background: 'var(--accent)', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff',
+          cursor: 'pointer', flexShrink: 0,
         }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--danger)'; e.currentTarget.style.color = 'var(--danger)'; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-      >
-        <span className="hide-sm">Cerrar Sesión</span>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-      </button>
+          onClick={handleLogout}
+          title="Cerrar sesión"
+        >
+          {initials(usuario?.nombre ?? 'U')}
+        </div>
+      </div>
     </header>
   );
 }
