@@ -89,17 +89,10 @@ importers:
         specifier: ^4.19.2
         version: 4.22.1
       express-rate-limit:
-<<<<<<< Updated upstream
         specifier: ^7.5.1
         version: 7.5.1(express@4.22.1)
       helmet:
         specifier: ^7.2.0
-=======
-        specifier: ^7.3.1
-        version: 7.5.1(express@4.22.1)
-      helmet:
-        specifier: ^7.1.0
->>>>>>> Stashed changes
         version: 7.2.0
       jsonwebtoken:
         specifier: ^9.0.2
