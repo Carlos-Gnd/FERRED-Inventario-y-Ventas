@@ -87,25 +87,6 @@ El sistema sigue una **Arquitectura Hexagonal (Ports & Adapters)** en el backend
               └──────────────────────┘
 ```
 
----
-
-## 📦 Módulos del Sistema
-
-| Módulo | Estado | Sprint |
-|--------|--------|--------|
-| Autenticación + Roles (HU-01) | ✅ Completo | Sprint 1 |
-| Categorías de productos (HU-04) | ✅ Completo | Sprint 1 |
-| Productos + Precios + IVA (HU-09) | ✅ Completo | Sprint 1 |
-| Inventario multisucursal (HU-06) | 🔄 En curso | Sprint 2 |
-| Sincronización offline (HU-07) | 🔄 En curso | Sprint 2 |
-| Ventas / POS (HU-02) | 🔄 En curso | Sprint 2 |
-| Alertas de stock mínimo (HU-03) | 🔄 En curso | Sprint 2 |
-| Facturación DTE (HU-08) | 📋 Pendiente | Sprint 3 |
-| Reportes PDF/Excel (HU-05) | 📋 Pendiente | Sprint 3 |
-| Cierre de caja (HU-10) | 📋 Pendiente | Sprint 3 |
-
----
-
 ## 👥 Roles y Permisos
 
 | Acción | Admin | Cajero | Bodega |
