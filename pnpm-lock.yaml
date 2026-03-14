@@ -11,6 +11,9 @@ importers:
       concurrently:
         specifier: ^8.2.2
         version: 8.2.2
+      tailwindcss:
+        specifier: ^4.2.1
+        version: 4.2.1
       wait-on:
         specifier: ^7.2.0
         version: 7.2.0
@@ -86,10 +89,17 @@ importers:
         specifier: ^4.19.2
         version: 4.22.1
       express-rate-limit:
+<<<<<<< Updated upstream
         specifier: ^7.5.1
         version: 7.5.1(express@4.22.1)
       helmet:
         specifier: ^7.2.0
+=======
+        specifier: ^7.3.1
+        version: 7.5.1(express@4.22.1)
+      helmet:
+        specifier: ^7.1.0
+>>>>>>> Stashed changes
         version: 7.2.0
       jsonwebtoken:
         specifier: ^9.0.2
@@ -2317,6 +2327,9 @@ packages:
   supports-color@8.1.1:
     resolution: {integrity: sha512-MpUEN2OodtUzxvKQl72cUF7RQ5EiHsGvSsVG0ia9c5RbWGL2CI4C7EpPS8UTBIplnlzZiNuV56w+FuNxy3ty2Q==}
     engines: {node: '>=10'}
+
+  tailwindcss@4.2.1:
+    resolution: {integrity: sha512-/tBrSQ36vCleJkAOsy9kbNTgaxvGbyOamC30PRePTQe/o1MFwEKHQk4Cn7BNGaPtjp+PuUrByJehM1hgxfq4sw==}
 
   tar-stream@2.2.0:
     resolution: {integrity: sha512-ujeqbceABgwMZxEJnk2HDY2DlnUZ+9oEcb1KzTVfYHio0UE6dG71n60d8D2I4qNvleWrrXpmjpt7vZeF1LnMZQ==}
@@ -4861,6 +4874,8 @@ snapshots:
   supports-color@8.1.1:
     dependencies:
       has-flag: 4.0.0
+
+  tailwindcss@4.2.1: {}
 
   tar-stream@2.2.0:
     dependencies:
