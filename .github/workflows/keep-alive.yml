@@ -1,0 +1,27 @@
+
+
+name: Keep Render Alive
+
+on:
+  schedule:
+    
+    - cron: '*/9 * * * *'
+  workflow_dispatch:  
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping servidor FERRED en Render
+        run: |
+        
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+    
+            https://ferred.onrender.com/health)
+          echo "Health check status: $STATUS"
+         
+          if [ "$STATUS" != "200" ]; then
+            echo "⚠️ Servidor no responde correctamente (status $STATUS)"
+            exit 1
+          fi
+          echo "✅ Servidor activo"
+
