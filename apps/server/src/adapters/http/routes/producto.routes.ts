@@ -1,8 +1,3 @@
-/**
- * producto.routes.ts
- * HU-06: valida stock por sucursal antes de descontar
- * HU-07: registra mutaciones en sync_log
- */
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma }         from '../../db/prisma/prisma.client';
@@ -35,17 +30,20 @@ function calcularPrecios(data: any) {
   return data;
 }
 
-// GET /api/productos
+// ── GET /api/productos ─────────────────────────────────────────────────────────
 productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { buscar, categoriaId, criticos, sucursalId } = req.query;
     const cacheKey = `productos:${JSON.stringify(req.query)}`;
 
-    // Caché offline
-    if (!SyncService.isOnline()) {
+    if (!SyncService.isOnline() && req.usuario) {
       const cached = OfflineCache.get(cacheKey);
       if (cached) return res.json(cached);
     }
+
+    const targetSucursalId = sucursalId
+      ? Number(sucursalId)
+      : req.usuario?.sucursalId;
 
     const productos = await prisma.producto.findMany({
       where: {
@@ -60,10 +58,9 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
       },
       include: {
         categoria: { select: { id: true, nombre: true } },
-        // Si se pide para una sucursal específica, incluir su stock
-        ...(sucursalId ? {
+        ...(targetSucursalId ? {
           stocks: {
-            where: { sucursalId: Number(sucursalId) },
+            where:  { sucursalId: targetSucursalId },
             select: { cantidad: true, minimo: true },
           },
         } : {}),
@@ -71,9 +68,8 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
       orderBy: { nombre: 'asc' },
     });
 
-    // Si se pidió sucursal, filtrar críticos usando el stock de esa sucursal
     let resultado = productos;
-    if (criticos === 'true' && sucursalId) {
+    if (criticos === 'true' && targetSucursalId) {
       resultado = productos.filter(p => {
         const s = (p as any).stocks?.[0];
         return s ? s.cantidad <= s.minimo : p.stockActual <= p.stockMinimo;
@@ -87,7 +83,7 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
   } catch (err) { return next(err); }
 });
 
-// GET /api/productos/barcode/:codigo
+// ── GET /api/productos/barcode/:codigo ─────────────────────────────────────────
 productoRoutes.get('/barcode/:codigo', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const producto = await prisma.producto.findUnique({
@@ -99,7 +95,7 @@ productoRoutes.get('/barcode/:codigo', async (req: Request, res: Response, next:
   } catch (err) { return next(err); }
 });
 
-// GET /api/productos/:id/stock/:sucursalId — stock de un producto en sucursal
+// ── GET /api/productos/:id/stock/:sucursalId ───────────────────────────────────
 productoRoutes.get('/:id/stock/:sucursalId', async (req, res, next) => {
   try {
     const productoId = Number(req.params.id);
@@ -109,11 +105,16 @@ productoRoutes.get('/:id/stock/:sucursalId', async (req, res, next) => {
       where: { productoId_sucursalId: { productoId, sucursalId } },
     });
 
-    return res.json({ productoId, sucursalId, cantidad: stock?.cantidad ?? 0, minimo: stock?.minimo ?? 0 });
+    return res.json({
+      productoId,
+      sucursalId,
+      cantidad: stock?.cantidad ?? 0,
+      minimo:   stock?.minimo   ?? 0,
+    });
   } catch (err) { return next(err); }
 });
 
-// POST /api/productos
+// ── POST /api/productos ────────────────────────────────────────────────────────
 productoRoutes.post('/', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = schema.safeParse(req.body);
@@ -122,8 +123,7 @@ productoRoutes.post('/', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request,
     const data  = calcularPrecios({ ...parsed.data });
     const nuevo = await prisma.producto.create({ data, include: { categoria: true } });
 
-    // Crear registro de stock para la sucursal del usuario
-    const sucursalId = (req as any).user?.sucursalId;
+    const sucursalId = req.usuario?.sucursalId;
     if (sucursalId) {
       await prisma.stockSucursal.upsert({
         where:  { productoId_sucursalId: { productoId: nuevo.id, sucursalId } },
@@ -132,26 +132,24 @@ productoRoutes.post('/', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request,
       });
     }
 
-    // Registrar para sync
-    await logPendiente('producto', 'CREATE', nuevo, (req as any).user?.id);
+    await logPendiente('producto', 'CREATE', nuevo, req.usuario?.id);
     OfflineCache.invalidate('productos:');
 
     return res.status(201).json({ mensaje: 'Producto creado', producto: nuevo });
   } catch (err) { return next(err); }
 });
 
-// PUT /api/productos/:id
+// ── PUT /api/productos/:id ─────────────────────────────────────────────────────
 productoRoutes.put('/:id', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id     = Number(req.params.id);
     const parsed = schema.partial().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
 
-    const data       = calcularPrecios({ ...parsed.data });
+    const data        = calcularPrecios({ ...parsed.data });
     const actualizado = await prisma.producto.update({ where: { id }, data, include: { categoria: true } });
 
-    // Actualizar stock en sucursal del usuario si se cambió stockActual
-    const sucursalId = (req as any).user?.sucursalId;
+    const sucursalId = req.usuario?.sucursalId;
     if (sucursalId && data.stockActual !== undefined) {
       await prisma.stockSucursal.upsert({
         where:  { productoId_sucursalId: { productoId: id, sucursalId } },
@@ -160,35 +158,34 @@ productoRoutes.put('/:id', roleMiddleware('ADMIN', 'BODEGA'), async (req: Reques
       });
     }
 
-    await logPendiente('producto', 'UPDATE', actualizado, (req as any).user?.id);
+    await logPendiente('producto', 'UPDATE', actualizado, req.usuario?.id);
     OfflineCache.invalidate('productos:');
 
     return res.json({ mensaje: 'Producto actualizado', producto: actualizado });
   } catch (err) { return next(err); }
 });
 
-// DELETE /api/productos/:id — borrado lógico
+// ── DELETE /api/productos/:id — borrado lógico ─────────────────────────────────
 productoRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
     await prisma.producto.update({ where: { id }, data: { activo: false } });
-    await logPendiente('producto', 'DELETE', { id }, (req as any).user?.id);
+    // BUG-04 FIX 5: req.usuario?.id en lugar de (req as any).user?.id
+    await logPendiente('producto', 'DELETE', { id }, req.usuario?.id);
     OfflineCache.invalidate('productos:');
     return res.json({ mensaje: 'Producto desactivado' });
   } catch (err) { return next(err); }
 });
 
-// POST /api/productos/:id/descontar-stock
-// T-06.2: Valida stock en sucursal antes de descontar (para ventas)
+// ── POST /api/productos/:id/descontar-stock ────────────────────────────────────
 productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), async (req, res, next) => {
   try {
     const productoId = Number(req.params.id);
     const { cantidad, sucursalId } = req.body as { cantidad: number; sucursalId: number };
 
     if (!cantidad || cantidad <= 0) return res.status(400).json({ error: 'cantidad inválida' });
-    if (!sucursalId)               return res.status(400).json({ error: 'sucursalId requerido' });
+    if (!sucursalId)                return res.status(400).json({ error: 'sucursalId requerido' });
 
-    // T-06.2: verificar stock disponible en la sucursal
     const stock = await prisma.stockSucursal.findUnique({
       where: { productoId_sucursalId: { productoId, sucursalId } },
     });
@@ -196,14 +193,13 @@ productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), a
     const disponible = stock?.cantidad ?? 0;
     if (disponible < cantidad) {
       return res.status(409).json({
-        error:       'Stock insuficiente en esta sucursal',
+        error:      'Stock insuficiente en esta sucursal',
         disponible,
-        solicitado:  cantidad,
+        solicitado: cantidad,
         sucursalId,
       });
     }
 
-    // Descontar en transacción
     const [stockActualizado] = await prisma.$transaction([
       prisma.stockSucursal.update({
         where: { productoId_sucursalId: { productoId, sucursalId } },
