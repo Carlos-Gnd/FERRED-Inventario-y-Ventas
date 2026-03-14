@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Badge } from '../../components/ui';
-import { api } from '../../services/api.client';
+import { api, isOfflineError } from '../../services/api.client';
 import { useAuthStore } from '../../store/authStore';
 import type { UserRole } from '../../types';
 
@@ -13,34 +13,50 @@ export default function DashboardPage() {
   const usuario = useAuthStore(s => s.usuario);
   const rol = (usuario?.rol ?? 'CAJERO') as UserRole;
   const [stats, setStats] = useState<Stats>({ productos: 0, usuarios: 0, stockBajo: 0, categorias: 0 });
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
+      setLoadError(null);
       try {
         const [prods, cats, invRes] = await Promise.allSettled([
           api.get('/productos'),
           api.get('/categorias'),
           api.get('/inventario/stock-bajo'),
         ]);
-        const productos   = prods.status   === 'fulfilled' ? prods.value.data.length   : 0;
-        const categorias  = cats.status    === 'fulfilled' ? cats.value.data.length    : 0;
-        const stockBajo   = invRes.status  === 'fulfilled' ? invRes.value.data.length  : 0;
-        // usuarios solo admin
+        const productos  = prods.status  === 'fulfilled' ? prods.value.data.length  : 0;
+        const categorias = cats.status   === 'fulfilled' ? cats.value.data.length   : 0;
+        const stockBajo  = invRes.status === 'fulfilled' ? invRes.value.data.length : 0;
         let usuarios = 0;
         if (rol === 'ADMIN') {
-          try { const r = await api.get('/usuarios'); usuarios = r.data.length; } catch {}
+          try {
+            const r = await api.get('/usuarios');
+            usuarios = r.data.length;
+          } catch (err) {
+            if (!isOfflineError(err)) {
+              console.error('[Dashboard] Error al cargar usuarios:', err);
+              setLoadError('No se pudieron cargar algunos datos del panel.');
+            }
+          }
         }
         setStats({ productos, usuarios, stockBajo, categorias });
-      } catch {}
+      } catch (err) {
+        if (isOfflineError(err)) {
+          setLoadError('Sin conexión — mostrando últimos datos disponibles.');
+        } else {
+          setLoadError('Error al cargar el panel. Intentá recargar la página.');
+          console.error('[Dashboard] Error crítico:', err);
+        }
+      }
     }
     load();
   }, [rol]);
 
   const STATS = [
-    { label: 'Productos',       value: stats.productos.toString(), trend: 'Total',    color: 'var(--accent)',   icon: '📦', visible: true },
-    { label: 'Categorías',      value: stats.categorias.toString(), trend: 'Grupos',  color: 'var(--accent)',   icon: '🗂️', visible: rol === 'ADMIN' || rol === 'BODEGA' },
-    { label: 'Usuarios Activos',value: stats.usuarios.toString(),  trend: 'Sistema',  color: 'var(--success)',  icon: '👥', visible: rol === 'ADMIN' },
-    { label: 'Alertas de Stock',value: `${stats.stockBajo} Items`, trend: 'Crítico',  color: 'var(--danger)',   icon: '⚠️', visible: rol === 'ADMIN' || rol === 'BODEGA' },
+    { label: 'Productos',        value: stats.productos.toString(),  trend: 'Total',   color: 'var(--accent)',  icon: '📦', visible: true },
+    { label: 'Categorías',       value: stats.categorias.toString(), trend: 'Grupos',  color: 'var(--accent)',  icon: '🗂️', visible: rol === 'ADMIN' || rol === 'BODEGA' },
+    { label: 'Usuarios Activos', value: stats.usuarios.toString(),   trend: 'Sistema', color: 'var(--success)', icon: '👥', visible: rol === 'ADMIN' },
+    { label: 'Alertas de Stock', value: `${stats.stockBajo} Items`,  trend: 'Crítico', color: 'var(--danger)',  icon: '⚠️', visible: rol === 'ADMIN' || rol === 'BODEGA' },
   ].filter(s => s.visible);
 
   return (
@@ -56,6 +72,19 @@ export default function DashboardPage() {
           {rol === 'CAJERO' && 'Módulo de ventas y punto de venta disponible.'}
           {rol === 'BODEGA' && 'Gestión de inventario y stock disponible.'}
         </p>
+        {loadError && (
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--warning)',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            fontSize: '13px',
+            color: 'var(--warning)',
+            marginTop: '8px',
+          }}>
+            ⚠️ {loadError}
+          </div>
+        )}
       </div>
 
       {/* Stats */}
