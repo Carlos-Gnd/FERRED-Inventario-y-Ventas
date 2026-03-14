@@ -1,4 +1,4 @@
-# 🔧 FERRED — Sistema de Inventario y Ventas
+# FERRED — Sistema de Inventario y Ventas
 
 > Sistema de escritorio offline-first para gestión de inventario, ventas y facturación electrónica DTE en ferretería con múltiples sucursales.
 
