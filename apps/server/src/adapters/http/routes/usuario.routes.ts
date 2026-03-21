@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
