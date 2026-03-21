@@ -5,7 +5,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to   = "https://ferred.onrender.com/api/:splat"
+  to   = "https://ferred-server.up.railway.app/api/:splat"
   status = 200
   force  = true
 
