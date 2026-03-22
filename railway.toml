@@ -2,9 +2,6 @@
 builder = "NIXPACKS"
 buildCommand = "npm install -g pnpm@9 && pnpm install && pnpm --filter server build"
 
-[build.nixpacksConfig]
-noDefaultPackages = true
-
 [deploy]
 startCommand = "node apps/server/dist/index.js"
 restartPolicyType = "ON_FAILURE"
