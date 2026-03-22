@@ -10,7 +10,8 @@
     "prisma:migrate": "dotenv -e .env -- prisma migrate dev",
     "prisma:push": "dotenv -e .env -- prisma db push",
     "prisma:studio": "dotenv -e .env -- prisma studio",
-    "db:seed": "dotenv -e .env -- tsx src/adapters/db/prisma/seed.ts"
+    "db:seed": "dotenv -e .env -- tsx src/adapters/db/prisma/seed.ts",
+    "railway-build": "pnpm install && pnpm build"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
