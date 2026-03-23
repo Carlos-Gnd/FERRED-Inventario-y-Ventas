@@ -162,7 +162,6 @@ export const SyncService = {
 
     // limpiar relaciones anidadas
     const data = limpiarPayload(tabla, payload);
-
     if (op === 'CREATE') {
       await model.upsert({
         where:  { id: data.id },
