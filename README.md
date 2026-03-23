@@ -15,6 +15,7 @@
 - [Módulos del Sistema](#-módulos-del-sistema)
 - [Roles y Permisos](#-roles-y-permisos)
 - [Deploy y Entornos](#-deploy-y-entornos)
+- [Acceso al Sistema](#-acceso-al-sistema)
 - [Equipo](#-equipo)
 
 ---
@@ -39,7 +40,7 @@ Sistema web-responsive empaquetado en Electron con SQLite local por sucursal, si
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Runtime | Node.js | v20 LTS |
+| Runtime | Node.js | v22 LTS |
 | Package manager | pnpm | v9+ |
 | Frontend | React + Vite + Tailwind CSS | v18 / v5 / v3 |
 | Estado global | Zustand | v4 |
@@ -48,7 +49,7 @@ Sistema web-responsive empaquetado en Electron con SQLite local por sucursal, si
 | ORM | Prisma ORM | v5 |
 | BD local | SQLite (better-sqlite3) | — |
 | BD nube | Supabase / PostgreSQL 15 | hosted |
-| Autenticación | JWT + Bcrypt | v9 / v5 |
+| Autenticación | JWT + bcryptjs | v9 / v3 |
 | Seguridad HTTP | Helmet + express-rate-limit | v7 / v7 |
 | UI/UX Design | Figma | — |
 | Control de versiones | GitHub | — |
@@ -83,9 +84,11 @@ El sistema sigue una **Arquitectura Hexagonal (Ports & Adapters)** en el backend
                        │ HTTPS (cuando hay internet)
               ┌────────▼─────────────┐
               │   Supabase (PgSQL)   │
-              │   + Sync API REST    │
+              │   + Railway API      │
               └──────────────────────┘
 ```
+
+---
 
 ## 👥 Roles y Permisos
 
@@ -106,10 +109,22 @@ El sistema sigue una **Arquitectura Hexagonal (Ports & Adapters)** en el backend
 | Entorno | URL | Rama | Deploy |
 |---------|-----|------|--------|
 | Frontend (producción) | https://ferred.netlify.app | `main` | Automático (Netlify) |
-| Backend (producción) | `ferred.onrender.com` | `main` | Automático (Render) |
+| Backend (producción) | https://server-production-3252.up.railway.app | `main` | Automático (Railway) |
 | Base de datos | Supabase — credenciales privadas | — | Siempre activo |
 
-> ℹ️ El servidor en Render (plan gratuito) tiene un GitHub Action de ping cada 10 minutos para evitar cold start. Ver `.github/workflows/keep-alive.yml`.
+---
+
+## 🔐 Acceso al Sistema
+
+> **URL:** https://ferred.netlify.app
+
+Las siguientes credenciales están disponibles para pruebas en el entorno de producción:
+
+| Rol | Correo | Contraseña | Permisos |
+|-----|--------|------------|----------|
+| **Administrador** | admin@ferred.com | admin123 | Acceso total al sistema |
+| **Cajero** | cajero@ferred.com | cajero123 | Ventas y consulta de stock |
+| **Bodeguero** | bodega@ferred.com | bodega123 | Inventario y recepción |
 
 ---
 
@@ -117,14 +132,14 @@ El sistema sigue una **Arquitectura Hexagonal (Ports & Adapters)** en el backend
 
 | Nombre | Código | Rol Scrum | Responsabilidad técnica |
 |--------|--------|-----------|------------------------|
-| Carlos Alberto Granados Amaya | u20240579 | Product Owner | Arquitectura de seguridad, infraestructura y deploy |
-| Mauricio Antonio Bustillo Rosales | u20240840 | Scrum Master | Coordinación de sprints y gestión de impedimentos |
-| René Francisco Pacheco Araniva | u20240844 | Developer | Integración de servicios externos y APIs |
-| Nelson René Rodríguez Quintanilla | u20240270 | Developer | Interfaces de usuario — productos y stock |
-| Lenin Alejandro Hernández Coreas | u20240830 | Developer | Arquitectura y optimización de base de datos |
-| Kevin Bladimir Guardado Ortez | u20241103 | Developer | Entorno de producción y estabilidad del sistema |
-| Bremond Antony Hernández Coreas | u20240827 | Developer | Lógica de negocio del backend — módulo de ventas |
-| Henry Fernando Portillo Luna | u20240848 | Developer | Calidad — pruebas unitarias e integración |
+| Carlos Alberto Granados Amaya | u20240579 | Líder de Desarrollo | Arquitectura backend, seguridad, infraestructura y deploy, QA general |
+| Mauricio Antonio Bustillo Rosales | u20240840 | Product Owner | Definición y priorización del backlog, gestión de historias de usuario, validación de entregables con el cliente |
+| Lenin Alejandro Hernández Coreas | u20240830 | Scrum Master | Facilitación de ceremonias Scrum, gestión de impedimentos, métricas de velocidad del equipo |
+| René Francisco Pacheco Araniva | u20240844 | Developer | Diseño UI/UX en Figma, modelado y optimización de base de datos |
+| Nelson René Rodríguez Quintanilla | u20240270 | Developer | Servicios externos, sincronización offline-first y SyncService |
+| Kevin Bladimir Guardado Ortez | u20241103 | Developer | Testing e integración — pruebas E2E, validación de flujos offline/online, reporte de bugs |
+| Bremond Antony Hernández Coreas | u20240827 | Developer | Lógica de negocio — módulo de ventas, POS, cálculo de precios e IVA, emisión de tickets |
+| Henry Fernando Portillo Luna | u20240848 | Developer | Desarrollo frontend — React + Zustand + Tailwind, vistas de inventario, productos y dashboard |
 
 ---
 
