@@ -1,6 +1,6 @@
-# 🔧 FERRED — Sistema de Inventario y Ventas
+# FERRED — Sistema de Inventario y Ventas
 
-> Sistema de escritorio offline-first para gestión de inventario, ventas y facturación electrónica en ferretería con múltiples sucursales.
+> Sistema de escritorio offline-first para gestión de inventario, ventas y facturación electrónica DTE en ferretería con múltiples sucursales.
 
 **Universidad de Oriente — Facultad de Ingeniería y Arquitectura**  
 `AMDS | ciclo I-2026` · `Grupo 2` · **Developers Group**
@@ -14,61 +14,51 @@
 - [Arquitectura](#-arquitectura)
 - [Módulos del Sistema](#-módulos-del-sistema)
 - [Roles y Permisos](#-roles-y-permisos)
-- [Sincronización Offline-First](#-sincronización-offline-first)
+- [Deploy y Entornos](#-deploy-y-entornos)
+- [Acceso al Sistema](#-acceso-al-sistema)
 - [Equipo](#-equipo)
 
 ---
 
 ## 📖 Descripción
 
-FERRED es una aplicación de escritorio nativa construida con **ElectronJS** que permite a una ferretería con dos sucursales gestionar su inventario y ventas de forma **100% operativa sin internet**, sincronizando automáticamente con la nube cuando detecta conexión.
+FERRED es una aplicación de escritorio construida con **ElectronJS** que permite operar **100% sin internet**, sincronizando automáticamente con la nube al detectar conexión.
 
 ### Problema que resuelve
 
-El cliente llevaba control manual en archivos Excel independientes por sucursal, lo que causaba:
-
-- Desabastecimiento de productos por falta de sincronización
-- Pérdida de tiempo en registro manual
-- Imposibilidad de obtener reportes consolidados entre sucursales
+- Control manual en Excel por sucursal → desabastecimiento y pérdida de datos
+- Sin visibilidad consolidada entre sucursales en tiempo real
+- Sin facturación electrónica DTE conforme al Ministerio de Hacienda
 
 ### Solución
 
-Un sistema web responsive empaquetado en Electron con base de datos SQLite local por sucursal, sincronización automática con Supabase (PostgreSQL) y emisión de Documentos Tributarios Electrónicos (DTE) para el Ministerio de Hacienda de El Salvador.
+Sistema web-responsive empaquetado en Electron con SQLite local por sucursal, sincronización automática con Supabase (PostgreSQL) y emisión de DTE para el Ministerio de Hacienda de El Salvador.
 
 ---
 
 ## 🛠 Stack Tecnológico
 
-| Categoría | Tecnología | Versión |
-|-----------|-----------|---------|
-| Runtime | Node.js | v20 LTS |
+| Capa | Tecnología | Versión |
+|------|-----------|---------|
+| Runtime | Node.js | v22 LTS |
 | Package manager | pnpm | v9+ |
-| Diseño UI/UX | Figma | — |
-| Frontend | React | v18 |
-| Build tool | Vite | v5 |
-| CSS | Tailwind CSS | v3 |
+| Frontend | React + Vite + Tailwind CSS | v18 / v5 / v3 |
 | Estado global | Zustand | v4 |
-| HTTP cliente | Axios | v1 |
 | Desktop | ElectronJS | v30 |
-| Impresión térmica | Electron POS Printer | latest |
-| Backend | Express.js | v4 |
-| Arquitectura backend | Hexagonal (Ports & Adapters) | — |
+| Backend | Express.js (Arquitectura Hexagonal) | v4 |
 | ORM | Prisma ORM | v5 |
 | BD local | SQLite (better-sqlite3) | — |
 | BD nube | Supabase / PostgreSQL 15 | hosted |
-| Web server | Nginx | v1.26 |
-| Autenticación | JWT (jsonwebtoken) | v9 |
-| Hash contraseñas | Bcrypt | v5 |
-| Cifrado | CryptoJS | v4 |
-| Gestión de tareas | Jira | — |
+| Autenticación | JWT + bcryptjs | v9 / v3 |
+| Seguridad HTTP | Helmet + express-rate-limit | v7 / v7 |
+| UI/UX Design | Figma | — |
 | Control de versiones | GitHub | — |
-| IDE | Visual Studio Code | — |
 
 ---
 
 ## 🏗 Arquitectura
 
-El sistema sigue una **Arquitectura Hexagonal (Ports & Adapters)** en el backend, garantizando que la lógica de negocio sea completamente independiente de frameworks, bases de datos y servicios externos.
+El sistema sigue una **Arquitectura Hexagonal (Ports & Adapters)** en el backend.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -78,111 +68,78 @@ El sistema sigue una **Arquitectura Hexagonal (Ports & Adapters)** en el backend
 │  │   React + Vite      │◄──│    main.js            │   │
 │  │   Tailwind + Zustand│   │    preload.js         │   │
 │  └────────┬────────────┘   └──────────┬────────────┘   │
-│           │ Axios (localhost:3001)     │ IPC            │
-│  ┌────────▼────────────────────────── ▼────────────┐   │
+│           │ Axios /api                │ IPC             │
+│  ┌────────▼───────────────────────────▼────────────┐   │
 │  │              Express.js Server                   │   │
-│  │         (Arquitectura Hexagonal)                 │   │
-│  │  ┌──────────────────────────────────────────┐   │   │
-│  │  │  CORE (pura lógica, sin frameworks)      │   │   │
-│  │  │  domain/ · ports/ · use-cases/           │   │   │
-│  │  └──────────────┬───────────────────────────┘   │   │
-│  │                 │ inyección de dependencias      │   │
-│  │  ┌──────────────▼───────────────────────────┐   │   │
-│  │  │  ADAPTERS                                 │   │   │
-│  │  │  db/ · dte/ · http/ · printer/ · sync/   │   │   │
-│  │  └──────────────────────────────────────────┘   │   │
-│  └────────────────────────┬─────────────────────────┘  │
-│                           │                             │
-│              ┌────────────▼─────────┐                  │
+│  │  ┌────────────────────────────────────────────┐  │   │
+│  │  │  ADAPTERS                                  │  │   │
+│  │  │  http/ · db/ · sync/ · printer/ · dte/     │  │   │
+│  │  └────────────────────────────────────────────┘  │   │
+│  └──────────────────────┬──────────────────────────┘   │
+│              ┌───────────▼──────────┐                  │
 │              │    SQLite local      │                  │
 │              │  (una por sucursal)  │                  │
 │              └──────────────────────┘                  │
 └──────────────────────┬──────────────────────────────────┘
                        │ HTTPS (cuando hay internet)
-                       │
-              ┌────────▼────────────┐
-              │   Nginx (Cloud)     │
-              │   Express Sync API  │
-              │   Supabase (PgSQL)  │
-              └─────────────────────┘
+              ┌────────▼─────────────┐
+              │   Supabase (PgSQL)   │
+              │   + Railway API      │
+              └──────────────────────┘
 ```
----
-
-## 📦 Módulos del Sistema
-
-| Módulo | Descripción | RF asociado |
-|--------|-------------|-------------|
-| **Autenticación** | Login con JWT, roles por sucursal | RF-06 |
-| **Inventario** | CRUD de productos, gestión híbrida cajas/unidades | RF-02, RF-03 |
-| **Ventas (POS)** | Registro de ventas, validación de stock, carrito | RF-01 |
-| **Proveedores** | Gestión de proveedores y compras | — |
-| **Facturación DTE** | Generación JSON para Hacienda, modo sandbox | RF-04 |
-| **Impresión** | Tickets en impresoras térmicas (ESC/POS) | RF-04 |
-| **Alertas de Stock** | Notificaciones cuando stock llega al mínimo | RF-07 |
-| **Reportes** | Ventas diarias/semanales/mensuales, stock faltante | RF-08 |
-| **Sincronización** | Envío automático a Supabase cuando hay internet | RF-05 |
 
 ---
 
 ## 👥 Roles y Permisos
 
-| Acción | Administrador | Cajero | Bodega |
-|--------|:---:|:---:|:---:|
-| Ver reportes consolidados | ✅ | ❌ | ❌ |
+| Acción | Admin | Cajero | Bodega |
+|--------|:-----:|:------:|:------:|
 | Gestionar usuarios | ✅ | ❌ | ❌ |
-| Configurar precios/descuentos | ✅ | ❌ | ❌ |
+| Configurar precios | ✅ | ❌ | ❌ |
+| Ver reportes consolidados | ✅ | ❌ | ❌ |
 | Registrar ventas | ✅ | ✅ | ❌ |
-| Consultar stock | ✅ | ✅ | ✅ |
 | Gestionar inventario | ✅ | ❌ | ✅ |
-| Registrar compras a proveedor | ✅ | ❌ | ✅ |
-| Ver reportes de su sucursal | ✅ | ✅ | ✅ |
+| Consultar stock | ✅ | ✅ | ✅ |
+| Recepción de proveedores | ✅ | ❌ | ✅ |
 
 ---
 
-## 🔄 Sincronización Offline-First
+## 🚀 Deploy y Entornos
 
-El sistema opera **100% sin internet**. La sincronización es un proceso background que no interrumpe la operación.
+| Entorno | URL | Rama | Deploy |
+|---------|-----|------|--------|
+| Frontend (producción) | https://ferred.netlify.app | `main` | Automático (Netlify) |
+| Backend (producción) | https://server-production-3252.up.railway.app | `main` | Automático (Railway) |
+| Base de datos | Supabase — credenciales privadas | — | Siempre activo |
 
-```
-Cajero registra venta
-        │
-        ▼
-  SQLite local ──► sync_log (status: PENDIENTE)
-        │
-        ▼
-  SyncService verifica internet cada 60s
-        │
-   ┌────┴────┐
-   │ offline │  → continúa operando, nada se pierde
-   └─────────┘
-   │ online  │
-   └────┬────┘
-        ▼
-  Envía batch a Supabase (cifrado con CryptoJS)
-        │
-        ▼
-  sync_log (status: SINCRONIZADO)
-        │
-        ▼
-  Admin ve reportes consolidados en tiempo real
-```
+---
 
-> ⏱ Tiempo máximo de sincronización: **< 5 minutos** tras detectar conexión a internet.
+## 🔐 Acceso al Sistema
+
+> **URL:** https://ferred.netlify.app
+
+Las siguientes credenciales están disponibles para pruebas en el entorno de producción:
+
+| Rol | Correo | Contraseña | Permisos |
+|-----|--------|------------|----------|
+| **Administrador** | admin@ferred.com | admin123 | Acceso total al sistema |
+| **Cajero** | cajero@ferred.com | cajero123 | Ventas y consulta de stock |
+| **Bodeguero** | bodega@ferred.com | bodega123 | Inventario y recepción |
 
 ---
 
 ## 👨‍💻 Equipo
 
-| Nombre | Código | Rol | Responsabilidad |
-|--------|--------|-----|----------------|
-| Carlos Alberto Granados Amaya | u20240579 | Product Owner | Asegurar que el equipo trabaje en lo que aporta mayor valor al cliente |
-| Mauricio Antonio Bustillo Rosales | u20240840 | Scrum Máster | Facilitar que el equipo elimine impedimentos y mejore continuamente |
-| René Francisco Pacheco Araniva | u20240844 | Developer | Integrar servicios y APIs externas para la escalabilidad del sistema |
-| Nelson René Rodríguez Quintanilla | u20240270 | Developer | Desarrollar interfaces de usuario para la gestión de productos y stock |
-| Lenin Alejandro Hernández Coreas | u20240830 | Developer | Diseñar y optimizar la arquitectura de la base de datos |
-| Kevin Bladimir Guardado Ortez | u20241103 | Developer | Gestionar el despliegue y estabilidad del entorno de producción |
-| Bremond Antony Hernández Coreas | u20240827 | Developer | Implementar la lógica de negocio del backend para ventas |
-| Henry Fernando Portillo Luna | u20240848 | Developer | Garantizar la calidad mediante pruebas unitarias y de integración |
+| Nombre | Código | Rol Scrum | Responsabilidad técnica |
+|--------|--------|-----------|------------------------|
+| Carlos Alberto Granados Amaya | u20240579 | Líder de Desarrollo | Arquitectura backend, seguridad, infraestructura y deploy, QA general |
+| Mauricio Antonio Bustillo Rosales | u20240840 | Product Owner | Definición y priorización del backlog, gestión de historias de usuario, validación de entregables con el cliente |
+| Lenin Alejandro Hernández Coreas | u20240830 | Scrum Master | Facilitación de ceremonias Scrum, gestión de impedimentos, métricas de velocidad del equipo |
+| René Francisco Pacheco Araniva | u20240844 | Developer | Diseño UI/UX en Figma, modelado y optimización de base de datos |
+| Nelson René Rodríguez Quintanilla | u20240270 | Developer | Servicios externos, sincronización offline-first y SyncService |
+| Kevin Bladimir Guardado Ortez | u20241103 | Developer | Testing e integración — pruebas E2E, validación de flujos offline/online, reporte de bugs |
+| Bremond Antony Hernández Coreas | u20240827 | Developer | Lógica de negocio — módulo de ventas, POS, cálculo de precios e IVA, emisión de tickets |
+| Henry Fernando Portillo Luna | u20240848 | Developer | Desarrollo frontend — React + Zustand + Tailwind, vistas de inventario, productos y dashboard |
 
 ---
 

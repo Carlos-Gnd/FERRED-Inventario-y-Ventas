@@ -4,8 +4,8 @@
   publish = "dist"
 
 [[redirects]]
-  from = "/api/*"
-  to   = "https://ferred.onrender.com/api/:splat"
+  from   = "/api/*"
+  to     = "https://server-production-3252.up.railway.app/api/:splat"
   status = 200
   force  = true
 
