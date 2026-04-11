@@ -2,6 +2,9 @@
  * inventario.routes.ts
  * HU-06: Inventario multisucursal — stock separado por sucursal
  * HU-07: Integración con SyncService (logPendiente en mutaciones)
+ *
+ * Sprint 2:
+ * T-06.1: GET /api/inventario/stock-comparativo  ← NUEVO
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma }       from '../../db/prisma/prisma.client';
@@ -201,6 +204,78 @@ inventarioRoutes.post(
         origen:  stockOrigen,
         destino: stockDestino,
       });
+    } catch (err) { return next(err); }
+  }
+);
+
+// ── GET /api/inventario/stock-comparativo ────────────────────
+// T-06.1: Vista comparativa del stock de TODOS los productos en AMBAS sucursales.
+// Solo accesible para ADMIN.
+//
+// Respuesta por producto:
+//   {
+//     id, nombre, codigoBarras, tipoUnidad, stockMinimo, precioVenta, categoria,
+//     stockTotal,          ← suma de todas las sucursales
+//     sucursales: [        ← una entrada por cada sucursal que tenga registro
+//       { sucursalId, sucursalNombre, cantidad, minimo, estado }
+//     ]
+//   }
+//
+// estado = 'critico'    cuando cantidad === 0
+//          'bajo'       cuando 0 < cantidad <= minimo
+//          'disponible' cuando cantidad > minimo
+inventarioRoutes.get(
+  '/stock-comparativo',
+  roleMiddleware('ADMIN'),
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const productos = await prisma.producto.findMany({
+        where:   { activo: true },
+        select: {
+          id:          true,
+          nombre:      true,
+          codigoBarras: true,
+          tipoUnidad:  true,
+          stockMinimo: true,
+          precioVenta: true,
+          categoria:   { select: { nombre: true } },
+          stocks: {
+            include: {
+              sucursal: { select: { id: true, nombre: true } },
+            },
+          },
+        },
+        orderBy: { nombre: 'asc' },
+      });
+
+      const resultado = productos.map(p => {
+        const sucursales = p.stocks.map(s => ({
+          sucursalId:     s.sucursalId,
+          sucursalNombre: s.sucursal.nombre,
+          cantidad:       s.cantidad,
+          minimo:         s.minimo,
+          estado:
+            s.cantidad === 0       ? 'critico'   :
+            s.cantidad <= s.minimo ? 'bajo'       :
+                                     'disponible',
+        }));
+
+        const stockTotal = sucursales.reduce((acc, s) => acc + s.cantidad, 0);
+
+        return {
+          id:           p.id,
+          nombre:       p.nombre,
+          codigoBarras: p.codigoBarras,
+          tipoUnidad:   p.tipoUnidad,
+          stockMinimo:  p.stockMinimo,
+          precioVenta:  p.precioVenta,
+          categoria:    p.categoria?.nombre ?? 'Sin categoría',
+          stockTotal,
+          sucursales,
+        };
+      });
+
+      return res.json(resultado);
     } catch (err) { return next(err); }
   }
 );
