@@ -214,3 +214,4 @@ inventarioRoutes.get('/sync-pendientes', async (_req, res, next) => {
     return res.json({ pendientes: count, errores, online: SyncService.isOnline() });
   } catch (err) { return next(err); }
 });
+
