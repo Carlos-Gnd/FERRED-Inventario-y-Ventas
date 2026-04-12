@@ -4,6 +4,7 @@ const { app, BrowserWindow, shell, ipcMain, Menu, Tray, nativeImage } = require(
 const path    = require('path');
 const { fork } = require('child_process');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
+const { initDb, getDb, closeDb } = require('./src/db/sqlite.init');
 
 // ── Importar handlers IPC ────────────────────────────────────
 require('./ipc/printer.ipc');
@@ -22,14 +23,12 @@ let tray = null;
 // ── Arrancar servidor Express embebido ───────────────────────
 function startServer() {
   if (IS_DEV) {
-    // En dev el servidor corre con `pnpm dev:server` separado
     console.log('[Electron] Modo DEV — servidor debe estar corriendo en localhost:3001');
     return;
   }
 
   const serverEntry = path.join(process.resourcesPath, 'server', 'dist', 'index.js');
 
-  // Pasar DATABASE_URL al proceso hijo
   const env = {
     ...process.env,
     BRANCH_ID,
@@ -52,26 +51,24 @@ function createWindow() {
     height:          800,
     minWidth:        900,
     minHeight:       600,
-    backgroundColor: '#0F172A',   // evita flash blanco al cargar
-    show:            false,       // mostrar solo cuando esté listo
+    backgroundColor: '#0F172A',
+    show:            false,
     titleBarStyle:   IS_WIN ? 'default' : 'hiddenInset',
     icon:            path.join(__dirname, 'resources', 'icon.png'),
     webPreferences: {
       preload:          path.join(__dirname, 'preload.js'),
-      contextIsolation: true,       // seguridad: ON
-      nodeIntegration:  false,      // seguridad: OFF
-      sandbox:          false,      // necesario para preload con require
-      webSecurity:      !IS_DEV,    // relajar en dev para hot-reload
+      contextIsolation: true,
+      nodeIntegration:  false,
+      sandbox:          false,
+      webSecurity:      !IS_DEV,
     },
   });
 
-  // Mostrar cuando el contenido esté listo (evita flash)
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     if (IS_DEV) mainWindow.webContents.openDevTools({ mode: 'detach' });
   });
 
-  // Abrir links externos en el navegador del SO
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -85,7 +82,6 @@ function createWindow() {
 // ── Cargar renderer ──────────────────────────────────────────
 async function loadRenderer(win) {
   if (IS_DEV) {
-    // Reintentar hasta que Vite esté listo
     for (let i = 0; i < 30; i++) {
       try {
         await win.loadURL(DEV_URL);
@@ -105,7 +101,6 @@ async function loadRenderer(win) {
     return;
   }
 
-  // En producción cargar el build de Vite
   const indexPath = path.join(__dirname, '..', 'renderer', 'dist', 'index.html');
   await win.loadFile(indexPath);
 }
@@ -178,9 +173,35 @@ ipcMain.on('window-maximize', () => {
 });
 ipcMain.on('window-close', () => mainWindow?.close());
 
+// ── Contar registros pendientes de sync en SQLite local ──────
+ipcMain.handle('get-sync-pendientes', () => {
+  const db = getDb();
+  if (!db) return { pendientes: 0, errores: 0 };
+  try {
+    const pendientes = db.prepare(
+      "SELECT COUNT(*) as count FROM sync_log WHERE status = 'PENDIENTE'"
+    ).get();
+    const errores = db.prepare(
+      "SELECT COUNT(*) as count FROM sync_log WHERE status = 'ERROR'"
+    ).get();
+    return {
+      pendientes: pendientes?.count ?? 0,
+      errores: errores?.count ?? 0
+    };
+  } catch {
+    return { pendientes: 0, errores: 0 };
+  }
+});
+
 // ── Ciclo de vida de la app ──────────────────────────────────
 app.whenReady().then(async () => {
   buildMenu();
+
+  // Inicializar base de datos local SQLite
+  const branchId = process.env.BRANCH_ID || '1';
+  initDb(branchId);
+  console.log(`[Electron] BD local SQLite inicializada para sucursal ${branchId}`);
+
   startServer();
 
   const win = createWindow();
@@ -188,7 +209,6 @@ app.whenReady().then(async () => {
   await loadRenderer(win);
 });
 
-// Mantener app viva en macOS al cerrar última ventana
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
@@ -200,12 +220,12 @@ app.on('activate', () => {
   }
 });
 
-// Apagar servidor al cerrar app
 app.on('before-quit', () => {
   app.isQuitting = true;
   if (serverProcess) {
     serverProcess.kill();
     serverProcess = null;
   }
+  closeDb();
   tray?.destroy();
 });
