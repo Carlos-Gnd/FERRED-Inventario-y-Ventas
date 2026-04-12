@@ -1,43 +1,26 @@
 /**
  * inventario.routes.ts
- * HU-06: Inventario multisucursal — stock separado por sucursal
+ * HU-06: Inventario multisucursal – stock separado por sucursal
  * HU-07: Integración con SyncService (logPendiente en mutaciones)
  *
  * Sprint 2:
  * T-06.1: GET /api/inventario/stock-comparativo  ← NUEVO
+ * T-07C.2: GET /api/inventario/sync-pendientes   ← NUEVO
  */
 import { Router, Request, Response, NextFunction } from 'express';
-import { prisma }       from '../../db/prisma/prisma.client';
+import { prisma }         from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
 
 export const inventarioRoutes = Router();
 
-// ── BUG-06 FIX: sincronizarStockTotal ───────────────────────
-/**
- * PROBLEMA DETECTADO:
- *   productos.stock_actual  → se actualizaba al editar un producto desde ProductsPage
- *   stock_sucursal.cantidad → se actualizaba al hacer ajustes o transferencias
- *   Resultado: los dos valores divergían con el tiempo, datos inconsistentes.
- *
- * DECISIÓN: stock_actual en productos = SUMA de stock_sucursal de todas las sucursales
- *   - Es la fuente de verdad para el Dashboard y reportes globales
- *   - stock_sucursal es la fuente de verdad para el POS (venta por sucursal)
- *
- * CUÁNDO LLAMAR:
- *   - Después de ajuste de inventario   (/ajuste)
- *   - Después de transferencia          (/transferencia)
- *   - Después de una venta              (cuando se implemente HU-02)
- *   - Después de recepción de proveedor (HU-14)
- */
+// ── BUG-06 FIX: sincronizarStockTotal ──────────────────────────────────
 export async function sincronizarStockTotal(productoId: number): Promise<void> {
   const resultado = await prisma.stockSucursal.aggregate({
     where: { productoId },
     _sum:  { cantidad: true },
   });
-
   const totalStock = resultado._sum.cantidad ?? 0;
-
   await prisma.producto.update({
     where: { id: productoId },
     data:  { stockActual: totalStock },
@@ -52,19 +35,17 @@ async function getStockTotal(productoId: number): Promise<number> {
   return r._sum.cantidad ?? 0;
 }
 
-// ── GET /api/inventario/status — estado de conectividad ──────
+// ── GET /api/inventario/status ──────────────────────────────────────────
 inventarioRoutes.get('/status', (_req, res) => {
   res.json({ online: SyncService.isOnline() });
 });
 
-// ── GET /api/inventario/stock/:sucursalId ────────────────────
-// Lista el stock de todos los productos para una sucursal
+// ── GET /api/inventario/stock/:sucursalId ───────────────────────────────
 inventarioRoutes.get('/stock/:sucursalId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sucursalId = Number(req.params.sucursalId);
     const cacheKey   = `stock:${sucursalId}`;
 
-    // Intentar desde caché si offline
     if (!SyncService.isOnline()) {
       const cached = OfflineCache.get(cacheKey);
       if (cached) return res.json(cached);
@@ -90,8 +71,7 @@ inventarioRoutes.get('/stock/:sucursalId', async (req: Request, res: Response, n
   } catch (err) { return next(err); }
 });
 
-// ── GET /api/inventario/criticos/:sucursalId ─────────────────
-// Productos bajo el mínimo de ESA sucursal
+// ── GET /api/inventario/criticos/:sucursalId ────────────────────────────
 inventarioRoutes.get('/criticos/:sucursalId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sucursalId = Number(req.params.sucursalId);
@@ -112,8 +92,7 @@ inventarioRoutes.get('/criticos/:sucursalId', async (req: Request, res: Response
   } catch (err) { return next(err); }
 });
 
-// ── PATCH /api/inventario/:productoId/ajuste ─────────────────
-// Ajuste manual de stock para una sucursal específica
+// ── PATCH /api/inventario/:productoId/ajuste ────────────────────────────
 inventarioRoutes.patch(
   '/:productoId/ajuste',
   roleMiddleware('ADMIN', 'BODEGA'),
@@ -128,22 +107,17 @@ inventarioRoutes.patch(
       if (!Number.isFinite(cantidad)) return res.status(400).json({ error: 'cantidad inválida' });
       if (!sucursalId)                return res.status(400).json({ error: 'sucursalId requerido' });
 
-      // Upsert: crea el registro si no existe aún para esta sucursal
-      // BUG-06 FIX: update ahora setea cantidad y minimo directamente (no increment)
-      //             para que sincronizarStockTotal calcule la suma real entre sucursales
       const stock = await prisma.stockSucursal.upsert({
         where:  { productoId_sucursalId: { productoId, sucursalId } },
         create: { productoId, sucursalId, cantidad: Math.max(0, cantidad), minimo },
         update: { cantidad, minimo },
       });
 
-      // BUG-06 FIX: sincronizar stock_actual como SUMA de todas las sucursales
       await sincronizarStockTotal(productoId);
 
-      // Registrar para sync si estamos offline
       await logPendiente('stockSucursal', 'UPDATE', {
         id: stock.id, productoId, sucursalId, cantidad: stock.cantidad, motivo,
-      }, (req as any).user?.id);
+      }, (req as any).usuario?.id);
 
       OfflineCache.invalidate(`stock:${sucursalId}`);
       return res.json({ ok: true, stock, stockTotal: await getStockTotal(productoId) });
@@ -151,8 +125,7 @@ inventarioRoutes.patch(
   }
 );
 
-// ── POST /api/inventario/transferencia ───────────────────────
-// Transfiere stock entre sucursales (solo ADMIN)
+// ── POST /api/inventario/transferencia ─────────────────────────────────
 inventarioRoutes.post(
   '/transferencia',
   roleMiddleware('ADMIN'),
@@ -169,7 +142,6 @@ inventarioRoutes.post(
         return res.status(400).json({ error: 'Datos de transferencia inválidos' });
       }
 
-      // Verificar stock suficiente en origen
       const origen = await prisma.stockSucursal.findUnique({
         where: { productoId_sucursalId: { productoId, sucursalId: origenId } },
       });
@@ -180,7 +152,6 @@ inventarioRoutes.post(
         });
       }
 
-      // Ejecutar transferencia en transacción
       const [stockOrigen, stockDestino] = await prisma.$transaction([
         prisma.stockSucursal.update({
           where: { productoId_sucursalId: { productoId, sucursalId: origenId } },
@@ -193,9 +164,7 @@ inventarioRoutes.post(
         }),
       ]);
 
-      // BUG-06 FIX: sincronizar stock_actual después de la transferencia
       await sincronizarStockTotal(productoId);
-
       OfflineCache.invalidate(`stock:${origenId}`);
       OfflineCache.invalidate(`stock:${destinoId}`);
 
@@ -208,22 +177,7 @@ inventarioRoutes.post(
   }
 );
 
-// ── GET /api/inventario/stock-comparativo ────────────────────
-// T-06.1: Vista comparativa del stock de TODOS los productos en AMBAS sucursales.
-// Solo accesible para ADMIN.
-//
-// Respuesta por producto:
-//   {
-//     id, nombre, codigoBarras, tipoUnidad, stockMinimo, precioVenta, categoria,
-//     stockTotal,          ← suma de todas las sucursales
-//     sucursales: [        ← una entrada por cada sucursal que tenga registro
-//       { sucursalId, sucursalNombre, cantidad, minimo, estado }
-//     ]
-//   }
-//
-// estado = 'critico'    cuando cantidad === 0
-//          'bajo'       cuando 0 < cantidad <= minimo
-//          'disponible' cuando cantidad > minimo
+// ── GET /api/inventario/stock-comparativo ───────────────────────────────
 inventarioRoutes.get(
   '/stock-comparativo',
   roleMiddleware('ADMIN'),
@@ -232,13 +186,13 @@ inventarioRoutes.get(
       const productos = await prisma.producto.findMany({
         where:   { activo: true },
         select: {
-          id:          true,
-          nombre:      true,
+          id:           true,
+          nombre:       true,
           codigoBarras: true,
-          tipoUnidad:  true,
-          stockMinimo: true,
-          precioVenta: true,
-          categoria:   { select: { nombre: true } },
+          tipoUnidad:   true,
+          stockMinimo:  true,
+          precioVenta:  true,
+          categoria:    { select: { nombre: true } },
           stocks: {
             include: {
               sucursal: { select: { id: true, nombre: true } },
@@ -255,8 +209,8 @@ inventarioRoutes.get(
           cantidad:       s.cantidad,
           minimo:         s.minimo,
           estado:
-            s.cantidad === 0       ? 'critico'   :
-            s.cantidad <= s.minimo ? 'bajo'       :
+            s.cantidad === 0       ? 'critico'    :
+            s.cantidad <= s.minimo ? 'bajo'        :
                                      'disponible',
         }));
 
@@ -280,13 +234,28 @@ inventarioRoutes.get(
   }
 );
 
-// ── GET /api/inventario/sync-pendientes ──────────────────────
-// Cuenta de registros pendientes de sincronizar (para indicador UI)
-inventarioRoutes.get('/sync-pendientes', async (_req, res, next) => {
+// ── GET /api/inventario/sync-pendientes ─────────────────────────────────
+// T-07C.2: Conteo de registros pendientes, sincronizados y con error de la sucursal activa
+inventarioRoutes.get('/sync-pendientes', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const count   = await prisma.syncLog.count({ where: { status: 'PENDIENTE' } });
-    const errores = await prisma.syncLog.count({ where: { status: 'ERROR' } });
-    return res.json({ pendientes: count, errores, online: SyncService.isOnline() });
+    const sucursalId = (req as any).usuario?.sucursalId ?? null;
+
+    const whereBase = sucursalId
+      ? { payload: { contains: `"sucursalId":${sucursalId}` } }
+      : {};
+
+    const [pendientes, sincronizados, errores] = await Promise.all([
+      prisma.syncLog.count({ where: { status: 'PENDIENTE',    ...whereBase } }),
+      prisma.syncLog.count({ where: { status: 'SINCRONIZADO', ...whereBase } }),
+      prisma.syncLog.count({ where: { status: 'ERROR',        ...whereBase } }),
+    ]);
+
+    return res.json({
+      pendientes,
+      sincronizados,
+      errores,
+      online:     SyncService.isOnline(),
+      sucursalId,
+    });
   } catch (err) { return next(err); }
 });
-
