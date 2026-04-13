@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma }         from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
+import { sincronizarStockTotal } from './inventario.routes';
 
 export const productoRoutes = Router();
 
@@ -200,16 +201,12 @@ productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), a
       });
     }
 
-    const [stockActualizado] = await prisma.$transaction([
-      prisma.stockSucursal.update({
-        where: { productoId_sucursalId: { productoId, sucursalId } },
-        data:  { cantidad: { decrement: cantidad } },
-      }),
-      prisma.producto.update({
-        where: { id: productoId },
-        data:  { stockActual: { decrement: cantidad } },
-      }),
-    ]);
+    const stockActualizado = await prisma.stockSucursal.update({
+      where: { productoId_sucursalId: { productoId, sucursalId } },
+      data:  { cantidad: { decrement: cantidad } },
+    });
+
+    await sincronizarStockTotal(productoId);
 
     OfflineCache.invalidate(`stock:${sucursalId}`);
     return res.json({ mensaje: 'Stock descontado', stockRestante: stockActualizado.cantidad });

@@ -8,6 +8,7 @@ import UsersPage           from '../pages/users/UsersPage';
 import CategoriesPage      from '../pages/categories/CategoriesPage';
 import ProductsPage        from '../pages/products/ProductsPage';
 import ComingSoonPage      from '../pages/ComingSoonPage';
+import TransfersPage       from '../pages/transfers/TransfersPage';
 
 export function AppRouter() {
   return (
@@ -31,6 +32,7 @@ export function AppRouter() {
           <Route path="categorias"    element={<RoleGuard roles={['ADMIN']}><CategoriesPage /></RoleGuard>} />
           <Route path="reportes"      element={<RoleGuard roles={['ADMIN']}><ComingSoonPage titulo="Reportes" /></RoleGuard>} />
           <Route path="ajustes"       element={<RoleGuard roles={['ADMIN']}><ComingSoonPage titulo="Ajustes" /></RoleGuard>} />
+          <Route path="transferencias" element={<RoleGuard roles={['ADMIN']}><TransfersPage /></RoleGuard>} />
 
           {/* ADMIN + BODEGA */}
           <Route path="productos"     element={<RoleGuard roles={['ADMIN','BODEGA']}><ProductsPage /></RoleGuard>} />

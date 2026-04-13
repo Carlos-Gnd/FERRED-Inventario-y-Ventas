@@ -35,4 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('sync-status', handler);
     return () => ipcRenderer.removeListener('sync-status', handler);
   },
+
+  // ── Estado de sincronizacion offline ──────────────────────
+  getSyncPendientes: () => ipcRenderer.invoke('get-sync-pendientes'),
 });

@@ -63,6 +63,32 @@ export interface Producto {
   categoria:          { id: number; nombre: string } | null;
 }
 
+// ─── INVENTARIO MULTI-SUCURSAL (T-06.1) ──────────────────────
+// Estado de stock de un producto en una sucursal específica
+export type EstadoStock = 'critico' | 'bajo' | 'disponible';
+
+export interface StockPorSucursal {
+  sucursalId:     number;
+  sucursalNombre: string;
+  cantidad:       number;
+  minimo:         number;
+  estado:         EstadoStock;
+}
+
+// Respuesta de GET /api/inventario/stock-comparativo
+// Un item por cada producto activo, con el detalle de cada sucursal
+export interface ProductoComparativo {
+  id:           number;
+  nombre:       string;
+  codigoBarras: string | null;
+  tipoUnidad:   TipoUnidad | null;
+  stockMinimo:  number;
+  precioVenta:  number | null;
+  categoria:    string;
+  stockTotal:   number;
+  sucursales:   StockPorSucursal[];
+}
+
 // ─── API HELPERS ─────────────────────────────────────────────
 export interface ApiError {
   error:   string;
