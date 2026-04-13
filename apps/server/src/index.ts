@@ -7,6 +7,7 @@ import path     from 'path';
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
+import { AlertasService } from './adapters/alertas/alertas.service';
 import { authRoutes }       from './adapters/http/routes/auth.routes';
 import { usuarioRoutes }    from './adapters/http/routes/usuario.routes';
 import { categoriaRoutes }  from './adapters/http/routes/categoria.routes';
@@ -70,3 +71,4 @@ app.listen(PORT, () => {
 });
 
 SyncService.start();
+AlertasService.start();
