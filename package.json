@@ -3,20 +3,21 @@
   "version": "2.4.0",
   "private": true,
   "scripts": {
-    "dev":            "concurrently --names \"SRV,WEB\" --prefix-colors \"blue,green\" \"pnpm dev:server\" \"pnpm dev:renderer\"",
-    "dev:server":     "pnpm --filter server dev",
-    "dev:renderer":   "pnpm --filter renderer dev",
-    "dev:electron":   "wait-on http://localhost:5173 && wait-on http://localhost:3001/health && pnpm --filter @ferred/electron dev",
-    "build":          "pnpm build:server && pnpm build:renderer",
-    "build:server":   "pnpm --filter server build",
+    "dev": "pnpm --filter renderer dev",
+    "dev:server": "pnpm --filter server dev",
+    "dev:renderer": "pnpm --filter renderer dev",
+    "dev:electron": "wait-on http://localhost:5173 && wait-on http://localhost:3001/health && pnpm --filter @ferred/electron dev",
+    "build": "pnpm build:server && pnpm build:renderer",
+    "build:server": "pnpm --filter server build",
     "build:renderer": "pnpm --filter renderer build",
-    "db:migrate":     "cd apps/server && DATABASE_URL=\"file:../../data/ferred_branch1.db\" pnpm prisma:migrate",
-    "db:generate":    "cd apps/server && DATABASE_URL=\"file:../../data/ferred_branch1.db\" pnpm prisma:generate",
-    "db:seed":        "pnpm --filter server db:seed",
-    "db:setup":       "mkdir -p data && pnpm db:migrate && pnpm db:seed"
+    "db:migrate": "cd apps/server && DATABASE_URL=\"file:../../data/ferred_branch1.db\" pnpm prisma:migrate",
+    "db:generate": "cd apps/server && DATABASE_URL=\"file:../../data/ferred_branch1.db\" pnpm prisma:generate",
+    "db:seed": "pnpm --filter server db:seed",
+    "db:setup": "mkdir -p data && pnpm db:migrate && pnpm db:seed"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "wait-on":      "^7.2.0"
+    "tailwindcss": "^4.2.1",
+    "wait-on": "^7.2.0"
   }
 }
