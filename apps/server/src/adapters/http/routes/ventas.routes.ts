@@ -2,6 +2,7 @@
  * HU-02B — T-02B.1: Registro de venta en transacción atómica
  * HU-09B — T-09B.3: Validación de cantidad según tipoUnidad
  * HU-08A — T-08A.3: Integración con generación de DTE
+ * HU-08B — T-08B.3: Servicio de reimpresión de tickets
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
@@ -43,10 +44,8 @@ function validarCantidadPorUnidad(
 }
 
 // ── POST /api/ventas ──────────────────────────────────────────
-// Registra la venta, descuenta stock y genera DTE en una operación atómica
 ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // 1. Validar body
     const parsed = VentaSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -58,7 +57,6 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
     const { sucursalId, items, clienteNombre, tipoPago } = parsed.data;
     const usuarioId = (req as any).usuario?.id ?? null;
 
-    // 2. Verificar productos, stock y tipoUnidad
     const productosIds = items.map(i => i.productoId);
     const productos = await prisma.producto.findMany({
       where:   { id: { in: productosIds }, activo: true },
@@ -75,11 +73,9 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
       const producto = productos.find(p => p.id === item.productoId)!;
       const stock    = producto.stocks[0];
 
-      // T-09B.3: validar cantidad vs tipoUnidad
       const errUnidad = validarCantidadPorUnidad(item.cantidad, producto.tipoUnidad, producto.nombre);
       if (errUnidad) errores.push(errUnidad);
 
-      // Validar stock disponible en esta sucursal
       if (!stock || stock.cantidad < item.cantidad) {
         errores.push(
           `"${producto.nombre}" no tiene stock suficiente en esta sucursal. ` +
@@ -92,15 +88,12 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
       return res.status(409).json({ error: 'No se puede completar la venta', detalle: errores });
     }
 
-    // 3. Calcular totales
     const subtotal    = items.reduce((acc, i) => acc + i.cantidad * i.precioUnit, 0);
     const iva         = parseFloat((subtotal * 0.13).toFixed(2));
     const total       = parseFloat((subtotal + iva).toFixed(2));
     const subtotalFix = parseFloat(subtotal.toFixed(2));
 
-    // 4. Transacción atómica: factura + detalles + descuento de stock
     const factura = await prisma.$transaction(async (tx) => {
-      // 4a. Crear factura DTE
       const nuevaFactura = await tx.facturaDte.create({
         data: {
           sucursalId,
@@ -110,12 +103,11 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
           totalSinIva:   subtotalFix,
           iva,
           total,
-          estado:        'PENDIENTE_DTE',
+          estado:        'SIMULADO',
           sincronizado:  false,
         },
       });
 
-      // 4b. Crear detalles de venta
       await tx.detalleVenta.createMany({
         data: items.map(i => ({
           facturaId:  nuevaFactura.id,
@@ -126,7 +118,6 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
         })),
       });
 
-      // 4c. Descontar stock en la sucursal
       for (const item of items) {
         await tx.stockSucursal.update({
           where: {
@@ -142,17 +133,14 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
       return nuevaFactura;
     });
 
-    // 5. Sincronizar stock_actual en productos (fuera de la tx para no bloquear)
     await Promise.all(
       items.map(i => sincronizarStockTotal(i.productoId))
     );
 
-    // 6. Registrar en sync_log para sincronización offline
     await logPendiente('facturaDte', 'CREATE', {
       id: factura.id, sucursalId, total, estado: factura.estado,
     }, usuarioId);
 
-    // 7. Responder con los datos de la factura creada
     const facturaCompleta = await prisma.facturaDte.findUnique({
       where:   { id: factura.id },
       include: {
@@ -198,15 +186,15 @@ ventasRoutes.get('/:id/ticket', async (req: Request, res: Response, next: NextFu
     }
 
     return res.json({
-      facturaId:      factura.id,
+      facturaId:        factura.id,
       codigoGeneracion: factura.codigoGeneracion,
-      numeroControl:  factura.numeroControl,
-      fecha:          factura.creadoEn,
-      sucursal:       factura.sucursal,
-      cajero:         factura.usuario?.nombre ?? 'Sistema',
-      clienteNombre:  factura.clienteNombre,
-      tipoDte:        factura.tipoDte,
-      estado:         factura.estado,
+      numeroControl:    factura.numeroControl,
+      fecha:            factura.creadoEn,
+      sucursal:         factura.sucursal,
+      cajero:           factura.usuario?.nombre ?? 'Sistema',
+      clienteNombre:    factura.clienteNombre,
+      tipoDte:          factura.tipoDte,
+      estado:           factura.estado,
       items: factura.detalles.map(d => ({
         nombre:     d.producto.nombre,
         tipoUnidad: d.producto.tipoUnidad,
