@@ -6,6 +6,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma }          from '../../db/prisma/prisma.client';
+import { roleMiddleware }  from '../middleware/role.middleware';
 import { logPendiente }    from '../../sync/sync.service';
 import { sincronizarStockTotal } from './inventario.routes';
 
@@ -44,7 +45,7 @@ function validarCantidadPorUnidad(
 
 // ── POST /api/ventas ──────────────────────────────────────────
 // Registra la venta, descuenta stock y genera DTE en una operación atómica
-ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) => {
+ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     // 1. Validar body
     const parsed = VentaSchema.safeParse(req.body);
@@ -56,40 +57,32 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
     }
 
     const { sucursalId, items, clienteNombre, tipoPago } = parsed.data;
-    const usuarioId = (req as any).usuario?.id ?? null;
+    const usuarioId = req.usuario?.id;
 
-    // 2. Verificar productos, stock y tipoUnidad
+    // 1b. Validar acceso cross-sucursal: no-ADMIN solo puede vender en su sucursal
+    if (req.usuario?.rol !== 'ADMIN' && req.usuario?.sucursalId && req.usuario.sucursalId !== sucursalId) {
+      return res.status(403).json({ error: 'No podés registrar ventas en otra sucursal' });
+    }
+
+    // 2. Validación previa ligera: existencia de productos y tipoUnidad
     const productosIds = items.map(i => i.productoId);
     const productos = await prisma.producto.findMany({
-      where:   { id: { in: productosIds }, activo: true },
-      include: { stocks: { where: { sucursalId } } },
+      where: { id: { in: productosIds }, activo: true },
     });
 
     if (productos.length !== productosIds.length) {
       return res.status(404).json({ error: 'Uno o más productos no existen o están inactivos' });
     }
 
-    const errores: string[] = [];
-
+    // T-09B.3: validar cantidad vs tipoUnidad (no requiere lectura de stock)
+    const erroresUnidad: string[] = [];
     for (const item of items) {
       const producto = productos.find(p => p.id === item.productoId)!;
-      const stock    = producto.stocks[0];
-
-      // T-09B.3: validar cantidad vs tipoUnidad
       const errUnidad = validarCantidadPorUnidad(item.cantidad, producto.tipoUnidad, producto.nombre);
-      if (errUnidad) errores.push(errUnidad);
-
-      // Validar stock disponible en esta sucursal
-      if (!stock || stock.cantidad < item.cantidad) {
-        errores.push(
-          `"${producto.nombre}" no tiene stock suficiente en esta sucursal. ` +
-          `Disponible: ${stock?.cantidad ?? 0}, solicitado: ${item.cantidad}`
-        );
-      }
+      if (errUnidad) erroresUnidad.push(errUnidad);
     }
-
-    if (errores.length > 0) {
-      return res.status(409).json({ error: 'No se puede completar la venta', detalle: errores });
+    if (erroresUnidad.length > 0) {
+      return res.status(409).json({ error: 'No se puede completar la venta', detalle: erroresUnidad });
     }
 
     // 3. Calcular totales
@@ -98,9 +91,28 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
     const total       = parseFloat((subtotal + iva).toFixed(2));
     const subtotalFix = parseFloat(subtotal.toFixed(2));
 
-    // 4. Transacción atómica: factura + detalles + descuento de stock
+    // 4. Transacción atómica: verificar stock + factura + detalles + descuento
+    //    La verificación de stock está DENTRO de la tx para evitar race conditions (TOCTOU)
     const factura = await prisma.$transaction(async (tx) => {
-      // 4a. Crear factura DTE
+      // 4a. Verificar stock DENTRO de la transacción
+      const erroresStock: string[] = [];
+      for (const item of items) {
+        const stock = await tx.stockSucursal.findUnique({
+          where: { productoId_sucursalId: { productoId: item.productoId, sucursalId } },
+        });
+        if (!stock || stock.cantidad < item.cantidad) {
+          const nombre = productos.find(p => p.id === item.productoId)!.nombre;
+          erroresStock.push(
+            `"${nombre}" no tiene stock suficiente en esta sucursal. ` +
+            `Disponible: ${stock?.cantidad ?? 0}, solicitado: ${item.cantidad}`
+          );
+        }
+      }
+      if (erroresStock.length > 0) {
+        throw Object.assign(new Error('Stock insuficiente'), { stockErrors: erroresStock });
+      }
+
+      // 4b. Crear factura DTE
       const nuevaFactura = await tx.facturaDte.create({
         data: {
           sucursalId,
@@ -115,7 +127,7 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
         },
       });
 
-      // 4b. Crear detalles de venta
+      // 4c. Crear detalles de venta
       await tx.detalleVenta.createMany({
         data: items.map(i => ({
           facturaId:  nuevaFactura.id,
@@ -126,7 +138,7 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
         })),
       });
 
-      // 4c. Descontar stock en la sucursal
+      // 4d. Descontar stock en la sucursal
       for (const item of items) {
         await tx.stockSucursal.update({
           where: {
@@ -142,10 +154,14 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
       return nuevaFactura;
     });
 
-    // 5. Sincronizar stock_actual en productos (fuera de la tx para no bloquear)
-    await Promise.all(
-      items.map(i => sincronizarStockTotal(i.productoId))
-    );
+    // 5. Sincronizar stock_actual en productos (fuera de la tx)
+    try {
+      await Promise.all(
+        items.map(i => sincronizarStockTotal(i.productoId))
+      );
+    } catch (syncErr) {
+      console.error('[ventas] Error sincronizando stockTotal post-venta:', syncErr);
+    }
 
     // 6. Registrar en sync_log para sincronización offline
     await logPendiente('facturaDte', 'CREATE', {
@@ -169,12 +185,18 @@ ventasRoutes.post('/', async (req: Request, res: Response, next: NextFunction) =
       resumen: { subtotal: subtotalFix, iva, total },
     });
 
-  } catch (err) { return next(err); }
+  } catch (err: any) {
+    // Capturar error de stock insuficiente lanzado dentro de la transacción
+    if (err.stockErrors) {
+      return res.status(409).json({ error: 'No se puede completar la venta', detalle: err.stockErrors });
+    }
+    return next(err);
+  }
 });
 
 // ── GET /api/ventas/:id/ticket ────────────────────────────────
 // T-08B.3: Datos completos para reimprimir un ticket desde historial
-ventasRoutes.get('/:id/ticket', async (req: Request, res: Response, next: NextFunction) => {
+ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const facturaId = Number(req.params.id);
 
