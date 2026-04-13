@@ -76,17 +76,19 @@ inventarioRoutes.get('/criticos/:sucursalId', async (req: Request, res: Response
   try {
     const sucursalId = Number(req.params.sucursalId);
 
-    const criticos = await prisma.stockSucursal.findMany({
-      where: {
-        sucursalId,
-        producto: { activo: true },
-        cantidad:  { lte: prisma.stockSucursal.fields.minimo as any },
-      },
-      include: {
-        producto: { select: { nombre: true, tipoUnidad: true } },
-      },
-      orderBy: { cantidad: 'asc' },
-    });
+    const criticos = await prisma.$queryRaw<Array<{
+      id: number; productoId: number; sucursalId: number;
+      cantidad: number; minimo: number; nombre: string; tipoUnidad: string | null;
+    }>>`
+      SELECT ss.id, ss.producto_id AS "productoId", ss.sucursal_id AS "sucursalId",
+             ss.cantidad, ss.minimo, p.nombre, p.tipo_unidad AS "tipoUnidad"
+      FROM stock_sucursal ss
+      INNER JOIN productos p ON p.id = ss.producto_id
+      WHERE ss.sucursal_id = ${sucursalId}
+        AND p.activo = ${true}
+        AND ss.cantidad <= ss.minimo
+      ORDER BY ss.cantidad ASC
+    `;
 
     return res.json({ total: criticos.length, criticos });
   } catch (err) { return next(err); }

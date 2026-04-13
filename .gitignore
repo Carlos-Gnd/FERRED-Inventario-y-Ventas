@@ -5,3 +5,5 @@ dist/
 .DS_Store
 out/
 release/
+CLAUDE.md
+.claude/
