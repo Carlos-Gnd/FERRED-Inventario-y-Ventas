@@ -357,3 +357,4 @@ export default function StockPage() {
     </div>
   );
 }
+//paguina de stock solo para subir

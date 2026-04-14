@@ -159,6 +159,7 @@ export default function DashboardPage() {
             criticos={suc.criticos}
             onClick={() => navigate('/stock')}
             loading={loadingStock}
+>>>>>>> Stashed changes
           />
         ))}
 
@@ -358,6 +359,9 @@ function StockCard({ sucursalNombre, criticos, onClick, loading = false }: Stock
       </div>
     </div>
   );
+<<<<<<< Updated upstream
+}
+=======
 }
 
 // ── Skeleton de tarjeta mientras carga ──────────────────────────────────────
