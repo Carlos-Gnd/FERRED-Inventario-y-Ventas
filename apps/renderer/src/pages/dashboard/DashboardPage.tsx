@@ -27,9 +27,10 @@ export default function DashboardPage() {
   const usuario  = useAuthStore(s => s.usuario);
   const rol      = (usuario?.rol ?? 'CAJERO') as UserRole;
 
-  const [stats,     setStats]     = useState<Stats>({ productos: 0, usuarios: 0, categorias: 0 });
-  const [stockData, setStockData] = useState<StockPorSucursal[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [stats,        setStats]     = useState<Stats>({ productos: 0, usuarios: 0, categorias: 0 });
+  const [stockData,    setStockData] = useState<StockPorSucursal[]>([]);
+  const [loadError,    setLoadError] = useState<string | null>(null);
+  const [loadingStock, setLoadingStock] = useState(true);
 
   useEffect(() => {
     async function load() {
@@ -38,7 +39,10 @@ export default function DashboardPage() {
         const [prods, cats, invRes] = await Promise.allSettled([
           api.get('/productos'),
           api.get('/categorias'),
-          api.get('/inventario/stock-bajo'),
+          // T-06.5: endpoint con todas las sucursales y su conteo de críticos
+          rol === 'ADMIN'
+            ? api.get('/inventario/criticos-por-sucursal')
+            : api.get(`/inventario/criticos/${usuario?.sucursalId ?? 1}`),
         ]);
 
         const productos  = prods.status === 'fulfilled' ? prods.value.data.length : 0;
@@ -46,32 +50,18 @@ export default function DashboardPage() {
 
         // ── Procesar stock crítico por sucursal ──────────────────
         if (invRes.status === 'fulfilled') {
-          const raw: any[] = invRes.value.data;
-
           if (rol === 'ADMIN') {
-            // El endpoint devuelve productos con array de sucursales
-            // Contamos cuántos productos críticos hay por sucursal
-            const map = new Map<number, StockPorSucursal>();
-            for (const prod of raw) {
-              for (const suc of (prod.sucursales ?? [])) {
-                const key = suc.sucursalId ?? suc.sucursalNombre;
-                if (!map.has(key)) {
-                  map.set(key, {
-                    sucursalId:     suc.sucursalId ?? key,
-                    sucursalNombre: suc.sucursalNombre,
-                    criticos:       0,
-                  });
-                }
-                map.get(key)!.criticos += 1;
-              }
-            }
-            setStockData([...map.values()].sort((a, b) => a.sucursalId - b.sucursalId));
+            // /inventario/criticos-por-sucursal devuelve:
+            // [{ sucursalId, sucursalNombre, criticos }] — una entrada por cada sucursal
+            const raw: StockPorSucursal[] = invRes.value.data;
+            setStockData(raw);
           } else {
-            // No-admin: lista plana, una sola tarjeta con su sucursal
+            // /inventario/criticos/:id devuelve: { total, criticos: [...] }
+            const { total } = invRes.value.data;
             setStockData([{
               sucursalId:     usuario?.sucursalId ?? 1,
               sucursalNombre: `Sucursal ${usuario?.sucursalId ?? 1}`,
-              criticos:       raw.length,
+              criticos:       total ?? 0,
             }]);
           }
         }
@@ -90,7 +80,9 @@ export default function DashboardPage() {
         }
 
         setStats({ productos, usuarios, categorias });
+        setLoadingStock(false);
       } catch (err) {
+        setLoadingStock(false);
         if (isOfflineError(err)) {
           setLoadError('Sin conexión — mostrando últimos datos disponibles.');
         } else {
@@ -110,10 +102,7 @@ export default function DashboardPage() {
 
   const mostrarTarjetasStock = rol === 'ADMIN' || rol === 'BODEGA';
 
-  // Cantidad de columnas del grid: tarjetas normales + tarjetas de stock (o 2 placeholders)
-  const stockCols   = mostrarTarjetasStock ? (stockData.length || 2) : 0;
-  const totalCols   = STATS.length + stockCols;
-  const gridColumns = `repeat(${totalCols}, 1fr)`;
+  // Grid responsive: mínimo 200px por tarjeta, se acomoda solo
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeUp 0.4s ease' }}>
@@ -142,7 +131,7 @@ export default function DashboardPage() {
       {/* Stats grid */}
       <div
         className="stats-grid"
-        style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: '16px' }}
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}
       >
         {/* Tarjetas genéricas */}
         {STATS.map(s => (
@@ -163,20 +152,21 @@ export default function DashboardPage() {
         ))}
 
         {/* ── Tarjetas de stock crítico por sucursal (T-06.5) ── */}
-        {mostrarTarjetasStock && stockData.length > 0 && stockData.map(suc => (
+        {mostrarTarjetasStock && stockData.map(suc => (
           <StockCard
             key={suc.sucursalId}
             sucursalNombre={suc.sucursalNombre}
             criticos={suc.criticos}
-            onClick={() => navigate('/stock')}
+            onClick={() => navigate('/productos')}
+            loading={loadingStock}
           />
         ))}
 
-        {/* Placeholders mientras carga (evita salto de layout) */}
-        {mostrarTarjetasStock && stockData.length === 0 && (
+        {/* Skeletons solo si aún no sabemos cuántas sucursales hay */}
+        {mostrarTarjetasStock && loadingStock && stockData.length === 0 && (
           <>
-            <StockCard sucursalNombre="Sucursal 1" criticos={0} onClick={() => navigate('/stock')} loading />
-            <StockCard sucursalNombre="Sucursal 2" criticos={0} onClick={() => navigate('/stock')} loading />
+            <SkeletonCard />
+            <SkeletonCard />
           </>
         )}
       </div>
@@ -247,7 +237,7 @@ export default function DashboardPage() {
   );
 }
 
-// ── Componente: tarjeta de stock crítico por sucursal ────────────────────────
+// ── Componente: tarjeta de stock crítico por sucursal (diseño Figma) ─────────
 interface StockCardProps {
   sucursalNombre: string;
   criticos:       number;
@@ -258,70 +248,142 @@ interface StockCardProps {
 function StockCard({ sucursalNombre, criticos, onClick, loading = false }: StockCardProps) {
   const tieneCriticos = criticos > 0;
 
+  const dangerColor  = '#ef4444';
+  const successColor = '#10b981';
+  const estadoColor  = tieneCriticos ? dangerColor : successColor;
+  const estadoLabel  = tieneCriticos ? 'Crítico' : 'OK';
+
   return (
     <div
       onClick={onClick}
       title="Ver página de Stock"
       style={{
         background:    'var(--bg-surface)',
-        border:        `1px solid ${tieneCriticos ? 'rgba(239,68,68,0.35)' : 'var(--border)'}`,
-        borderRadius:  '10px',
+        border:        `1px solid ${tieneCriticos ? 'rgba(239,68,68,0.30)' : 'var(--border)'}`,
+        borderRadius:  '12px',
         padding:       '20px',
         display:       'flex',
         flexDirection: 'column',
-        gap:           '10px',
+        gap:           '14px',
         cursor:        'pointer',
         transition:    'border-color 0.2s, box-shadow 0.2s',
-        boxShadow:     tieneCriticos ? '0 0 0 1px rgba(239,68,68,0.1)' : 'none',
-        opacity:       loading ? 0.45 : 1,
+        boxShadow:     tieneCriticos
+          ? '0 0 0 1px rgba(239,68,68,0.08), 0 2px 8px rgba(0,0,0,0.2)'
+          : '0 2px 8px rgba(0,0,0,0.15)',
+        opacity:       loading ? 0.5 : 1,
       }}
       onMouseEnter={e => {
         (e.currentTarget as HTMLDivElement).style.borderColor = tieneCriticos
-          ? 'rgba(239,68,68,0.65)' : 'var(--accent)';
+          ? 'rgba(239,68,68,0.6)' : 'var(--accent)';
         (e.currentTarget as HTMLDivElement).style.boxShadow = tieneCriticos
-          ? '0 0 0 2px rgba(239,68,68,0.15)' : '0 0 0 2px rgba(59,130,246,0.12)';
+          ? '0 0 0 2px rgba(239,68,68,0.15), 0 4px 12px rgba(0,0,0,0.25)'
+          : '0 0 0 2px rgba(59,130,246,0.15), 0 4px 12px rgba(0,0,0,0.2)';
       }}
       onMouseLeave={e => {
         (e.currentTarget as HTMLDivElement).style.borderColor = tieneCriticos
-          ? 'rgba(239,68,68,0.35)' : 'var(--border)';
+          ? 'rgba(239,68,68,0.30)' : 'var(--border)';
         (e.currentTarget as HTMLDivElement).style.boxShadow = tieneCriticos
-          ? '0 0 0 1px rgba(239,68,68,0.1)' : 'none';
+          ? '0 0 0 1px rgba(239,68,68,0.08), 0 2px 8px rgba(0,0,0,0.2)'
+          : '0 2px 8px rgba(0,0,0,0.15)';
       }}
     >
-      {/* Ícono + badge de estado */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{
-          width: '36px', height: '36px', borderRadius: '8px',
-          background: tieneCriticos ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '18px',
-        }}>
-          {tieneCriticos ? '⚠️' : '✅'}
+      {/* Fila superior: ícono + nombre de sucursal  |  badge estado */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+        {/* Ícono + nombre */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width:          '36px',
+            height:         '36px',
+            borderRadius:   '8px',
+            background:     tieneCriticos ? 'rgba(239,68,68,0.18)' : 'rgba(16,185,129,0.15)',
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'center',
+            flexShrink:     0,
+          }}>
+            {tieneCriticos ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                  stroke={dangerColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="12" y1="9" x2="12" y2="13" stroke={dangerColor} strokeWidth="2" strokeLinecap="round"/>
+                <line x1="12" y1="17" x2="12.01" y2="17" stroke={dangerColor} strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M20 6L9 17l-5-5" stroke={successColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </div>
+
+          <span style={{
+            fontSize:   '14px',
+            fontWeight: 600,
+            color:      'var(--text-primary)',
+            lineHeight: '1.2',
+          }}>
+            {sucursalNombre}
+          </span>
         </div>
+
+        {/* Badge estado */}
         <span style={{
-          fontSize: '11px', fontWeight: 600,
-          color: tieneCriticos ? 'var(--danger)' : 'var(--success)',
+          fontSize:      '11px',
+          fontWeight:    700,
+          color:         estadoColor,
+          background:    tieneCriticos ? 'rgba(239,68,68,0.1)'  : 'rgba(16,185,129,0.1)',
+          border:        `1px solid ${tieneCriticos ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
+          borderRadius:  '20px',
+          padding:       '3px 10px',
+          letterSpacing: '0.02em',
         }}>
-          {tieneCriticos ? 'Crítico' : 'OK'}
+          {estadoLabel}
         </span>
       </div>
 
-      {/* Nombre de la sucursal */}
-      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-        {sucursalNombre}
-      </div>
-
       {/* Subtítulo */}
-      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Stock bajo</div>
+      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '-4px' }}>
+        Stock bajo
+      </div>
 
       {/* Conteo principal */}
       <div style={{
-        fontSize: '24px', fontWeight: 700,
-        color: tieneCriticos ? 'var(--danger)' : 'var(--text-primary)',
+        fontSize:   '26px',
+        fontWeight: 700,
+        color:      'var(--text-primary)',
         fontFamily: 'JetBrains Mono, monospace',
+        lineHeight: '1',
       }}>
         {loading ? '—' : `${criticos} Items`}
       </div>
+    </div>
+  );
+}
+
+// ── Skeleton de tarjeta mientras carga ──────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div style={{
+      background:    'var(--bg-surface)',
+      border:        '1px solid var(--border)',
+      borderRadius:  '12px',
+      padding:       '20px',
+      display:       'flex',
+      flexDirection: 'column',
+      gap:           '14px',
+    }}>
+      {/* Fila superior */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          <div style={{ width: '100px', height: '14px', borderRadius: '6px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+        </div>
+        <div style={{ width: '52px', height: '22px', borderRadius: '20px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+      </div>
+      {/* Subtítulo */}
+      <div style={{ width: '60px', height: '12px', borderRadius: '6px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+      {/* Conteo */}
+      <div style={{ width: '90px', height: '26px', borderRadius: '6px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
     </div>
   );
 }
