@@ -9,8 +9,37 @@ import { prisma } from '../db/prisma/prisma.client';
 const INTERVALO_MS = 60 * 60 * 1000;  // 60 minutos
 const ANTI_SPAM_MS = 60 * 60 * 1000;  // no re-alertar en 1 hora
 
-// Registro en memoria de ultimas alertas enviadas
+// Registro en memoria de ultimas alertas enviadas.
+// Se siembra desde BD al arrancar para sobrevivir reinicios (B-16).
 const ultimaAlerta = new Map<string, number>();
+
+async function initAntiSpam(): Promise<void> {
+  try {
+    const hace1hora = new Date(Date.now() - ANTI_SPAM_MS);
+    const recientes = await prisma.syncLog.findMany({
+      where: { tabla: 'stock_sucursal', operacion: 'ALERTA', creadoEn: { gte: hace1hora } },
+      select: { payload: true, creadoEn: true },
+    });
+    for (const log of recientes) {
+      try {
+        const parsed = JSON.parse(log.payload) as {
+          sucursalId: number;
+          items: Array<{ productoId: number }>;
+        };
+        const ts = new Date(log.creadoEn).getTime();
+        for (const item of parsed.items) {
+          const key = `${item.productoId}-${parsed.sucursalId}`;
+          if ((ultimaAlerta.get(key) ?? 0) < ts) ultimaAlerta.set(key, ts);
+        }
+      } catch {
+        // payload antiguo o malformado, ignorar
+      }
+    }
+    console.log(`[Alertas] Anti-spam cargado desde BD — ${ultimaAlerta.size} entradas`);
+  } catch (err: any) {
+    console.warn('[Alertas] No se pudo cargar anti-spam desde BD:', err.message);
+  }
+}
 
 function crearTransporte() {
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -174,9 +203,10 @@ async function checkStock(): Promise<void> {
 }
 
 export const AlertasService = {
-  start() {
+  async start() {
     console.log('[Alertas] Servicio iniciado — revision cada 60 minutos');
-    checkStock();  // ejecutar al arrancar
+    await initAntiSpam();          // B-16: sembrar anti-spam desde BD
+    checkStock();
     setInterval(checkStock, INTERVALO_MS);
   },
   checkNow: checkStock,
