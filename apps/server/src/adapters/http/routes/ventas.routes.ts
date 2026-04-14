@@ -57,10 +57,11 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     }
 
     const { sucursalId, items, clienteNombre, tipoPago } = parsed.data;
-    const usuarioId = (req as any).usuario?.id;
+    const usuarioId = req.usuario?.id;
 
+    // BUG-15 FIX: usar req.usuario tipado en lugar de (req as any).usuario
     // Validar acceso cross-sucursal: no-ADMIN solo puede vender en su sucursal
-    if ((req as any).usuario?.rol !== 'ADMIN' && (req as any).usuario?.sucursalId && (req as any).usuario.sucursalId !== sucursalId) {
+    if (req.usuario?.rol !== 'ADMIN' && req.usuario?.sucursalId && req.usuario.sucursalId !== sucursalId) {
       return res.status(403).json({ error: 'No podés registrar ventas en otra sucursal' });
     }
 
