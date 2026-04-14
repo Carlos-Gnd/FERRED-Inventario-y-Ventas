@@ -2,6 +2,7 @@
  * HU-02B — T-02B.1: Registro de venta en transacción atómica
  * HU-09B — T-09B.3: Validación de cantidad según tipoUnidad
  * HU-08A — T-08A.3: Integración con generación de DTE
+ * HU-08B — T-08B.3: Servicio de reimpresión de tickets
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
@@ -47,7 +48,6 @@ function validarCantidadPorUnidad(
 // Registra la venta, descuenta stock y genera DTE en una operación atómica
 ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // 1. Validar body
     const parsed = VentaSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -57,14 +57,14 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     }
 
     const { sucursalId, items, clienteNombre, tipoPago } = parsed.data;
-    const usuarioId = req.usuario?.id;
+    const usuarioId = (req as any).usuario?.id;
 
-    // 1b. Validar acceso cross-sucursal: no-ADMIN solo puede vender en su sucursal
-    if (req.usuario?.rol !== 'ADMIN' && req.usuario?.sucursalId && req.usuario.sucursalId !== sucursalId) {
+    // Validar acceso cross-sucursal: no-ADMIN solo puede vender en su sucursal
+    if ((req as any).usuario?.rol !== 'ADMIN' && (req as any).usuario?.sucursalId && (req as any).usuario.sucursalId !== sucursalId) {
       return res.status(403).json({ error: 'No podés registrar ventas en otra sucursal' });
     }
 
-    // 2. Validación previa ligera: existencia de productos y tipoUnidad
+    // Validación previa: existencia de productos
     const productosIds = items.map(i => i.productoId);
     const productos = await prisma.producto.findMany({
       where: { id: { in: productosIds }, activo: true },
@@ -74,7 +74,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       return res.status(404).json({ error: 'Uno o más productos no existen o están inactivos' });
     }
 
-    // T-09B.3: validar cantidad vs tipoUnidad (no requiere lectura de stock)
+    // T-09B.3: validar cantidad vs tipoUnidad
     const erroresUnidad: string[] = [];
     for (const item of items) {
       const producto = productos.find(p => p.id === item.productoId)!;
@@ -85,16 +85,14 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       return res.status(409).json({ error: 'No se puede completar la venta', detalle: erroresUnidad });
     }
 
-    // 3. Calcular totales
     const subtotal    = items.reduce((acc, i) => acc + i.cantidad * i.precioUnit, 0);
     const iva         = parseFloat((subtotal * 0.13).toFixed(2));
     const total       = parseFloat((subtotal + iva).toFixed(2));
     const subtotalFix = parseFloat(subtotal.toFixed(2));
 
-    // 4. Transacción atómica: verificar stock + factura + detalles + descuento
-    //    La verificación de stock está DENTRO de la tx para evitar race conditions (TOCTOU)
+    // Transacción atómica: verificar stock + factura + detalles + descuento
     const factura = await prisma.$transaction(async (tx) => {
-      // 4a. Verificar stock DENTRO de la transacción
+      // Verificar stock DENTRO de la transacción para evitar race conditions
       const erroresStock: string[] = [];
       for (const item of items) {
         const stock = await tx.stockSucursal.findUnique({
@@ -112,7 +110,6 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
         throw Object.assign(new Error('Stock insuficiente'), { stockErrors: erroresStock });
       }
 
-      // 4b. Crear factura DTE
       const nuevaFactura = await tx.facturaDte.create({
         data: {
           sucursalId,
@@ -122,12 +119,11 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
           totalSinIva:   subtotalFix,
           iva,
           total,
-          estado:        'PENDIENTE_DTE',
+          estado:        'SIMULADO',
           sincronizado:  false,
         },
       });
 
-      // 4c. Crear detalles de venta
       await tx.detalleVenta.createMany({
         data: items.map(i => ({
           facturaId:  nuevaFactura.id,
@@ -138,7 +134,6 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
         })),
       });
 
-      // 4d. Descontar stock en la sucursal
       for (const item of items) {
         await tx.stockSucursal.update({
           where: {
@@ -154,7 +149,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       return nuevaFactura;
     });
 
-    // 5. Sincronizar stock_actual en productos (fuera de la tx)
+    // Sincronizar stock_actual en productos (fuera de la tx)
     try {
       await Promise.all(
         items.map(i => sincronizarStockTotal(i.productoId))
@@ -163,12 +158,10 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       console.error('[ventas] Error sincronizando stockTotal post-venta:', syncErr);
     }
 
-    // 6. Registrar en sync_log para sincronización offline
     await logPendiente('facturaDte', 'CREATE', {
       id: factura.id, sucursalId, total, estado: factura.estado,
     }, usuarioId);
 
-    // 7. Responder con los datos de la factura creada
     const facturaCompleta = await prisma.facturaDte.findUnique({
       where:   { id: factura.id },
       include: {
@@ -186,7 +179,6 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     });
 
   } catch (err: any) {
-    // Capturar error de stock insuficiente lanzado dentro de la transacción
     if (err.stockErrors) {
       return res.status(409).json({ error: 'No se puede completar la venta', detalle: err.stockErrors });
     }
@@ -220,15 +212,15 @@ ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: R
     }
 
     return res.json({
-      facturaId:      factura.id,
+      facturaId:        factura.id,
       codigoGeneracion: factura.codigoGeneracion,
-      numeroControl:  factura.numeroControl,
-      fecha:          factura.creadoEn,
-      sucursal:       factura.sucursal,
-      cajero:         factura.usuario?.nombre ?? 'Sistema',
-      clienteNombre:  factura.clienteNombre,
-      tipoDte:        factura.tipoDte,
-      estado:         factura.estado,
+      numeroControl:    factura.numeroControl,
+      fecha:            factura.creadoEn,
+      sucursal:         factura.sucursal,
+      cajero:           factura.usuario?.nombre ?? 'Sistema',
+      clienteNombre:    factura.clienteNombre,
+      tipoDte:          factura.tipoDte,
+      estado:           factura.estado,
       items: factura.detalles.map(d => ({
         nombre:     d.producto.nombre,
         tipoUnidad: d.producto.tipoUnidad,
