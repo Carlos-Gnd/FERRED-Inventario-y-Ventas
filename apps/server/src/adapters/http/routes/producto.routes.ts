@@ -205,13 +205,16 @@ productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), a
         });
       }
 
-      return tx.stockSucursal.update({
+    const [stockActualizado] = await prisma.$transaction([
+      prisma.stockSucursal.update({
         where: { productoId_sucursalId: { productoId, sucursalId } },
         data:  { cantidad: { decrement: cantidad } },
-      });
-    });
-
-    await sincronizarStockTotal(productoId);
+      }),
+      prisma.producto.update({
+        where: { id: productoId },
+        data:  { stockActual: { decrement: cantidad } },
+      }),
+    ]);
 
     OfflineCache.invalidate(`stock:${sucursalId}`);
     return res.json({ mensaje: 'Stock descontado', stockRestante: stockActualizado.cantidad });

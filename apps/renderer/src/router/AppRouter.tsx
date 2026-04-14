@@ -7,6 +7,7 @@ import DashboardPage       from '../pages/dashboard/DashboardPage';
 import UsersPage           from '../pages/users/UsersPage';
 import CategoriesPage      from '../pages/categories/CategoriesPage';
 import ProductsPage        from '../pages/products/ProductsPage';
+import StockPage           from '../pages/stock/stockPage';
 import ComingSoonPage      from '../pages/ComingSoonPage';
 import TransfersPage       from '../pages/transfers/TransfersPage';
 
@@ -36,6 +37,7 @@ export function AppRouter() {
 
           {/* ADMIN + BODEGA */}
           <Route path="productos"     element={<RoleGuard roles={['ADMIN','BODEGA']}><ProductsPage /></RoleGuard>} />
+          <Route path="stock"         element={<RoleGuard roles={['ADMIN','BODEGA']}><StockPage /></RoleGuard>} />
 
           {/* ADMIN + CAJERO */}
           <Route path="ventas"        element={<RoleGuard roles={['ADMIN','CAJERO']}><ComingSoonPage titulo="Ventas / POS" /></RoleGuard>} />

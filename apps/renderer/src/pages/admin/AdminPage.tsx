@@ -519,10 +519,10 @@ export default function AdminPage() {
         </div>
 
         <div className="sidebar-user">
-          <div className="avatar">{authUser?.name?.charAt(0) ?? 'A'}</div>
+          <div className="avatar">{authUser?.nombre?.charAt(0) ?? 'A'}</div>
           <div>
-            <strong>{authUser?.name ?? 'Administrador'}</strong>
-            <small>{authUser?.role ?? 'ADMIN'}</small>
+            <strong>{authUser?.nombre ?? 'Administrador'}</strong>
+            <small>{authUser?.rol ?? 'ADMIN'}</small>
           </div>
         </div>
       </aside>
@@ -550,7 +550,7 @@ export default function AdminPage() {
               </svg>
             </button>
             <button className="mobile-user-btn" title="Perfil">
-              {authUser?.name?.charAt(0) ?? 'A'}
+              {authUser?.nombre?.charAt(0) ?? 'A'}
             </button>
           </div>
         </header>

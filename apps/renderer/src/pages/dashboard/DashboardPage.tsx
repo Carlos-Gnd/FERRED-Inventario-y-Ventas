@@ -157,7 +157,7 @@ export default function DashboardPage() {
             key={suc.sucursalId}
             sucursalNombre={suc.sucursalNombre}
             criticos={suc.criticos}
-            onClick={() => navigate('/productos')}
+            onClick={() => navigate('/stock')}
             loading={loadingStock}
           />
         ))}
