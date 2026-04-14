@@ -150,18 +150,21 @@ async function checkStock(): Promise<void> {
         ultimaAlerta.set(`${item.productoId}-${sucursalId}`, Date.now())
       );
 
-      // Registrar en sync_log
+      // Registrar en sync_log — sucursalId en raíz del payload para que
+      // el filtro de sync-pendientes (B-04) lo cuente correctamente (B-17).
       await prisma.syncLog.create({
         data: {
           tabla:     'stock_sucursal',
           operacion: 'ALERTA',
-          payload:   JSON.stringify(paraAlertar.map((i: any) => ({
-            productoId: i.productoId,
-            nombre:     i.producto.nombre,
-            cantidad:   i.cantidad,
-            minimo:     i.minimo,
+          payload:   JSON.stringify({
             sucursalId,
-          }))),
+            items: paraAlertar.map((i: any) => ({
+              productoId: i.productoId,
+              nombre:     i.producto.nombre,
+              cantidad:   i.cantidad,
+              minimo:     i.minimo,
+            })),
+          }),
           status: 'SINCRONIZADO',
         },
       });
