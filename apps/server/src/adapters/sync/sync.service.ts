@@ -82,14 +82,27 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'tieneIva', 'stockActual', 'stockMinimo', 'activo', 'creadoEn',
   ],
   categoria: ['id', 'nombre', 'descripcion', 'activo'],
-  // BUG-08 FIX: corregido 'passwordHash' → 'contrasenaHash'
   usuario:   ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo'],
   syncLog:   ['id', 'tabla', 'operacion', 'payload', 'usuarioId', 'status', 'intentos', 'error', 'creadoEn', 'sincEn'],
+  // BUG-25 FIX: agregar tablas faltantes en CAMPOS_ESCALARES
+  stockSucursal: [
+    'id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'actualizadoEn',
+  ],
+  facturaDte: [
+    'id', 'sucursalId', 'usuarioId', 'codigoGeneracion', 'numeroControl',
+    'tipoDte', 'clienteNombre', 'totalSinIva', 'iva', 'total',
+    'dteJson', 'estado', 'sincronizado', 'creadoEn',
+  ],
 };
 
 function limpiarPayload(tabla: string, payload: any): any {
   const campos = CAMPOS_ESCALARES[tabla];
-  if (!campos) return payload;
+  // BUG-25 FIX: lanzar error en vez de retornar payload crudo
+  if (!campos) {
+    throw new Error(
+      `limpiarPayload: tabla "${tabla}" no tiene entradas en CAMPOS_ESCALARES. Agregala antes de sincronizar.`
+    );
+  }
   return Object.fromEntries(
     Object.entries(payload).filter(([k]) => campos.includes(k))
   );
@@ -163,7 +176,6 @@ export const SyncService = {
   },
 
   async aplicarOperacion(tabla: string, op: string, payload: any) {
-    // SEC-07 FIX: validar tabla contra whitelist
     if (!TABLAS_PERMITIDAS.has(tabla)) {
       throw new Error(`Tabla no permitida: ${tabla}`);
     }

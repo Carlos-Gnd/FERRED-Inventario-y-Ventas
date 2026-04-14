@@ -20,6 +20,32 @@ const actualizarSchema = crearSchema.partial().omit({ contrasena: true }).extend
   contrasena: z.string().min(6).optional(),
 });
 
+// BUG-20 FIX: middleware que valida que el usuario target pertenezca
+// a la misma sucursal del ADMIN logueado
+async function validarSucursalTarget(req: Request, res: Response, next: NextFunction) {
+  try {
+    const adminSucursalId = req.usuario!.sucursalId;
+
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'ID inválido' });
+
+    const target = await prisma.usuario.findUnique({
+      where:  { id },
+      select: { sucursalId: true },
+    });
+
+    if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    if (target.sucursalId !== adminSucursalId) {
+      return res.status(403).json({
+        error: 'No tenés permisos para operar usuarios de otra sucursal',
+      });
+    }
+
+    return next();
+  } catch (err) { return next(err); }
+}
+
 // GET /api/usuarios — Solo ADMIN
 usuarioRoutes.get('/', roleMiddleware('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -49,14 +75,13 @@ usuarioRoutes.get('/', roleMiddleware('ADMIN'), async (req: Request, res: Respon
   } catch (err) { return next(err); }
 });
 
-// GET /api/usuarios/:id
-usuarioRoutes.get('/:id', roleMiddleware('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+// GET /api/usuarios/:id — BUG-20 FIX: validarSucursalTarget agregado
+usuarioRoutes.get('/:id', roleMiddleware('ADMIN'), validarSucursalTarget, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ error: 'ID inválido' });
 
     const usuario = await prisma.usuario.findUnique({
-      where: { id },
+      where:  { id },
       select: { id: true, nombre: true, email: true, rol: true, sucursalId: true, activo: true },
     });
     if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -88,11 +113,10 @@ usuarioRoutes.post('/', roleMiddleware('ADMIN'), async (req: Request, res: Respo
   } catch (err) { return next(err); }
 });
 
-// PUT /api/usuarios/:id — Solo ADMIN
-usuarioRoutes.put('/:id', roleMiddleware('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+// PUT /api/usuarios/:id — BUG-20 FIX: validarSucursalTarget agregado
+usuarioRoutes.put('/:id', roleMiddleware('ADMIN'), validarSucursalTarget, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ error: 'ID inválido' });
 
     const parsed = actualizarSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -113,13 +137,11 @@ usuarioRoutes.put('/:id', roleMiddleware('ADMIN'), async (req: Request, res: Res
   } catch (err) { return next(err); }
 });
 
-// DELETE /api/usuarios/:id — Solo ADMIN (borrado lógico)
-usuarioRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+// DELETE /api/usuarios/:id — BUG-20 FIX: validarSucursalTarget agregado
+usuarioRoutes.delete('/:id', roleMiddleware('ADMIN'), validarSucursalTarget, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ error: 'ID inválido' });
 
-    // Borrado lógico — desactiva en lugar de eliminar
     await prisma.usuario.update({
       where: { id },
       data:  { activo: false },
