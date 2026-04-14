@@ -17,6 +17,9 @@ interface ProductoStock {
   codigoBarras: string | null;
   tipoUnidad: string;
   stockTotal: number;
+  categoria: string;
+  stockMinimo: number;
+  precioVenta: number;
   sucursales: {
     sucursalId: number;
     sucursalNombre: string;
