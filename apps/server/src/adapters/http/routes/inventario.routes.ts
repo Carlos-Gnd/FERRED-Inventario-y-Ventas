@@ -94,6 +94,42 @@ inventarioRoutes.get('/criticos/:sucursalId', async (req: Request, res: Response
   } catch (err) { return next(err); }
 });
 
+// ── GET /api/inventario/criticos-por-sucursal ───────────────────────────
+// T-06.5: Conteo de productos críticos agrupado por sucursal (solo ADMIN)
+inventarioRoutes.get(
+  '/criticos-por-sucursal',
+  roleMiddleware('ADMIN'),
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const sucursales = await prisma.sucursal.findMany({
+        orderBy: { id: 'asc' },
+      });
+
+      const resultado = await Promise.all(
+        sucursales.map(async (suc: { id: number; nombre: string }) => {
+          const [{ count }] = await prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(*) AS count
+            FROM stock_sucursal ss
+            INNER JOIN productos p ON p.id = ss.producto_id
+            WHERE ss.sucursal_id = ${suc.id}
+              AND p.activo = true
+              AND ss.cantidad <= ss.minimo
+          `;
+          return {
+            sucursalId:     suc.id,
+            sucursalNombre: suc.nombre,
+            criticos:       Number(count),
+          };
+        })
+      );
+
+      return res.json(resultado);
+    } catch (err) { return next(err); }
+  }
+);
+
+// ── PATCH /api/inventario/:productoId/ajuste
+
 // ── PATCH /api/inventario/:productoId/ajuste ────────────────────────────
 inventarioRoutes.patch(
   '/:productoId/ajuste',
