@@ -159,8 +159,9 @@ export default function DashboardPage() {
             key={suc.sucursalId}
             sucursalNombre={suc.sucursalNombre}
             criticos={suc.criticos}
-            onClick={() => navigate('/productos')}
+            onClick={() => navigate('/stock')}
             loading={loadingStock}
+>>>>>>> Stashed changes
           />
         ))}
 
@@ -360,6 +361,9 @@ function StockCard({ sucursalNombre, criticos, onClick, loading = false }: Stock
       </div>
     </div>
   );
+<<<<<<< Updated upstream
+}
+=======
 }
 
 // ── Skeleton de tarjeta mientras carga ──────────────────────────────────────
