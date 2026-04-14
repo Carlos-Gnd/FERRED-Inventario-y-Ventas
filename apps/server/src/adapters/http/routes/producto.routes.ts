@@ -85,10 +85,11 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
 });
 
 // ── GET /api/productos/barcode/:codigo ─────────────────────────────────────────
+// BUG-12 FIX: filtrar por activo:true para no retornar productos dados de baja
 productoRoutes.get('/barcode/:codigo', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const producto = await prisma.producto.findUnique({
-      where:   { codigoBarras: req.params.codigo },
+    const producto = await prisma.producto.findFirst({
+      where:   { codigoBarras: req.params.codigo, activo: true },
       include: { categoria: true },
     });
     if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
@@ -97,7 +98,8 @@ productoRoutes.get('/barcode/:codigo', async (req: Request, res: Response, next:
 });
 
 // ── GET /api/productos/:id/stock/:sucursalId ───────────────────────────────────
-productoRoutes.get('/:id/stock/:sucursalId', async (req, res, next) => {
+// BUG-13 FIX: requiere autenticación por rol (antes era público para cualquier JWT)
+productoRoutes.get('/:id/stock/:sucursalId', roleMiddleware('ADMIN', 'CAJERO', 'BODEGA'), async (req, res, next) => {
   try {
     const productoId = Number(req.params.id);
     const sucursalId = Number(req.params.sucursalId);
@@ -179,6 +181,7 @@ productoRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res:
 });
 
 // ── POST /api/productos/:id/descontar-stock ────────────────────────────────────
+// BUG-06 FIX: verificación + decremento dentro de $transaction para evitar TOCTOU
 productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), async (req, res, next) => {
   try {
     const productoId = Number(req.params.id);
@@ -187,28 +190,40 @@ productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), a
     if (!cantidad || cantidad <= 0) return res.status(400).json({ error: 'cantidad inválida' });
     if (!sucursalId)                return res.status(400).json({ error: 'sucursalId requerido' });
 
-    const stock = await prisma.stockSucursal.findUnique({
-      where: { productoId_sucursalId: { productoId, sucursalId } },
-    });
-
-    const disponible = stock?.cantidad ?? 0;
-    if (disponible < cantidad) {
-      return res.status(409).json({
-        error:      'Stock insuficiente en esta sucursal',
-        disponible,
-        solicitado: cantidad,
-        sucursalId,
+    const stockActualizado = await prisma.$transaction(async (tx) => {
+      const stock = await tx.stockSucursal.findUnique({
+        where: { productoId_sucursalId: { productoId, sucursalId } },
       });
-    }
 
-    const stockActualizado = await prisma.stockSucursal.update({
-      where: { productoId_sucursalId: { productoId, sucursalId } },
-      data:  { cantidad: { decrement: cantidad } },
+      const disponible = stock?.cantidad ?? 0;
+      if (disponible < cantidad) {
+        throw Object.assign(new Error('Stock insuficiente en esta sucursal'), {
+          statusCode: 409,
+          disponible,
+          solicitado: cantidad,
+          sucursalId,
+        });
+      }
+
+      return tx.stockSucursal.update({
+        where: { productoId_sucursalId: { productoId, sucursalId } },
+        data:  { cantidad: { decrement: cantidad } },
+      });
     });
 
     await sincronizarStockTotal(productoId);
 
     OfflineCache.invalidate(`stock:${sucursalId}`);
     return res.json({ mensaje: 'Stock descontado', stockRestante: stockActualizado.cantidad });
-  } catch (err) { return next(err); }
+  } catch (err: any) {
+    if (err?.statusCode === 409) {
+      return res.status(409).json({
+        error:      err.message,
+        disponible: err.disponible,
+        solicitado: err.solicitado,
+        sucursalId: err.sucursalId,
+      });
+    }
+    return next(err);
+  }
 });
