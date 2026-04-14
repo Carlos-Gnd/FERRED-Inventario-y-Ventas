@@ -59,8 +59,10 @@ export default function DashboardPage() {
             // /inventario/criticos/:id devuelve: { total, criticos: [...] }
             const { total } = invRes.value.data;
             setStockData([{
-              sucursalId:     usuario?.sucursalId ?? 1,
-              sucursalNombre: `Sucursal ${usuario?.sucursalId ?? 1}`,
+              sucursalId:     usuario?.sucursalId ?? 0,
+              sucursalNombre: usuario?.sucursalId
+                ? `Sucursal ${usuario.sucursalId}`
+                : 'Sin sucursal asignada',
               criticos:       total ?? 0,
             }]);
           }
@@ -92,7 +94,7 @@ export default function DashboardPage() {
       }
     }
     load();
-  }, [rol]);
+  }, [rol, usuario?.sucursalId]);
 
   const STATS = [
     { label: 'Productos',        value: stats.productos.toString(),  trend: 'Total',   color: 'var(--accent)',  icon: '📦', visible: true },
