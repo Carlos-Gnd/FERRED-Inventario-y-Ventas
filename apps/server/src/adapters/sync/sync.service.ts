@@ -69,7 +69,12 @@ export async function logPendiente(
   });
 }
 
-// ── Campos escalares por tabla ──
+// ── SEC-07 FIX: Whitelist de tablas permitidas ────────────────
+const TABLAS_PERMITIDAS = new Set([
+  'producto', 'categoria', 'usuario', 'stockSucursal', 'facturaDte',
+]);
+
+// ── Campos escalares por tabla ────────────────────────────────
 const CAMPOS_ESCALARES: Record<string, string[]> = {
   producto: [
     'id', 'categoriaId', 'nombre', 'codigoBarras', 'tipoUnidad',
@@ -77,13 +82,14 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'tieneIva', 'stockActual', 'stockMinimo', 'activo', 'creadoEn',
   ],
   categoria: ['id', 'nombre', 'descripcion', 'activo'],
-  usuario:   ['id', 'nombre', 'email', 'passwordHash', 'rol', 'sucursalId', 'activo'],
+  // BUG-08 FIX: corregido 'passwordHash' → 'contrasenaHash'
+  usuario:   ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo'],
   syncLog:   ['id', 'tabla', 'operacion', 'payload', 'usuarioId', 'status', 'intentos', 'error', 'creadoEn', 'sincEn'],
 };
 
 function limpiarPayload(tabla: string, payload: any): any {
   const campos = CAMPOS_ESCALARES[tabla];
-  if (!campos) return payload; // tabla desconocida, intentar tal cual
+  if (!campos) return payload;
   return Object.fromEntries(
     Object.entries(payload).filter(([k]) => campos.includes(k))
   );
@@ -157,10 +163,14 @@ export const SyncService = {
   },
 
   async aplicarOperacion(tabla: string, op: string, payload: any) {
+    // SEC-07 FIX: validar tabla contra whitelist
+    if (!TABLAS_PERMITIDAS.has(tabla)) {
+      throw new Error(`Tabla no permitida: ${tabla}`);
+    }
+
     const model = (prisma as any)[tabla];
     if (!model) throw new Error(`Tabla desconocida: ${tabla}`);
 
-    // limpiar relaciones anidadas
     const data = limpiarPayload(tabla, payload);
     if (op === 'CREATE') {
       await model.upsert({
