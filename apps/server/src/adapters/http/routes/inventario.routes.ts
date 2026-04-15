@@ -155,7 +155,7 @@ inventarioRoutes.patch(
 
       await logPendiente('stockSucursal', 'UPDATE', {
         id: stock.id, productoId, sucursalId, cantidad: stock.cantidad, motivo,
-      }, (req as any).usuario?.id);
+      }, req.usuario?.id);
 
       OfflineCache.invalidate(`stock:${sucursalId}`);
       return res.json({ ok: true, stock, stockTotal: await getStockTotal(productoId) });
@@ -286,7 +286,7 @@ inventarioRoutes.get(
 // BUG-10 FIX: usar JSON.parse en lugar de string matching fragil
 inventarioRoutes.get('/sync-pendientes', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const sucursalId = (req as any).usuario?.sucursalId ?? null;
+    const sucursalId = req.usuario?.sucursalId ?? null;
 
     // BUG-10 FIX: obtener todos los logs y filtrar por sucursalId parseando el JSON
     const todosLogs = await prisma.syncLog.findMany({
