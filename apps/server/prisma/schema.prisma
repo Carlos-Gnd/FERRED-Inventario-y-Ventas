@@ -11,13 +11,14 @@ datasource db {
 }
 
 model Sucursal {
-  id        Int    @id @default(autoincrement())
-  nombre    String
-  direccion String?
-  telefono  String?
-  usuarios  Usuario[]
-  facturas  FacturaDte[]
-  stocks    StockSucursal[]
+  id          Int    @id @default(autoincrement())
+  nombre      String
+  direccion   String?
+  telefono    String?
+  usuarios    Usuario[]
+  facturas    FacturaDte[]
+  stocks      StockSucursal[]
+  recepciones RecepcionMercancia[]
   @@map("sucursales")
 }
 
@@ -42,6 +43,7 @@ model Usuario {
   sucursal       Sucursal?    @relation(fields: [sucursalId], references: [id])
   facturas       FacturaDte[]
   syncLogs       SyncLog[]
+  recepciones    RecepcionMercancia[]
   @@map("usuarios")
 }
 
@@ -63,6 +65,7 @@ model Producto {
   categoria          Categoria?    @relation(fields: [categoriaId], references: [id])
   detallesVenta      DetalleVenta[]
   stocks             StockSucursal[]
+  detallesRecepcion  DetalleRecepcion[]
   @@map("productos")
 }
 
@@ -125,4 +128,46 @@ model SyncLog {
   sincEn    DateTime? @map("sinc_en")
   usuario   Usuario?  @relation(fields: [usuarioId], references: [id])
   @@map("sync_log")
+}
+
+// HU-14: Recepción de mercancía de proveedores
+model Proveedor {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  nit         String?  @unique
+  telefono    String?
+  email       String?
+  direccion   String?
+  activo      Boolean  @default(true)
+  creadoEn    DateTime @default(now()) @map("creado_en")
+  recepciones RecepcionMercancia[]
+  @@map("proveedores")
+}
+
+model RecepcionMercancia {
+  id             Int      @id @default(autoincrement())
+  proveedorId    Int      @map("proveedor_id")
+  sucursalId     Int      @map("sucursal_id")
+  usuarioId      Int?     @map("usuario_id")
+  numeroFactura  String?  @map("numero_factura")
+  total          Float    @default(0)
+  observaciones  String?
+  creadoEn       DateTime @default(now()) @map("creado_en")
+  proveedor      Proveedor          @relation(fields: [proveedorId], references: [id])
+  sucursal       Sucursal           @relation(fields: [sucursalId], references: [id])
+  usuario        Usuario?           @relation(fields: [usuarioId], references: [id])
+  detalles       DetalleRecepcion[]
+  @@map("recepciones_mercancia")
+}
+
+model DetalleRecepcion {
+  id          Int   @id @default(autoincrement())
+  recepcionId Int   @map("recepcion_id")
+  productoId  Int   @map("producto_id")
+  cantidad    Float
+  costoUnit   Float @map("costo_unit")
+  subtotal    Float
+  recepcion   RecepcionMercancia @relation(fields: [recepcionId], references: [id], onDelete: Cascade)
+  producto    Producto           @relation(fields: [productoId], references: [id])
+  @@map("detalles_recepcion")
 }
