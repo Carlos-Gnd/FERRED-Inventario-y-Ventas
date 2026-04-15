@@ -94,6 +94,97 @@ inventarioRoutes.get('/criticos/:sucursalId', async (req: Request, res: Response
   } catch (err) { return next(err); }
 });
 
+// ── GET /api/inventario/criticos-detalle ──────────────────────────────────
+// T-03.3: Detalle completo de alertas para dashboard/modal
+inventarioRoutes.get(
+  '/criticos-detalle',
+  roleMiddleware('ADMIN', 'BODEGA'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const rolUsuario  = (req as any).usuario?.rol;
+      const sucursalReq = Number(req.query.sucursalId);
+      const sucursalId =
+        rolUsuario === 'ADMIN'
+          ? (Number.isFinite(sucursalReq) && sucursalReq > 0 ? sucursalReq : null)
+          : Number((req as any).usuario?.sucursalId ?? 0);
+
+      const criticos = sucursalId
+        ? await prisma.$queryRaw<Array<{
+            id: number;
+            productoId: number;
+            sucursalId: number;
+            producto: string;
+            codigoBarras: string | null;
+            sucursalNombre: string;
+            cantidad: number;
+            minimo: number;
+            tipoUnidad: string | null;
+            estado: 'critico' | 'bajo';
+          }>>`
+            SELECT
+              ss.id,
+              ss.producto_id AS "productoId",
+              ss.sucursal_id AS "sucursalId",
+              p.nombre AS "producto",
+              p.codigo_barras AS "codigoBarras",
+              s.nombre AS "sucursalNombre",
+              ss.cantidad,
+              ss.minimo,
+              p.tipo_unidad AS "tipoUnidad",
+              CASE
+                WHEN ss.cantidad = 0 THEN 'critico'
+                ELSE 'bajo'
+              END AS "estado"
+            FROM stock_sucursal ss
+            INNER JOIN productos p ON p.id = ss.producto_id
+            INNER JOIN sucursales s ON s.id = ss.sucursal_id
+            WHERE p.activo = ${true}
+              AND ss.cantidad <= ss.minimo
+              AND ss.sucursal_id = ${sucursalId}
+            ORDER BY ss.cantidad ASC, p.nombre ASC
+          `
+        : await prisma.$queryRaw<Array<{
+            id: number;
+            productoId: number;
+            sucursalId: number;
+            producto: string;
+            codigoBarras: string | null;
+            sucursalNombre: string;
+            cantidad: number;
+            minimo: number;
+            tipoUnidad: string | null;
+            estado: 'critico' | 'bajo';
+          }>>`
+            SELECT
+              ss.id,
+              ss.producto_id AS "productoId",
+              ss.sucursal_id AS "sucursalId",
+              p.nombre AS "producto",
+              p.codigo_barras AS "codigoBarras",
+              s.nombre AS "sucursalNombre",
+              ss.cantidad,
+              ss.minimo,
+              p.tipo_unidad AS "tipoUnidad",
+              CASE
+                WHEN ss.cantidad = 0 THEN 'critico'
+                ELSE 'bajo'
+              END AS "estado"
+            FROM stock_sucursal ss
+            INNER JOIN productos p ON p.id = ss.producto_id
+            INNER JOIN sucursales s ON s.id = ss.sucursal_id
+            WHERE p.activo = ${true}
+              AND ss.cantidad <= ss.minimo
+            ORDER BY ss.cantidad ASC, p.nombre ASC
+          `;
+
+      return res.json({
+        total: criticos.length,
+        criticos,
+      });
+    } catch (err) { return next(err); }
+  }
+);
+
 // ── GET /api/inventario/criticos-por-sucursal ───────────────────────────
 // T-06.5: Conteo de productos críticos agrupado por sucursal (solo ADMIN)
 inventarioRoutes.get(

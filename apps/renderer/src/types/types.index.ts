@@ -89,6 +89,19 @@ export interface ProductoComparativo {
   sucursales:   StockPorSucursal[];
 }
 
+export interface AlertaStockDetalle {
+  id:            number;
+  productoId:    number;
+  sucursalId:    number;
+  producto:      string;
+  codigoBarras:  string | null;
+  sucursalNombre: string;
+  cantidad:      number;
+  minimo:        number;
+  tipoUnidad:    TipoUnidad | null;
+  estado:        Extract<EstadoStock, 'critico' | 'bajo'>;
+}
+
 // ─── API HELPERS ─────────────────────────────────────────────
 export interface ApiError {
   error:   string;
