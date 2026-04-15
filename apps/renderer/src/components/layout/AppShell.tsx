@@ -4,9 +4,11 @@ import { Topbar }           from './Topbar';
 import { BottomNav }        from './BottomNav';
 import { OfflineBanner }    from './OfflineBanner';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useCriticalAlerts } from '../../hooks/useCriticalAlerts';
 
 export function AppShell() {
   const { isOffline, isChecking, syncState } = useNetworkStatus();
+  const { hasActiveAlerts } = useCriticalAlerts();
 
   // Solo mostrar banner cuando está CONFIRMADAMENTE offline, no durante "checking"
   const showBanner = isOffline && !isChecking;
@@ -17,7 +19,7 @@ export function AppShell() {
       background: 'var(--bg-base)', overflow: 'hidden',
     }}>
       <div className="sidebar-wrapper">
-        <Sidebar />
+        <Sidebar hasActiveAlerts={hasActiveAlerts} />
       </div>
 
       <div style={{
@@ -37,7 +39,7 @@ export function AppShell() {
         </main>
       </div>
 
-      <BottomNav />
+      <BottomNav hasActiveAlerts={hasActiveAlerts} />
     </div>
   );
 }   
