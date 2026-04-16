@@ -49,7 +49,7 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 const loginLimiter = rateLimit({
   windowMs:        60 * 1000,
@@ -61,9 +61,9 @@ const loginLimiter = rateLimit({
 
 app.use('/api/auth', loginLimiter, authRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true, branch: branchId }));
-app.get('/sync/pendientes-local', (_req, res) => res.json(contarPendientes()));
 
 app.use(jwtMiddleware);
+app.get('/sync/pendientes-local', (_req, res) => res.json(contarPendientes()));
 app.use('/api/usuarios',   usuarioRoutes);
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/productos',  productoRoutes);

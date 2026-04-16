@@ -265,13 +265,26 @@ inventarioRoutes.patch(
       if (!Number.isFinite(cantidad)) return res.status(400).json({ error: 'cantidad inválida' });
       if (!sucursalId)                return res.status(400).json({ error: 'sucursalId requerido' });
 
-      const stock = await prisma.stockSucursal.upsert({
-        where:  { productoId_sucursalId: { productoId, sucursalId } },
-        create: { productoId, sucursalId, cantidad: Math.max(0, cantidad), minimo },
-        update: { cantidad, minimo },
-      });
+      if (!assertSameSucursal(req, res, sucursalId)) return;
 
-      await sincronizarStockTotal(productoId);
+      const stock = await prisma.$transaction(async (tx) => {
+        const s = await tx.stockSucursal.upsert({
+          where:  { productoId_sucursalId: { productoId, sucursalId } },
+          create: { productoId, sucursalId, cantidad: Math.max(0, cantidad), minimo },
+          update: { cantidad, minimo },
+        });
+
+        const resultado = await tx.stockSucursal.aggregate({
+          where: { productoId },
+          _sum:  { cantidad: true },
+        });
+        await tx.producto.update({
+          where: { id: productoId },
+          data:  { stockActual: resultado._sum.cantidad ?? 0 },
+        });
+
+        return s;
+      });
 
       await logPendiente('stockSucursal', 'UPDATE', {
         id: stock.id, productoId, sucursalId, cantidad: stock.cantidad, motivo,
@@ -301,6 +314,10 @@ inventarioRoutes.post(
         return res.status(400).json({ error: 'Datos de transferencia inválidos' });
       }
 
+      if (origenId === destinoId) {
+        return res.status(400).json({ error: 'Origen y destino deben ser diferentes' });
+      }
+
       // BUG-09 FIX: verificacion y descuento DENTRO de la misma transaccion
       const [stockOrigen, stockDestino] = await prisma.$transaction(async (tx) => {
         // Verificar stock suficiente dentro de la transaccion
@@ -327,8 +344,14 @@ inventarioRoutes.post(
       });
 
       await sincronizarStockTotal(productoId);
+
+      await logPendiente('stockSucursal', 'UPDATE', {
+        productoId, origenId, destinoId, cantidad, tipo: 'TRANSFERENCIA',
+      }, req.usuario?.id);
+
       OfflineCache.invalidate(`stock:${origenId}`);
       OfflineCache.invalidate(`stock:${destinoId}`);
+      OfflineCache.invalidate('productos:');
 
       return res.json({
         mensaje: 'Transferencia realizada',
@@ -408,25 +431,15 @@ inventarioRoutes.get('/sync-pendientes', async (req: Request, res: Response, nex
   try {
     const sucursalId = req.usuario?.sucursalId ?? null;
 
-    // BUG-10 FIX: obtener todos los logs y filtrar por sucursalId parseando el JSON
-    const todosLogs = await prisma.syncLog.findMany({
-      select: { status: true, payload: true },
-    });
+    const whereBase = sucursalId
+      ? { payload: { contains: `"sucursalId":${sucursalId}` } }
+      : {};
 
-    const filtrados = sucursalId
-      ? todosLogs.filter(log => {
-          try {
-            const payload = JSON.parse(log.payload);
-            return payload.sucursalId === sucursalId;
-          } catch {
-            return false;
-          }
-        })
-      : todosLogs;
-
-    const pendientes    = filtrados.filter(l => l.status === 'PENDIENTE').length;
-    const sincronizados = filtrados.filter(l => l.status === 'SINCRONIZADO').length;
-    const errores       = filtrados.filter(l => l.status === 'ERROR').length;
+    const [pendientes, sincronizados, errores] = await Promise.all([
+      prisma.syncLog.count({ where: { ...whereBase, status: 'PENDIENTE' } }),
+      prisma.syncLog.count({ where: { ...whereBase, status: 'SINCRONIZADO' } }),
+      prisma.syncLog.count({ where: { ...whereBase, status: 'ERROR' } }),
+    ]);
 
     return res.json({
       pendientes,

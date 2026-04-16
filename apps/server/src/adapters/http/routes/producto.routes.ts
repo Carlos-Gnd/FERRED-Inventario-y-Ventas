@@ -4,6 +4,7 @@ import { prisma } from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
 import { sincronizarStockTotal } from './inventario.routes';
+import { assertSameSucursal } from '../middleware/sucursal.guard';
 import {
   crearProductoSqlite,
   obtenerProductosSqlite,
@@ -52,6 +53,8 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
     const targetSucursalId = sucursalId
       ? Number(sucursalId)
       : req.usuario?.sucursalId;
+
+    if (targetSucursalId && !assertSameSucursal(req, res, targetSucursalId)) return;
 
     const productos = await prisma.producto.findMany({
       where: {
@@ -129,6 +132,8 @@ productoRoutes.get('/:id/stock/:sucursalId', roleMiddleware('ADMIN', 'CAJERO', '
   try {
     const productoId = Number(req.params.id);
     const sucursalId = Number(req.params.sucursalId);
+
+    if (!assertSameSucursal(req, res, sucursalId)) return;
 
     const stock = await prisma.stockSucursal.findUnique({
       where: { productoId_sucursalId: { productoId, sucursalId } },

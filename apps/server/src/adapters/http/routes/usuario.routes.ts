@@ -59,8 +59,8 @@ usuarioRoutes.get('/', roleMiddleware('ADMIN'), async (req: Request, res: Respon
         ...(activo !== undefined ? { activo: activo === 'true' } : {}),
         ...(buscar ? {
           OR: [
-            { nombre: { contains: String(buscar) } },
-            { email:  { contains: String(buscar) } },
+            { nombre: { contains: String(buscar), mode: 'insensitive' as const } },
+            { email:  { contains: String(buscar), mode: 'insensitive' as const } },
           ],
         } : {}),
       },
