@@ -9,12 +9,8 @@ import CategoriesPage      from '../pages/categories/CategoriesPage';
 import ProductsPage        from '../pages/products/ProductsPage';
 import ComingSoonPage      from '../pages/ComingSoonPage';
 import TransfersPage       from '../pages/transfers/TransfersPage';
-<<<<<<< HEAD
 import StockPage           from '../pages/stock/StockPage';
-=======
-import StockPage           from '../pages/stock/stockPage';
 import VentasPage          from '../pages/ventas/VentasPage';
->>>>>>> 18bb373d7d699d2c21701be12a0692ec2a75bc49
 
 export function AppRouter() {
   return (
