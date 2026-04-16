@@ -19,6 +19,11 @@ import { proveedorRoutes }  from './adapters/http/routes/proveedor.routes';
 import { errorMiddleware }  from './adapters/http/middleware/error.middleware';
 import { jwtMiddleware }    from './adapters/http/middleware/jwt.middleware';
 import { SyncService }      from './adapters/sync/sync.service';
+import { initSqlite }       from './adapters/db/sqlite/sqlite.client';
+import { contarPendientes } from './adapters/sync/sync.local';
+
+initSqlite();
+console.log('[SQLite] BD local inicializada');
 
 const app = express();
 const branchId = process.env.BRANCH_ID || '1';
@@ -56,6 +61,7 @@ const loginLimiter = rateLimit({
 
 app.use('/api/auth', loginLimiter, authRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true, branch: branchId }));
+app.get('/sync/pendientes-local', (_req, res) => res.json(contarPendientes()));
 
 app.use(jwtMiddleware);
 app.use('/api/usuarios',   usuarioRoutes);

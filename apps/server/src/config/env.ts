@@ -42,4 +42,8 @@ export const env = {
     sandboxUser: process.env.DTE_SANDBOX_USER,
     sandboxPass: process.env.DTE_SANDBOX_PASS,
   },
+
+  sqlite: {
+    path: process.env.SQLITE_PATH ?? path.resolve(process.cwd(), 'data/ferred_offline.db'),
+  },
 } as const;
