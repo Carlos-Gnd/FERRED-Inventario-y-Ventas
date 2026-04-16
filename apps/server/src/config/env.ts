@@ -39,4 +39,8 @@ export const env = {
     env:        process.env.DTE_ENV ?? 'sandbox',
     sandboxUrl: process.env.DTE_SANDBOX_URL ?? 'https://apitest.dtes.mh.gob.sv',
   },
+
+  sqlite: {
+    path: process.env.SQLITE_PATH ?? path.resolve(process.cwd(), 'data/ferred_offline.db'),
+  },
 } as const;
