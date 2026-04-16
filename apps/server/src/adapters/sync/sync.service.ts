@@ -1,11 +1,5 @@
 /**
  * SyncService — sincronización bidireccional Local-First
- *
- * Estrategia:
- * 1. El servidor opera normalmente contra Supabase cuando hay conexión.
- * 2. Cada mutación (CREATE/UPDATE/DELETE) queda registrada en sync_log con status PENDIENTE.
- * 3. Cuando se detecta reconexión, se suben los pendientes y se confirman.
- * 4. Si Supabase no está disponible, las lecturas usan caché en memoria (5 min TTL).
  */
 
 import { prisma } from '../db/prisma/prisma.client';
@@ -13,8 +7,8 @@ import { prisma } from '../db/prisma/prisma.client';
 const INTERVAL_MS  = 30_000;
 const MAX_INTENTOS = 5;
 
-// ── Estado interno de conectividad ────────────────────────────
-let _online   = true;
+// ── Estado de conexión ─────────────────────────
+let _online = true;
 let _listeners: ((online: boolean) => void)[] = [];
 
 export function onConnectivityChange(cb: (online: boolean) => void) {
@@ -25,11 +19,11 @@ export function onConnectivityChange(cb: (online: boolean) => void) {
 function setOnline(v: boolean) {
   if (v === _online) return;
   _online = v;
-  console.log(v ? '🌐 SyncService: conexión restaurada' : '📴 SyncService: sin conexión — modo offline');
+  console.log(v ? '🌐 Conectado' : '📴 Offline');
   _listeners.forEach(cb => cb(v));
 }
 
-// ── Caché en memoria para modo offline ───────────────────────
+// ── Cache offline ─────────────────────────
 interface CacheEntry { data: unknown; expiresAt: number; }
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 5 * 60 * 1000;
@@ -41,7 +35,10 @@ export const OfflineCache = {
   get<T>(key: string): T | null {
     const entry = cache.get(key);
     if (!entry) return null;
-    if (Date.now() > entry.expiresAt) { cache.delete(key); return null; }
+    if (Date.now() > entry.expiresAt) {
+      cache.delete(key);
+      return null;
+    }
     return entry.data as T;
   },
   invalidate(prefix: string) {
@@ -51,7 +48,7 @@ export const OfflineCache = {
   },
 };
 
-// ── Helper para registrar operaciones pendientes ──────────────
+// ── Registrar operación ─────────────────────────
 export async function logPendiente(
   tabla: string,
   operacion: 'CREATE' | 'UPDATE' | 'DELETE',
@@ -62,56 +59,64 @@ export async function logPendiente(
     data: {
       tabla,
       operacion,
-      payload:   JSON.stringify(payload),
+      payload: JSON.stringify(payload),
       usuarioId: usuarioId ?? null,
-      status:    'PENDIENTE',
+      status: 'PENDIENTE',
     },
   });
 }
 
-// ── SEC-07 FIX: Whitelist de tablas permitidas ────────────────
+// ── Seguridad ─────────────────────────
 const TABLAS_PERMITIDAS = new Set([
-  'producto', 'categoria', 'usuario', 'stockSucursal', 'facturaDte',
+  'producto',
+  'categoria',
+  'usuario',
+  'stockSucursal',
+  'facturaDte',
 ]);
 
-// ── Campos escalares por tabla ────────────────────────────────
+// ── Campos válidos ─────────────────────────
 const CAMPOS_ESCALARES: Record<string, string[]> = {
   producto: [
-    'id', 'categoriaId', 'nombre', 'codigoBarras', 'tipoUnidad',
-    'precioCompra', 'porcentajeGanancia', 'precioVenta', 'precioConIva',
-    'tieneIva', 'stockActual', 'stockMinimo', 'activo', 'creadoEn',
+    'id','categoriaId','nombre','codigoBarras','tipoUnidad',
+    'precioCompra','porcentajeGanancia','precioVenta','precioConIva',
+    'tieneIva','stockActual','stockMinimo','activo','creadoEn',
   ],
-  categoria: ['id', 'nombre', 'descripcion', 'activo'],
-  usuario:   ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo'],
-  syncLog:   ['id', 'tabla', 'operacion', 'payload', 'usuarioId', 'status', 'intentos', 'error', 'creadoEn', 'sincEn'],
-  // BUG-25 FIX: agregar tablas faltantes en CAMPOS_ESCALARES
+  categoria: ['id','nombre','descripcion','activo'],
+  usuario: ['id','nombre','email','contrasenaHash','rol','sucursalId','activo'],
+  syncLog: ['id','tabla','operacion','payload','usuarioId','status','intentos','error','creadoEn','sincEn'],
+
   stockSucursal: [
-    'id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'actualizadoEn',
+    'id','productoId','sucursalId','cantidad','minimo','actualizadoEn'
   ],
+
   facturaDte: [
-    'id', 'sucursalId', 'usuarioId', 'codigoGeneracion', 'numeroControl',
-    'tipoDte', 'clienteNombre', 'totalSinIva', 'iva', 'total',
-    'dteJson', 'estado', 'sincronizado', 'creadoEn',
+    'id','sucursalId','usuarioId','codigoGeneracion','numeroControl',
+    'tipoDte','clienteNombre','totalSinIva','iva','total',
+    'dteJson','estado','sincronizado','creadoEn'
   ],
 };
 
+// ── Limpiar payload ─────────────────────────
 function limpiarPayload(tabla: string, payload: any): any {
   const campos = CAMPOS_ESCALARES[tabla];
-  // BUG-25 FIX: lanzar error en vez de retornar payload crudo
+
   if (!campos) {
-    throw new Error(
-      `limpiarPayload: tabla "${tabla}" no tiene entradas en CAMPOS_ESCALARES. Agregala antes de sincronizar.`
-    );
+    throw new Error(`Tabla no soportada: ${tabla}`);
   }
-  return Object.fromEntries(
+
+  const limpio = Object.fromEntries(
     Object.entries(payload).filter(([k]) => campos.includes(k))
   );
+
+  return limpio;
 }
 
-// ── Servicio principal ────────────────────────────────────────
+// ── Servicio ─────────────────────────
 export const SyncService = {
+
   start() {
-    console.log('🔄 SyncService: iniciado');
+    console.log('🔄 SyncService iniciado');
     this.checkConnectivity().then(() => {
       setInterval(() => this.run(), INTERVAL_MS);
     });
@@ -134,66 +139,91 @@ export const SyncService = {
     }
   },
 
-  isOnline() { return _online; },
+  isOnline() {
+    return _online;
+  },
 
   async pushPendientes() {
     const pendientes = await prisma.syncLog.findMany({
-      where:   { status: 'PENDIENTE', intentos: { lt: MAX_INTENTOS } },
+      where: { status: 'PENDIENTE', intentos: { lt: MAX_INTENTOS } },
       orderBy: { creadoEn: 'asc' },
-      take:    50,
+      take: 50,
     });
 
-    if (pendientes.length === 0) return;
-    console.log(`📤 SyncService: procesando ${pendientes.length} registros pendientes`);
+    if (!pendientes.length) return;
 
-    let ok = 0;
+    console.log(`📤 Procesando ${pendientes.length} pendientes`);
+
     for (const log of pendientes) {
       try {
         const payload = JSON.parse(log.payload);
+
         await this.aplicarOperacion(log.tabla, log.operacion, payload);
+
         await prisma.syncLog.update({
           where: { id: log.id },
-          data:  { status: 'SINCRONIZADO', sincEn: new Date() },
+          data: { status: 'SINCRONIZADO', sincEn: new Date() },
         });
-        ok++;
+
       } catch (err: any) {
-        console.error(`❌ SyncService error en log ${log.id}:`, err.message);
+
+        console.error(`Error sync ${log.id}`, err.message);
+
         await prisma.syncLog.update({
           where: { id: log.id },
-          data:  {
+          data: {
             intentos: { increment: 1 },
-            error:    err.message?.substring(0, 500),
-            status:   log.intentos + 1 >= MAX_INTENTOS ? 'ERROR' : 'PENDIENTE',
+            error: err.message,
+            status: log.intentos + 1 >= MAX_INTENTOS ? 'ERROR' : 'PENDIENTE',
           },
         });
       }
     }
 
-    if (ok > 0) {
-      console.log(`✅ SyncService: ${ok}/${pendientes.length} sincronizados`);
-      cache.clear();
-    }
+    cache.clear();
   },
 
   async aplicarOperacion(tabla: string, op: string, payload: any) {
+
     if (!TABLAS_PERMITIDAS.has(tabla)) {
       throw new Error(`Tabla no permitida: ${tabla}`);
     }
 
-    const model = (prisma as any)[tabla];
-    if (!model) throw new Error(`Tabla desconocida: ${tabla}`);
+    const model = (prisma as any)[tabla] as any;
+
+    if (!model) {
+      throw new Error(`Modelo no encontrado: ${tabla}`);
+    }
 
     const data = limpiarPayload(tabla, payload);
+
+    if (!data.id) {
+      throw new Error(`Payload sin id en ${tabla}`);
+    }
+
     if (op === 'CREATE') {
       await model.upsert({
-        where:  { id: data.id },
+        where: { id: data.id },
         update: data,
         create: data,
       });
+
     } else if (op === 'UPDATE') {
-      await model.update({ where: { id: data.id }, data });
+
+      await model.update({
+        where: { id: data.id },
+        data,
+      });
+
     } else if (op === 'DELETE') {
-      await model.update({ where: { id: data.id }, data: { activo: false } });
+
+      await model.update({
+        where: { id: data.id },
+        data: { activo: false },
+      });
+
+    } else {
+      throw new Error(`Operación no soportada: ${op}`);
     }
   },
 };
