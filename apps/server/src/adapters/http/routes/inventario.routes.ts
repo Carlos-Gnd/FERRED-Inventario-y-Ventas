@@ -316,10 +316,10 @@ inventarioRoutes.post(
 );
 
 // ── GET /api/inventario/stock-comparativo ───────────────────────────────
-inventarioRoutes.get(
-  '/stock-comparativo',
-  roleMiddleware('ADMIN'),
-  async (_req: Request, res: Response, next: NextFunction) => {
+    inventarioRoutes.get(
+      '/stock-comparativo',
+      roleMiddleware('ADMIN', 'BODEGA'),
+      async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const productos = await prisma.producto.findMany({
         where:   { activo: true },

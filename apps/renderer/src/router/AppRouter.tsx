@@ -9,7 +9,7 @@ import CategoriesPage      from '../pages/categories/CategoriesPage';
 import ProductsPage        from '../pages/products/ProductsPage';
 import ComingSoonPage      from '../pages/ComingSoonPage';
 import TransfersPage       from '../pages/transfers/TransfersPage';
-import StockPage           from '../pages/stock/stockPage';
+import StockPage           from '../pages/stock/StockPage';
 
 export function AppRouter() {
   return (
