@@ -8,6 +8,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma }          from '../../db/prisma/prisma.client';
 import { roleMiddleware }  from '../middleware/role.middleware';
+import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente }    from '../../sync/sync.service';
 import { sincronizarStockTotal } from './inventario.routes';
 import { enviarDteHacienda }    from '../../dte/dte.service';
@@ -207,6 +208,9 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
 ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const facturaId = Number(req.params.id);
+    if (isNaN(facturaId) || facturaId < 1) {
+      return res.status(400).json({ error: 'id inválido' });
+    }
 
     const factura = await prisma.facturaDte.findUnique({
       where:   { id: facturaId },
@@ -226,6 +230,9 @@ ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: R
     if (!factura) {
       return res.status(404).json({ error: 'Factura no encontrada' });
     }
+
+    // BUG-N2: validar pertenencia antes de devolver el ticket completo
+    if (!assertSameSucursal(req, res, factura.sucursalId)) return;
 
     return res.json({
       facturaId:        factura.id,

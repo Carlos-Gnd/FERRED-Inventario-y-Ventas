@@ -5,5 +5,7 @@ dist/
 .DS_Store
 out/
 release/
-CLAUDE.md
+*.tsbuildinfo
+apps/renderer/vite.config.js
+apps/renderer/vite.config.d.ts
 .claude/
