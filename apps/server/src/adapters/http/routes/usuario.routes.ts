@@ -100,6 +100,14 @@ usuarioRoutes.post('/', roleMiddleware('ADMIN'), async (req: Request, res: Respo
 
     const { nombre, email, contrasena, rol, sucursalId, activo } = parsed.data;
 
+    // BUG-N10: un ADMIN solo puede crear usuarios en su propia sucursal
+    const adminSucursalId = req.usuario!.sucursalId;
+    if (sucursalId !== adminSucursalId) {
+      return res.status(403).json({
+        error: 'No tenés permisos para crear usuarios en otra sucursal',
+      });
+    }
+
     const existe = await prisma.usuario.findUnique({ where: { email } });
     if (existe) return res.status(400).json({ error: 'El email ya está registrado' });
 
@@ -123,7 +131,10 @@ usuarioRoutes.put('/:id', roleMiddleware('ADMIN'), validarSucursalTarget, async 
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
-    const { contrasena, ...resto } = parsed.data;
+    // BUG-N10: validarSucursalTarget ya validó el target, pero si el body
+    // incluye sucursalId se podría mover el usuario fuera de la sucursal
+    // del ADMIN. No se permite cambiar la sucursal por esta vía.
+    const { contrasena, sucursalId: _ignorarSucursalId, ...resto } = parsed.data;
     const data: any = { ...resto };
     if (contrasena) data.contrasenaHash = await bcrypt.hash(contrasena, 12);
 

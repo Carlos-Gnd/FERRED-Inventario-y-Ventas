@@ -73,6 +73,8 @@ const TABLAS_PERMITIDAS = new Set([
   'usuario',
   'stockSucursal',
   'facturaDte',
+  'recepcionMercancia',
+  'detalleRecepcion',
 ]);
 
 // ── Campos válidos ─────────────────────────
@@ -94,6 +96,15 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'id','sucursalId','usuarioId','codigoGeneracion','numeroControl',
     'tipoDte','clienteNombre','totalSinIva','iva','total',
     'dteJson','estado','sincronizado','creadoEn'
+  ],
+
+  recepcionMercancia: [
+    'id','proveedorId','sucursalId','usuarioId',
+    'numeroFactura','total','observaciones','creadoEn',
+  ],
+
+  detalleRecepcion: [
+    'id','recepcionId','productoId','cantidad','costoUnit','subtotal',
   ],
 };
 

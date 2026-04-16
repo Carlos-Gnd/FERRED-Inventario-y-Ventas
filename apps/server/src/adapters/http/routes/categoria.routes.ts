@@ -14,6 +14,7 @@ const schema = z.object({
 categoriaRoutes.get('/', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const categorias = await prisma.categoria.findMany({
+      where:   { activo: true },
       include: { _count: { select: { productos: true } } },
       orderBy: { nombre: 'asc' },
     });
@@ -50,11 +51,17 @@ categoriaRoutes.put('/:id', roleMiddleware('ADMIN', 'BODEGA'), async (req: Reque
   } catch (err) { return next(err); }
 });
 
-// DELETE /api/categorias/:id — Solo ADMIN
+// DELETE /api/categorias/:id — Solo ADMIN (soft delete para ser consistente
+// con el resto del sistema; evita romper FKs con productos existentes)
 categoriaRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
-    await prisma.categoria.delete({ where: { id } });
-    return res.json({ mensaje: 'Categoría eliminada' });
+    if (isNaN(id) || id < 1) return res.status(400).json({ error: 'id inválido' });
+
+    await prisma.categoria.update({
+      where: { id },
+      data:  { activo: false },
+    });
+    return res.json({ mensaje: 'Categoría desactivada' });
   } catch (err) { return next(err); }
 });
