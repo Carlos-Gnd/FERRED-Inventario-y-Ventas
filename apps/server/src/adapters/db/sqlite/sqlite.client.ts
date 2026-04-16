@@ -36,10 +36,10 @@ export function closeSqlite() {
 
 function readSchema() {
   const schemaPaths = [
-    path.join(__dirname, 'schema.sql'),
-    path.resolve(process.cwd(), 'src/adapters/db/sqlite/schema.sql'),
     path.join(__dirname, 'sqlite.schema.sql'),
     path.resolve(process.cwd(), 'src/adapters/db/sqlite/sqlite.schema.sql'),
+    path.join(__dirname, 'schema.sql'),
+    path.resolve(process.cwd(), 'src/adapters/db/sqlite/schema.sql'),
   ];
 
   const schemaPath = schemaPaths.find((candidate) => fs.existsSync(candidate));
