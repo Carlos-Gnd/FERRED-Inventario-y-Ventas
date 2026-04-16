@@ -10,6 +10,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma }         from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
+import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
 
 export const inventarioRoutes = Router();
@@ -41,9 +42,19 @@ inventarioRoutes.get('/status', (_req, res) => {
 });
 
 // ── GET /api/inventario/stock/:sucursalId ───────────────────────────────
-inventarioRoutes.get('/stock/:sucursalId', async (req: Request, res: Response, next: NextFunction) => {
+inventarioRoutes.get(
+  '/stock/:sucursalId',
+  roleMiddleware('ADMIN', 'BODEGA', 'CAJERO'),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sucursalId = Number(req.params.sucursalId);
+    if (isNaN(sucursalId) || sucursalId < 1) {
+      return res.status(400).json({ error: 'sucursalId inválido' });
+    }
+
+    // BUG-N5: un no-ADMIN solo puede leer stock de su propia sucursal
+    if (!assertSameSucursal(req, res, sucursalId)) return;
+
     const cacheKey   = `stock:${sucursalId}`;
 
     if (!SyncService.isOnline()) {
@@ -69,12 +80,22 @@ inventarioRoutes.get('/stock/:sucursalId', async (req: Request, res: Response, n
     OfflineCache.set(cacheKey, stocks);
     return res.json(stocks);
   } catch (err) { return next(err); }
-});
+  },
+);
 
 // ── GET /api/inventario/criticos/:sucursalId ────────────────────────────
-inventarioRoutes.get('/criticos/:sucursalId', async (req: Request, res: Response, next: NextFunction) => {
+inventarioRoutes.get(
+  '/criticos/:sucursalId',
+  roleMiddleware('ADMIN', 'BODEGA'),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sucursalId = Number(req.params.sucursalId);
+    if (isNaN(sucursalId) || sucursalId < 1) {
+      return res.status(400).json({ error: 'sucursalId inválido' });
+    }
+
+    // BUG-N5: un no-ADMIN solo puede leer críticos de su propia sucursal
+    if (!assertSameSucursal(req, res, sucursalId)) return;
 
     const criticos = await prisma.$queryRaw<Array<{
       id: number; productoId: number; sucursalId: number;
@@ -92,7 +113,8 @@ inventarioRoutes.get('/criticos/:sucursalId', async (req: Request, res: Response
 
     return res.json({ total: criticos.length, criticos });
   } catch (err) { return next(err); }
-});
+  },
+);
 
 // ── GET /api/inventario/criticos-detalle ──────────────────────────────────
 // T-03.3: Detalle completo de alertas para dashboard/modal
@@ -101,12 +123,19 @@ inventarioRoutes.get(
   roleMiddleware('ADMIN', 'BODEGA'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const rolUsuario  = (req as any).usuario?.rol;
+      // BUG-N4: quitar cast `(req as any)` (regresión de BUG-02)
+      const rolUsuario  = req.usuario?.rol;
       const sucursalReq = Number(req.query.sucursalId);
+
+      // BUG-N6: BODEGA sin sucursalId asignada no puede caer al "listar todas"
+      if (rolUsuario !== 'ADMIN' && !req.usuario?.sucursalId) {
+        return res.status(403).json({ error: 'Tu usuario no tiene sucursal asignada' });
+      }
+
       const sucursalId =
         rolUsuario === 'ADMIN'
           ? (Number.isFinite(sucursalReq) && sucursalReq > 0 ? sucursalReq : null)
-          : Number((req as any).usuario?.sucursalId ?? 0);
+          : req.usuario!.sucursalId;
 
       const criticos = sucursalId
         ? await prisma.$queryRaw<Array<{
