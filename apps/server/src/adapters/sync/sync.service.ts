@@ -1,30 +1,40 @@
-/**
- * SyncService — sincronización bidireccional Local-First
- */
-
 import { prisma } from '../db/prisma/prisma.client';
+import {
+  marcarErrorSync,
+  marcarSincronizado,
+  obtenerPendientesSqlite,
+} from '../db/sqlite.client';
 
-const INTERVAL_MS  = 30_000;
+const INTERVAL_MS = 30_000;
 const MAX_INTENTOS = 5;
 
-// ── Estado de conexión ─────────────────────────
-let _online = true;
+let _online = false;
 let _listeners: ((online: boolean) => void)[] = [];
+
+export function isOnline() {
+  return _online;
+}
 
 export function onConnectivityChange(cb: (online: boolean) => void) {
   _listeners.push(cb);
-  return () => { _listeners = _listeners.filter(l => l !== cb); };
+  return () => {
+    _listeners = _listeners.filter((listener) => listener !== cb);
+  };
 }
 
-function setOnline(v: boolean) {
-  if (v === _online) return;
-  _online = v;
-  console.log(v ? '🌐 Conectado' : '📴 Offline');
-  _listeners.forEach(cb => cb(v));
+function setOnline(value: boolean) {
+  if (value === _online) return;
+
+  _online = value;
+  console.log(value ? 'Conectado' : 'Offline');
+  _listeners.forEach((cb) => cb(value));
 }
 
-// ── Cache offline ─────────────────────────
-interface CacheEntry { data: unknown; expiresAt: number; }
+interface CacheEntry {
+  data: unknown;
+  expiresAt: number;
+}
+
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 5 * 60 * 1000;
 
@@ -32,15 +42,19 @@ export const OfflineCache = {
   set(key: string, data: unknown) {
     cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL });
   },
+
   get<T>(key: string): T | null {
     const entry = cache.get(key);
     if (!entry) return null;
+
     if (Date.now() > entry.expiresAt) {
       cache.delete(key);
       return null;
     }
+
     return entry.data as T;
   },
+
   invalidate(prefix: string) {
     for (const key of cache.keys()) {
       if (key.startsWith(prefix)) cache.delete(key);
@@ -48,12 +62,11 @@ export const OfflineCache = {
   },
 };
 
-// ── Registrar operación ─────────────────────────
 export async function logPendiente(
   tabla: string,
   operacion: 'CREATE' | 'UPDATE' | 'DELETE',
   payload: object,
-  usuarioId?: number,
+  usuarioId?: number
 ) {
   await prisma.syncLog.create({
     data: {
@@ -66,7 +79,6 @@ export async function logPendiente(
   });
 }
 
-// ── Seguridad ─────────────────────────
 const TABLAS_PERMITIDAS = new Set([
   'producto',
   'categoria',
@@ -75,29 +87,45 @@ const TABLAS_PERMITIDAS = new Set([
   'facturaDte',
 ]);
 
-// ── Campos válidos ─────────────────────────
 const CAMPOS_ESCALARES: Record<string, string[]> = {
   producto: [
-    'id','categoriaId','nombre','codigoBarras','tipoUnidad',
-    'precioCompra','porcentajeGanancia','precioVenta','precioConIva',
-    'tieneIva','stockActual','stockMinimo','activo','creadoEn',
+    'id',
+    'categoriaId',
+    'nombre',
+    'codigoBarras',
+    'tipoUnidad',
+    'precioCompra',
+    'porcentajeGanancia',
+    'precioVenta',
+    'precioConIva',
+    'tieneIva',
+    'stockActual',
+    'stockMinimo',
+    'activo',
+    'creadoEn',
   ],
-  categoria: ['id','nombre','descripcion','activo'],
-  usuario: ['id','nombre','email','contrasenaHash','rol','sucursalId','activo'],
-  syncLog: ['id','tabla','operacion','payload','usuarioId','status','intentos','error','creadoEn','sincEn'],
-
-  stockSucursal: [
-    'id','productoId','sucursalId','cantidad','minimo','actualizadoEn'
-  ],
-
+  categoria: ['id', 'nombre', 'descripcion', 'activo'],
+  usuario: ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo'],
+  syncLog: ['id', 'tabla', 'operacion', 'payload', 'usuarioId', 'status', 'intentos', 'error', 'creadoEn', 'sincEn'],
+  stockSucursal: ['id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'actualizadoEn'],
   facturaDte: [
-    'id','sucursalId','usuarioId','codigoGeneracion','numeroControl',
-    'tipoDte','clienteNombre','totalSinIva','iva','total',
-    'dteJson','estado','sincronizado','creadoEn'
+    'id',
+    'sucursalId',
+    'usuarioId',
+    'codigoGeneracion',
+    'numeroControl',
+    'tipoDte',
+    'clienteNombre',
+    'totalSinIva',
+    'iva',
+    'total',
+    'dteJson',
+    'estado',
+    'sincronizado',
+    'creadoEn',
   ],
 };
 
-// ── Limpiar payload ─────────────────────────
 function limpiarPayload(tabla: string, payload: any): any {
   const campos = CAMPOS_ESCALARES[tabla];
 
@@ -105,26 +133,23 @@ function limpiarPayload(tabla: string, payload: any): any {
     throw new Error(`Tabla no soportada: ${tabla}`);
   }
 
-  const limpio = Object.fromEntries(
-    Object.entries(payload).filter(([k]) => campos.includes(k))
+  return Object.fromEntries(
+    Object.entries(payload).filter(([key, value]) => campos.includes(key) && value !== undefined)
   );
-
-  return limpio;
 }
 
-// ── Servicio ─────────────────────────
 export const SyncService = {
-
   start() {
-    console.log('🔄 SyncService iniciado');
-    this.checkConnectivity().then(() => {
-      setInterval(() => this.run(), INTERVAL_MS);
-    });
+    console.log('SyncService iniciado');
+    void this.run();
+    setInterval(() => void this.run(), INTERVAL_MS);
   },
 
   async run() {
     const online = await this.checkConnectivity();
     if (!online) return;
+
+    await this.pushPendientesSqlite();
     await this.pushPendientes();
   },
 
@@ -143,6 +168,31 @@ export const SyncService = {
     return _online;
   },
 
+  async pushPendientesSqlite() {
+    const pendientes = obtenerPendientesSqlite().filter((log) => log.intentos < MAX_INTENTOS);
+
+    if (!pendientes.length) return;
+
+    console.log(`Sync SQLite: ${pendientes.length} pendientes`);
+
+    for (const log of pendientes) {
+      try {
+        const payload = JSON.parse(log.payload);
+
+        await this.aplicarOperacion(log.tabla, log.operacion, payload);
+        marcarSincronizado(log.id);
+      } catch (err: any) {
+        console.error(`Error sync SQLite ${log.id}`, err.message);
+        marcarErrorSync(
+          log.id,
+          log.intentos + 1 >= MAX_INTENTOS ? 'ERROR' : 'PENDIENTE'
+        );
+      }
+    }
+
+    cache.clear();
+  },
+
   async pushPendientes() {
     const pendientes = await prisma.syncLog.findMany({
       where: { status: 'PENDIENTE', intentos: { lt: MAX_INTENTOS } },
@@ -152,7 +202,7 @@ export const SyncService = {
 
     if (!pendientes.length) return;
 
-    console.log(`📤 Procesando ${pendientes.length} pendientes`);
+    console.log(`Procesando ${pendientes.length} pendientes`);
 
     for (const log of pendientes) {
       try {
@@ -164,9 +214,7 @@ export const SyncService = {
           where: { id: log.id },
           data: { status: 'SINCRONIZADO', sincEn: new Date() },
         });
-
       } catch (err: any) {
-
         console.error(`Error sync ${log.id}`, err.message);
 
         await prisma.syncLog.update({
@@ -184,7 +232,6 @@ export const SyncService = {
   },
 
   async aplicarOperacion(tabla: string, op: string, payload: any) {
-
     if (!TABLAS_PERMITIDAS.has(tabla)) {
       throw new Error(`Tabla no permitida: ${tabla}`);
     }
@@ -197,33 +244,39 @@ export const SyncService = {
 
     const data = limpiarPayload(tabla, payload);
 
+    if (op === 'CREATE') {
+      if (data.id) {
+        await model.upsert({
+          where: { id: data.id },
+          update: data,
+          create: data,
+        });
+      } else {
+        await model.create({ data });
+      }
+      return;
+    }
+
     if (!data.id) {
       throw new Error(`Payload sin id en ${tabla}`);
     }
 
-    if (op === 'CREATE') {
-      await model.upsert({
-        where: { id: data.id },
-        update: data,
-        create: data,
-      });
-
-    } else if (op === 'UPDATE') {
-
+    if (op === 'UPDATE') {
       await model.update({
         where: { id: data.id },
         data,
       });
+      return;
+    }
 
-    } else if (op === 'DELETE') {
-
+    if (op === 'DELETE') {
       await model.update({
         where: { id: data.id },
         data: { activo: false },
       });
-
-    } else {
-      throw new Error(`Operación no soportada: ${op}`);
+      return;
     }
+
+    throw new Error(`Operacion no soportada: ${op}`);
   },
 };
