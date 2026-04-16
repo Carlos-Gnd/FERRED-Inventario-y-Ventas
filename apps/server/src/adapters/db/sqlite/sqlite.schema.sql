@@ -1,5 +1,4 @@
--- Schema SQLite local para operacion offline
--- Equivalente al schema de Supabase
+-- Schema SQLite local para operacion offline del server.
 
 CREATE TABLE IF NOT EXISTS sucursales (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,10 +80,10 @@ CREATE TABLE IF NOT EXISTS detalles_venta (
 
 CREATE TABLE IF NOT EXISTS sync_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  usuario_id INTEGER,
   tabla TEXT NOT NULL,
   operacion TEXT NOT NULL,
   payload TEXT NOT NULL,
+  usuario_id INTEGER,
   status TEXT DEFAULT 'PENDIENTE',
   intentos INTEGER DEFAULT 0,
   error TEXT,
