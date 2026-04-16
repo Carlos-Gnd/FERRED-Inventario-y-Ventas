@@ -10,6 +10,7 @@ import ProductsPage        from '../pages/products/ProductsPage';
 import ComingSoonPage      from '../pages/ComingSoonPage';
 import TransfersPage       from '../pages/transfers/TransfersPage';
 import StockPage           from '../pages/stock/stockPage';
+import VentasPage          from '../pages/ventas/VentasPage';
 
 export function AppRouter() {
   return (
@@ -40,7 +41,7 @@ export function AppRouter() {
           <Route path="stock"         element={<RoleGuard roles={['ADMIN','BODEGA']}><StockPage /></RoleGuard>} />
 
           {/* ADMIN + CAJERO */}
-          <Route path="ventas"        element={<RoleGuard roles={['ADMIN','CAJERO']}><ComingSoonPage titulo="Ventas / POS" /></RoleGuard>} />
+          <Route path="ventas"        element={<RoleGuard roles={['ADMIN','CAJERO']}><VentasPage /></RoleGuard>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />
