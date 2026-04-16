@@ -109,6 +109,10 @@ html, body, #root {
   0%,100% { opacity: 1; }
   50%     { opacity: 0.4; }
 }
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0.4; }
+}
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 
 .sidebar-wrapper {
@@ -161,7 +165,7 @@ html, body, #root {
 
 @media (max-width: 500px) {
   .stats-grid {
-    grid-template-columns: 1fr 1fr !important;
+    grid-template-columns: 1fr !important;
   }
 }
 

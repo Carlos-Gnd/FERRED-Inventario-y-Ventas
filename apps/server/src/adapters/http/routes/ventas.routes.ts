@@ -10,6 +10,7 @@ import { prisma }          from '../../db/prisma/prisma.client';
 import { roleMiddleware }  from '../middleware/role.middleware';
 import { logPendiente }    from '../../sync/sync.service';
 import { sincronizarStockTotal } from './inventario.routes';
+import { enviarDteHacienda }    from '../../dte/dte.service';
 
 export const ventasRoutes = Router();
 
@@ -57,11 +58,17 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     }
 
     const { sucursalId, items, clienteNombre, tipoPago } = parsed.data;
-    const usuarioId = (req as any).usuario?.id;
+    const usuarioId = req.usuario?.id;
 
-    // Validar acceso cross-sucursal: no-ADMIN solo puede vender en su sucursal
-    if ((req as any).usuario?.rol !== 'ADMIN' && (req as any).usuario?.sucursalId && (req as any).usuario.sucursalId !== sucursalId) {
-      return res.status(403).json({ error: 'No podés registrar ventas en otra sucursal' });
+    // BUG-21 FIX: fail-closed cross-sucursal. Un no-ADMIN sin sucursal asignada
+    // no puede vender; si la tiene, debe coincidir con la sucursalId del body.
+    if (req.usuario?.rol !== 'ADMIN') {
+      if (!req.usuario?.sucursalId) {
+        return res.status(403).json({ error: 'Tu usuario no tiene sucursal asignada' });
+      }
+      if (req.usuario.sucursalId !== sucursalId) {
+        return res.status(403).json({ error: 'No podés registrar ventas en otra sucursal' });
+      }
     }
 
     // Validación previa: existencia de productos
@@ -161,6 +168,15 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     await logPendiente('facturaDte', 'CREATE', {
       id: factura.id, sucursalId, total, estado: factura.estado,
     }, usuarioId);
+
+    // T-08A.3 / BUG-16 FIX: disparar DTE post-venta sin bloquear la respuesta.
+    // Si Hacienda falla, la venta NO se revierte — queda SIMULADO o ERROR_HACIENDA
+    // en factura.estado y se puede reintentar con POST /api/dte/:id/reenviar.
+    setImmediate(() => {
+      enviarDteHacienda(factura.id).catch(err =>
+        console.error(`[ventas] DTE post-venta falló (factura ${factura.id}):`, err.message)
+      );
+    });
 
     const facturaCompleta = await prisma.facturaDte.findUnique({
       where:   { id: factura.id },

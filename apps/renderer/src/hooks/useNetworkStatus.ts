@@ -10,15 +10,16 @@ import { api } from '../services/api.client';
 
 export type NetworkStatus = 'online' | 'offline' | 'checking';
 
-interface SyncState {
-  pendientes: number;
-  errores:    number;
-  lastSync:   Date | null;
+export interface SyncState {
+  pendientes:    number;
+  sincronizados: number;
+  errores:       number;
+  lastSync:      Date | null;
 }
 
 export function useNetworkStatus() {
   const [status,    setStatus]    = useState<NetworkStatus>('checking');
-  const [syncState, setSyncState] = useState<SyncState>({ pendientes: 0, errores: 0, lastSync: null });
+  const [syncState, setSyncState] = useState<SyncState>({ pendientes: 0, sincronizados: 0, errores: 0, lastSync: null });
   const pingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Ping real al servidor
@@ -35,7 +36,7 @@ export function useNetworkStatus() {
   const fetchSyncState = useCallback(async () => {
     try {
       const { data } = await api.get('/inventario/sync-pendientes', { timeout: 4000 });
-      setSyncState({ pendientes: data.pendientes, errores: data.errores, lastSync: new Date() });
+      setSyncState({ pendientes: data.pendientes, sincronizados: data.sincronizados ?? 0, errores: data.errores, lastSync: new Date() });
     } catch {
       // Si falla, no actualizar
     }

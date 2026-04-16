@@ -26,9 +26,12 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Ajustes',         to: '/ajustes',         icon: <IcoSettings />,    roles: ['ADMIN'], badge: 'Pronto' },
 ];
 
-interface Props { onClose?: () => void; }
+interface Props {
+  onClose?: () => void;
+  hasActiveAlerts?: boolean;
+}
 
-export function Sidebar({ onClose }: Props) {
+export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
   const navigate = useNavigate();
   const { usuario, logout } = useAuthStore();
   const rol = (usuario?.rol ?? 'CAJERO') as UserRole;
@@ -104,6 +107,20 @@ export function Sidebar({ onClose }: Props) {
           >
             {item.icon}
             <span style={{ flex: 1 }}>{item.label}</span>
+            {item.to === '/dashboard' && hasActiveAlerts && (
+              <span
+                title="Hay alertas activas"
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: 'var(--danger)',
+                  boxShadow: '0 0 0 4px rgba(239,68,68,0.16)',
+                  animation: 'pulse 1s infinite',
+                  flexShrink: 0,
+                }}
+              />
+            )}
             {item.badge && (
               <span style={{
                 fontSize: '9px', fontWeight: 600, padding: '2px 6px',
