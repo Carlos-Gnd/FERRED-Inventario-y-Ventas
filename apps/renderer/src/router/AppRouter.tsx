@@ -9,6 +9,12 @@ import CategoriesPage      from '../pages/categories/CategoriesPage';
 import ProductsPage        from '../pages/products/ProductsPage';
 import ComingSoonPage      from '../pages/ComingSoonPage';
 import TransfersPage       from '../pages/transfers/TransfersPage';
+<<<<<<< HEAD
+import StockPage           from '../pages/stock/StockPage';
+=======
+import StockPage           from '../pages/stock/stockPage';
+import VentasPage          from '../pages/ventas/VentasPage';
+>>>>>>> 18bb373d7d699d2c21701be12a0692ec2a75bc49
 
 export function AppRouter() {
   return (
@@ -36,9 +42,10 @@ export function AppRouter() {
 
           {/* ADMIN + BODEGA */}
           <Route path="productos"     element={<RoleGuard roles={['ADMIN','BODEGA']}><ProductsPage /></RoleGuard>} />
+          <Route path="stock"         element={<RoleGuard roles={['ADMIN','BODEGA']}><StockPage /></RoleGuard>} />
 
           {/* ADMIN + CAJERO */}
-          <Route path="ventas"        element={<RoleGuard roles={['ADMIN','CAJERO']}><ComingSoonPage titulo="Ventas / POS" /></RoleGuard>} />
+          <Route path="ventas"        element={<RoleGuard roles={['ADMIN','CAJERO']}><VentasPage /></RoleGuard>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

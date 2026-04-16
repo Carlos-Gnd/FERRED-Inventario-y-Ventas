@@ -22,7 +22,11 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Categorías', to: '/categorias',icon: <IcoCategories />, roles: ['ADMIN'] },
 ];
 
-export function BottomNav() {
+interface BottomNavProps {
+  hasActiveAlerts?: boolean;
+}
+
+export function BottomNav({ hasActiveAlerts = false }: BottomNavProps) {
   const location  = useLocation();
   const navigate  = useNavigate();
   const { usuario, logout } = useAuthStore();
@@ -141,6 +145,7 @@ export function BottomNav() {
               background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
             }}>
               <div style={{
+                position: 'relative',
                 width: '44px', height: '28px', borderRadius: '14px',
                 background: active ? 'var(--accent)' : 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -149,6 +154,22 @@ export function BottomNav() {
                 <span style={{ color: active ? '#fff' : 'var(--text-subtle)', display: 'flex' }}>
                   {item.icon}
                 </span>
+                {item.to === '/dashboard' && hasActiveAlerts && (
+                  <span
+                    title="Hay alertas activas"
+                    style={{
+                      position: 'absolute',
+                      top: '-2px',
+                      right: '2px',
+                      width: '9px',
+                      height: '9px',
+                      borderRadius: '50%',
+                      background: 'var(--danger)',
+                      boxShadow: '0 0 0 3px rgba(239,68,68,0.16)',
+                      animation: 'pulse 1s infinite',
+                    }}
+                  />
+                )}
               </div>
               <span style={{
                 fontSize: '10px', fontWeight: active ? 600 : 400,

@@ -22,7 +22,7 @@ export function onConnectivityChange(cb: (online: boolean) => void) {
 function setOnline(value: boolean) {
   if (value === _online) return;
   _online = value;
-  console.log(value ? 'SyncService: conexion restaurada' : 'SyncService: modo offline');
+  console.log(value ? 'SyncService: conectado' : 'SyncService: offline');
   _listeners.forEach((cb) => cb(value));
 }
 
@@ -75,7 +75,7 @@ export async function logPendiente(
       status: 'PENDIENTE',
     },
   }).catch(() => {
-    // El log remoto es best-effort; SQLite local ya conserva la operacion.
+    // SQLite local ya guardo la operacion; este espejo remoto es best-effort.
   });
 }
 
@@ -155,7 +155,7 @@ function limpiarPayload(tabla: string, payload: any) {
 
 export const SyncService = {
   start() {
-    console.log('SyncService: iniciado');
+    console.log('SyncService iniciado');
     void this.run();
     setInterval(() => void this.run(), INTERVAL_MS);
   },

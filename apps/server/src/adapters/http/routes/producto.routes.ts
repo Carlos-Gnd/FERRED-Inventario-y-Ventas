@@ -110,6 +110,7 @@ productoRoutes.get('/barcode/:codigo', async (req: Request, res: Response, next:
       where: { codigoBarras: req.params.codigo, activo: true },
       include: { categoria: true },
     });
+
     if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
     return res.json(producto);
   } catch (err: any) {
