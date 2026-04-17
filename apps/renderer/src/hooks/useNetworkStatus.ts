@@ -7,6 +7,7 @@
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { api } from '../services/api.client';
+import { useAuthStore } from '../store/authStore';
 
 export type NetworkStatus = 'online' | 'offline' | 'checking';
 
@@ -18,14 +19,19 @@ export interface SyncState {
 }
 
 export function useNetworkStatus() {
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const [status,    setStatus]    = useState<NetworkStatus>('checking');
   const [syncState, setSyncState] = useState<SyncState>({ pendientes: 0, sincronizados: 0, errores: 0, lastSync: null });
+  const statusRef = useRef(status);
   const pingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Ping real al servidor
   const checkServer = useCallback(async () => {
     try {
-      await api.get('/inventario/status', { timeout: 4000 });
+      await api.get('/health', {
+        timeout: 4000,
+        baseURL: '',
+      });
       setStatus('online');
     } catch {
       setStatus('offline');
@@ -34,13 +40,26 @@ export function useNetworkStatus() {
 
   // Obtener conteo de pendientes
   const fetchSyncState = useCallback(async () => {
+    if (!isAuthenticated) {
+      setSyncState(prev => (
+        prev.pendientes === 0 && prev.sincronizados === 0 && prev.errores === 0 && prev.lastSync === null
+          ? prev
+          : { pendientes: 0, sincronizados: 0, errores: 0, lastSync: null }
+      ));
+      return;
+    }
+
     try {
       const { data } = await api.get('/inventario/sync-pendientes', { timeout: 4000 });
       setSyncState({ pendientes: data.pendientes, sincronizados: data.sincronizados ?? 0, errores: data.errores, lastSync: new Date() });
     } catch {
       // Si falla, no actualizar
     }
-  }, []);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   useEffect(() => {
     // Escuchar eventos del browser
@@ -57,7 +76,7 @@ export function useNetworkStatus() {
     // Ping cada 30 segundos
     pingTimer.current = setInterval(() => {
       checkServer();
-      if (status === 'online') fetchSyncState();
+      if (statusRef.current === 'online') fetchSyncState();
     }, 30_000);
 
     return () => {
@@ -65,7 +84,7 @@ export function useNetworkStatus() {
       window.removeEventListener('offline', onOffline);
       if (pingTimer.current) clearInterval(pingTimer.current);
     };
-  }, []); // eslint-disable-line
+  }, [checkServer, fetchSyncState]);
 
   return {
     status,

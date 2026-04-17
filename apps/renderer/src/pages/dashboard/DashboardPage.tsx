@@ -56,12 +56,15 @@ export default function DashboardPage() {
       }
 
       try {
+        const sucursalId = usuario?.sucursalId;
         const [prods, cats, invRes] = await Promise.allSettled([
           api.get('/productos'),
           api.get('/categorias'),
           rol === 'ADMIN'
             ? api.get('/inventario/criticos-por-sucursal')
-            : api.get(`/inventario/criticos/${usuario?.sucursalId ?? 1}`),
+            : sucursalId
+              ? api.get(`/inventario/criticos/${sucursalId}`)
+              : Promise.resolve({ data: { total: 0 } }),
         ]);
 
         if (!mounted) return;
@@ -75,9 +78,9 @@ export default function DashboardPage() {
           } else {
             const { total } = invRes.value.data;
             setStockData([{
-              sucursalId: usuario?.sucursalId ?? 0,
-              sucursalNombre: usuario?.sucursalId
-                ? `Sucursal ${usuario.sucursalId}`
+              sucursalId: sucursalId ?? 0,
+              sucursalNombre: sucursalId
+                ? `Sucursal ${sucursalId}`
                 : 'Sin sucursal asignada',
               criticos: total ?? 0,
             }]);
