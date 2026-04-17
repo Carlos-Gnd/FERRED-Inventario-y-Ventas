@@ -284,7 +284,7 @@ inventarioRoutes.patch(
         });
 
         return s;
-      });
+      }, { timeout: 10000 });
 
       await logPendiente('stockSucursal', 'UPDATE', {
         id: stock.id, productoId, sucursalId, cantidad: stock.cantidad, motivo,
@@ -341,7 +341,7 @@ inventarioRoutes.post(
         });
 
         return [stockOrigen, stockDestino];
-      });
+      }, { timeout: 10000 });
 
       await sincronizarStockTotal(productoId);
 

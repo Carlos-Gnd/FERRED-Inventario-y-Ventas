@@ -82,7 +82,7 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
     let resultado = productos;
     if (criticos === 'true' && targetSucursalId) {
       resultado = productos.filter((p) => {
-        const stock = (p as any).stocks?.[0];
+        const stock = (p as { stocks?: Array<{ cantidad: number; minimo: number }> }).stocks?.[0];
         return stock ? stock.cantidad <= stock.minimo : p.stockActual <= p.stockMinimo;
       });
     } else if (criticos === 'true') {
@@ -288,7 +288,7 @@ productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), a
         where: { productoId_sucursalId: { productoId, sucursalId } },
         data: { cantidad: { decrement: cantidad } },
       });
-    });
+    }, { timeout: 10000 });
 
     await sincronizarStockTotal(productoId);
 
