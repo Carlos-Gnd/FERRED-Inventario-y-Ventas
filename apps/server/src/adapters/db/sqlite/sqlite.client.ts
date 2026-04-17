@@ -85,11 +85,8 @@ export function crearProductoSqlite(data: any, sucursalId?: number) {
 
   const id = Number(result.lastInsertRowid);
 
-<<<<<<< HEAD
-  if (sucursalId) {
-=======
+  // Mantenemos la validación de sucursal para evitar errores de FK
   if (sucursalId && existeSucursalSqlite(db, sucursalId)) {
->>>>>>> e5c83f7 (Fix offline product persistence and sync)
     db.prepare(`
       INSERT OR IGNORE INTO stock_sucursal
       (producto_id, sucursal_id, cantidad, minimo)
@@ -97,15 +94,12 @@ export function crearProductoSqlite(data: any, sucursalId?: number) {
     `).run(id, sucursalId, data.stockActual ?? 0, data.stockMinimo ?? 0);
   }
 
-<<<<<<< HEAD
-  logPendienteSqlite('producto', 'CREATE', { id, ...data });
-=======
+  // Usamos el formato de log más completo (el de Nelson) para la sincronización
   logPendienteSqlite('producto', 'CREATE', {
     localId: id,
     sucursalId: sucursalId ?? null,
     ...data,
   });
->>>>>>> e5c83f7 (Fix offline product persistence and sync)
 
   return productoLocalResponse({
     id,
@@ -150,8 +144,6 @@ export function obtenerProductosSqlite() {
   return productos.map(productoLocalResponse);
 }
 
-<<<<<<< HEAD
-=======
 export function obtenerProductosPendientesSqlite() {
   const db = getSqliteDb();
   const pendientes = db.prepare(`
@@ -206,7 +198,6 @@ export function obtenerProductosPendientesSqlite() {
   }));
 }
 
->>>>>>> e5c83f7 (Fix offline product persistence and sync)
 export function eliminarProductoSqlite(id: number) {
   const db = getSqliteDb();
 
@@ -332,8 +323,6 @@ function logPendienteSqlite(
   return Number(result.lastInsertRowid);
 }
 
-<<<<<<< HEAD
-=======
 function existeSucursalSqlite(db: Database.Database, sucursalId: number) {
   const row = db.prepare(`
     SELECT id
@@ -344,7 +333,6 @@ function existeSucursalSqlite(db: Database.Database, sucursalId: number) {
   return Boolean(row);
 }
 
->>>>>>> e5c83f7 (Fix offline product persistence and sync)
 function productoLocalResponse(row: any) {
   return {
     id: Number(row.id),
@@ -486,4 +474,3 @@ CREATE TABLE IF NOT EXISTS sync_log (
   creado_en TEXT NOT NULL DEFAULT (datetime('now')),
   sinc_en TEXT
 );
-`;
