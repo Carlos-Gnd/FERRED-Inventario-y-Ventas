@@ -85,7 +85,11 @@ export function crearProductoSqlite(data: any, sucursalId?: number) {
 
   const id = Number(result.lastInsertRowid);
 
+<<<<<<< HEAD
   if (sucursalId) {
+=======
+  if (sucursalId && existeSucursalSqlite(db, sucursalId)) {
+>>>>>>> e5c83f7 (Fix offline product persistence and sync)
     db.prepare(`
       INSERT OR IGNORE INTO stock_sucursal
       (producto_id, sucursal_id, cantidad, minimo)
@@ -93,7 +97,15 @@ export function crearProductoSqlite(data: any, sucursalId?: number) {
     `).run(id, sucursalId, data.stockActual ?? 0, data.stockMinimo ?? 0);
   }
 
+<<<<<<< HEAD
   logPendienteSqlite('producto', 'CREATE', { id, ...data });
+=======
+  logPendienteSqlite('producto', 'CREATE', {
+    localId: id,
+    sucursalId: sucursalId ?? null,
+    ...data,
+  });
+>>>>>>> e5c83f7 (Fix offline product persistence and sync)
 
   return productoLocalResponse({
     id,
@@ -138,6 +150,63 @@ export function obtenerProductosSqlite() {
   return productos.map(productoLocalResponse);
 }
 
+<<<<<<< HEAD
+=======
+export function obtenerProductosPendientesSqlite() {
+  const db = getSqliteDb();
+  const pendientes = db.prepare(`
+    SELECT payload
+    FROM sync_log
+    WHERE tabla = ?
+      AND operacion = ?
+      AND status = ?
+    ORDER BY creado_en ASC, id ASC
+  `).all('producto', 'CREATE', 'PENDIENTE') as Array<{ payload: string }>;
+
+  const localIds = pendientes
+    .map((row) => {
+      try {
+        const payload = JSON.parse(row.payload);
+        return Number(payload.localId ?? payload.id);
+      } catch {
+        return NaN;
+      }
+    })
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+  if (!localIds.length) return [];
+
+  const placeholders = localIds.map(() => '?').join(', ');
+  const productos = db.prepare(`
+    SELECT
+      id,
+      categoria_id AS categoriaId,
+      nombre,
+      codigo_barras AS codigoBarras,
+      tipo_unidad AS tipoUnidad,
+      precio_compra AS precioCompra,
+      porcentaje_ganancia AS porcentajeGanancia,
+      precio_venta AS precioVenta,
+      precio_con_iva AS precioConIva,
+      tiene_iva AS tieneIva,
+      stock_actual AS stockActual,
+      stock_minimo AS stockMinimo,
+      activo
+    FROM productos
+    WHERE activo = ?
+      AND id IN (${placeholders})
+    ORDER BY nombre ASC
+  `).all(1, ...localIds);
+
+  return productos.map((row: any) => ({
+    ...productoLocalResponse(row),
+    id: -Math.abs(Number(row.id)),
+    localId: Number(row.id),
+    pendienteSync: true,
+  }));
+}
+
+>>>>>>> e5c83f7 (Fix offline product persistence and sync)
 export function eliminarProductoSqlite(id: number) {
   const db = getSqliteDb();
 
@@ -220,6 +289,19 @@ function logPendienteSqlite(
   return Number(result.lastInsertRowid);
 }
 
+<<<<<<< HEAD
+=======
+function existeSucursalSqlite(db: Database.Database, sucursalId: number) {
+  const row = db.prepare(`
+    SELECT id
+    FROM sucursales
+    WHERE id = ?
+  `).get(sucursalId);
+
+  return Boolean(row);
+}
+
+>>>>>>> e5c83f7 (Fix offline product persistence and sync)
 function productoLocalResponse(row: any) {
   return {
     id: Number(row.id),

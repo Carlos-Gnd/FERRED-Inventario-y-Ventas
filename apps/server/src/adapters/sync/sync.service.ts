@@ -211,6 +211,7 @@ export const SyncService = {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       throw new Error(`Payload invalido para tabla ${tabla}`);
     }
+<<<<<<< HEAD
 
     if (op !== 'CREATE' && !payload.id) {
       throw new Error(`Payload sin id para operacion ${op} en ${tabla}`);
@@ -218,10 +219,23 @@ export const SyncService = {
 
     const model = (prisma as any)[tabla];
     if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
+=======
+>>>>>>> e5c83f7 (Fix offline product persistence and sync)
 
-    const data = limpiarPayload(tabla, payload);
+    if (op !== 'CREATE' && !payload.id) {
+      throw new Error(`Payload sin id para operacion ${op} en ${tabla}`);
+    }
 
     if (op === 'CREATE') {
+      if (tabla === 'producto') {
+        await crearProductoDesdePendiente(payload);
+        return;
+      }
+
+      const model = (prisma as any)[tabla];
+      if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
+      const data = limpiarPayload(tabla, payload);
+
       if (data.id) {
         await model.upsert({
           where: { id: data.id },
@@ -233,6 +247,10 @@ export const SyncService = {
       }
       return;
     }
+
+    const model = (prisma as any)[tabla];
+    if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
+    const data = limpiarPayload(tabla, payload);
 
     if (!data.id) {
       throw new Error(`Payload sin id en ${tabla}`);
@@ -251,3 +269,39 @@ export const SyncService = {
     throw new Error(`Operacion no soportada: ${op}`);
   },
 };
+
+async function crearProductoDesdePendiente(payload: any) {
+  const { id: _id, localId: _localId, sucursalId, creadoEn: _creadoEn, ...data } = payload;
+  const productoData = limpiarPayload('producto', data) as any;
+  delete productoData.id;
+  delete productoData.creadoEn;
+
+  const producto = productoData.codigoBarras
+    ? await prisma.producto.upsert({
+      where: { codigoBarras: String(productoData.codigoBarras) },
+      update: productoData,
+      create: productoData,
+    })
+    : await prisma.producto.create({ data: productoData });
+
+  if (sucursalId) {
+    await prisma.stockSucursal.upsert({
+      where: {
+        productoId_sucursalId: {
+          productoId: producto.id,
+          sucursalId: Number(sucursalId),
+        },
+      },
+      create: {
+        productoId: producto.id,
+        sucursalId: Number(sucursalId),
+        cantidad: Number(productoData.stockActual ?? 0),
+        minimo: Number(productoData.stockMinimo ?? 0),
+      },
+      update: {
+        cantidad: Number(productoData.stockActual ?? 0),
+        minimo: Number(productoData.stockMinimo ?? 0),
+      },
+    });
+  }
+}
