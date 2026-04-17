@@ -212,6 +212,7 @@ export const SyncService = {
       throw new Error(`Payload invalido para tabla ${tabla}`);
     }
 
+    // Validación de ID: Solo CREATE puede ir sin ID (si el DB remoto lo genera)
     if (op !== 'CREATE' && !payload.id) {
       throw new Error(`Payload sin id para operacion ${op} en ${tabla}`);
     }
@@ -238,6 +239,7 @@ export const SyncService = {
       return;
     }
 
+    // Lógica para UPDATE y DELETE
     const model = (prisma as any)[tabla];
     if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
     const data = limpiarPayload(tabla, payload);
