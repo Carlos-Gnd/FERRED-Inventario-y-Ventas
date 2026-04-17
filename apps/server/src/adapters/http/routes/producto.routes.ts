@@ -6,6 +6,7 @@ import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service
 import { sincronizarStockTotal } from './inventario.routes';
 import {
   crearProductoSqlite,
+  obtenerProductosPendientesSqlite,
   obtenerProductosSqlite,
 } from '../../db/sqlite.client';
 
@@ -86,8 +87,15 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
       resultado = productos.filter((p) => p.stockActual <= p.stockMinimo);
     }
 
-    OfflineCache.set(cacheKey, resultado);
-    return res.json(resultado);
+    const pendientesLocales = filtrarProductosLocales(obtenerProductosPendientesSqlite(), {
+      buscar: String(buscar ?? ''),
+      categoriaId: categoriaId ? Number(categoriaId) : undefined,
+      criticos: criticos === 'true',
+    });
+    const conPendientesLocales = mezclarProductosLocalesPendientes(resultado, pendientesLocales);
+
+    OfflineCache.set(cacheKey, conPendientesLocales);
+    return res.json(conPendientesLocales);
   } catch (err: any) {
     if (esErrorConexion(err)) {
       return res.json(obtenerProductosSqlite());
@@ -327,6 +335,32 @@ function filtrarProductosLocales(
 
     return coincideBusqueda && coincideCategoria && coincideCritico;
   });
+}
+
+function mezclarProductosLocalesPendientes(remotos: any[], localesPendientes: any[]) {
+  if (!localesPendientes.length) return remotos;
+
+  const clavesRemotas = new Set(
+    remotos.flatMap((producto) => [
+      producto.codigoBarras ? `barcode:${producto.codigoBarras}` : null,
+      `name:${normalizarNombre(producto.nombre)}`,
+    ]).filter(Boolean)
+  );
+
+  const localesSinDuplicar = localesPendientes.filter((producto) => {
+    const claves = [
+      producto.codigoBarras ? `barcode:${producto.codigoBarras}` : null,
+      `name:${normalizarNombre(producto.nombre)}`,
+    ].filter(Boolean);
+
+    return !claves.some((clave) => clavesRemotas.has(clave));
+  });
+
+  return [...localesSinDuplicar, ...remotos];
+}
+
+function normalizarNombre(nombre: unknown) {
+  return String(nombre ?? '').trim().toLowerCase();
 }
 
 function esErrorConexion(err: any) {
