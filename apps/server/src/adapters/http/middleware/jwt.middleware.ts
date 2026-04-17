@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../../../config/env';
+import type { UserRole } from '../../../types/roles';
 
 interface JwtPayload {
   id: number;
-  rol: string;
+  rol: UserRole;
   sucursalId: number;
   email: string;
 }
@@ -21,7 +22,7 @@ export function jwtMiddleware(req: Request, res: Response, next: NextFunction) {
     const payload = jwt.verify(token, env.jwt.secret) as JwtPayload;
     req.usuario   = {
       id:         payload.id,
-      rol:        payload.rol as any,
+      rol:        payload.rol,
       sucursalId: payload.sucursalId,
       email:      payload.email,
     };

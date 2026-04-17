@@ -35,7 +35,9 @@ async function initAntiSpam(): Promise<void> {
         // payload antiguo o malformado, ignorar
       }
     }
-    console.log(`[Alertas] Anti-spam cargado desde BD — ${ultimaAlerta.size} entradas`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Alertas] Anti-spam cargado desde BD — ${ultimaAlerta.size} entradas`);
+    }
   } catch (err: any) {
     console.warn('[Alertas] No se pudo cargar anti-spam desde BD:', err.message);
   }
@@ -185,10 +187,9 @@ async function checkStock(): Promise<void> {
       }));
 
       if (!transporte) {
-        console.log(`[Alertas] SIMULADO — ${paraAlertar.length} alertas en ${sucursalNombre}`);
-        productosInfo.forEach((p: any) =>
-          console.log(`  - ${p.nombre}: ${p.cantidad} / min ${p.minimo} (${p.estado})`)
-        );
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[Alertas] SIMULADO — ${paraAlertar.length} alertas en ${sucursalNombre}`);
+        }
         continue;
       }
 
@@ -204,7 +205,9 @@ async function checkStock(): Promise<void> {
         html,
       });
 
-      console.log(`[Alertas] Correo enviado a ${emailBodeguero} — ${paraAlertar.length} productos`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Alertas] Correo enviado a ${emailBodeguero} — ${paraAlertar.length} productos`);
+      }
     }
   } catch (err: any) {
     console.error('[Alertas] Error en checkStock:', err.message);
@@ -213,8 +216,7 @@ async function checkStock(): Promise<void> {
 
 export const AlertasService = {
   async start() {
-    console.log('[Alertas] Servicio iniciado — revision cada 60 minutos');
-    await initAntiSpam();          // B-16: sembrar anti-spam desde BD
+    await initAntiSpam();
     checkStock();
     setInterval(checkStock, INTERVALO_MS);
   },

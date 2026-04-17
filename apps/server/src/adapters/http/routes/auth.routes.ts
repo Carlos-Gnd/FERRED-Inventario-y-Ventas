@@ -40,7 +40,7 @@ authRoutes.post('/login', async (req: Request, res: Response, next: NextFunction
         email:      usuario.email,
       },
       env.jwt.secret,
-      { expiresIn: env.jwt.expiresIn as any }
+      { expiresIn: env.jwt.expiresIn } as jwt.SignOptions,
     );
 
     return res.json({

@@ -6,7 +6,7 @@ config({ path: resolve(process.cwd(), '.env') });
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-console.log(`🗄️  DATABASE_URL: ${process.env.DATABASE_URL?.substring(0, 50)}...`);
+// DATABASE_URL no se imprime para evitar filtrar credenciales en logs
 
 const prisma = new PrismaClient();
 
@@ -35,11 +35,28 @@ async function main() {
   }
   console.log('✓ 6 categorías');
 
-  for (const u of [
-    { nombre: 'Alex Johnson', email: 'admin@ferred.com',  pass: 'admin123',  rol: 'ADMIN'  },
-    { nombre: 'María Soto',   email: 'cajero@ferred.com', pass: 'cajero123', rol: 'CAJERO' },
-    { nombre: 'Roberto Peña', email: 'bodega@ferred.com', pass: 'bodega123', rol: 'BODEGA' },
-  ]) {
+  const seedUsers = [
+    {
+      nombre: process.env.SEED_ADMIN_NAME  ?? 'Alex Johnson',
+      email:  process.env.SEED_ADMIN_EMAIL ?? 'admin@ferred.com',
+      pass:   process.env.SEED_ADMIN_PASS  ?? 'admin123',
+      rol:    'ADMIN',
+    },
+    {
+      nombre: process.env.SEED_CAJERO_NAME  ?? 'María Soto',
+      email:  process.env.SEED_CAJERO_EMAIL ?? 'cajero@ferred.com',
+      pass:   process.env.SEED_CAJERO_PASS  ?? 'cajero123',
+      rol:    'CAJERO',
+    },
+    {
+      nombre: process.env.SEED_BODEGA_NAME  ?? 'Roberto Peña',
+      email:  process.env.SEED_BODEGA_EMAIL ?? 'bodega@ferred.com',
+      pass:   process.env.SEED_BODEGA_PASS  ?? 'bodega123',
+      rol:    'BODEGA',
+    },
+  ];
+
+  for (const u of seedUsers) {
     await prisma.usuario.upsert({
       where: { email: u.email }, update: {},
       create: {
