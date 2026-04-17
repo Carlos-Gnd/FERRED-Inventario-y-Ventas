@@ -8,7 +8,7 @@ import { assertSameSucursal } from '../middleware/sucursal.guard';
 import {
   crearProductoSqlite,
   obtenerProductosSqlite,
-} from '../../db/sqlite.client';
+} from '../../db/sqlite/sqlite.client';
 
 export const productoRoutes = Router();
 

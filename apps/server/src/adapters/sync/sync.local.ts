@@ -1,5 +1,17 @@
 import { getSqlite } from '../db/sqlite/sqlite.client';
 
+const TABLAS_SYNC = new Set([
+  'producto',
+  'categoria',
+  'usuario',
+  'stockSucursal',
+  'facturaDte',
+  'detalleVenta',
+  'proveedor',
+  'recepcionMercancia',
+  'detalleRecepcion',
+]);
+
 export interface SyncLocalLog {
   id: number;
   tabla: string;
@@ -19,12 +31,14 @@ export function logPendienteLocal(
   payload: object,
   usuarioId?: number
 ) {
+  assertTablaSync(tabla);
+
   const db = getSqlite();
 
   const result = db.prepare(`
     INSERT INTO sync_log (tabla, operacion, payload, usuario_id, status)
-    VALUES (?, ?, ?, ?, 'PENDIENTE')
-  `).run(tabla, operacion, JSON.stringify(payload), usuarioId ?? null);
+    VALUES (?, ?, ?, ?, ?)
+  `).run(tabla, operacion, JSON.stringify(payload), usuarioId ?? null, 'PENDIENTE');
 
   return Number(result.lastInsertRowid);
 }
@@ -45,10 +59,16 @@ export function leerPendientesLocal(limit = 50) {
       creado_en AS creadoEn,
       sinc_en AS sincEn
     FROM sync_log
-    WHERE status = 'PENDIENTE'
+    WHERE status = ?
     ORDER BY creado_en ASC, id ASC
     LIMIT ?
-  `).all(limit) as SyncLocalLog[];
+  `).all('PENDIENTE', limit) as SyncLocalLog[];
+}
+
+function assertTablaSync(tabla: string) {
+  if (!TABLAS_SYNC.has(tabla)) {
+    throw new Error(`Tabla no permitida para sync local: ${tabla}`);
+  }
 }
 
 export function marcarSincronizado(id: number) {
@@ -56,11 +76,11 @@ export function marcarSincronizado(id: number) {
 
   db.prepare(`
     UPDATE sync_log
-    SET status = 'SINCRONIZADO',
+    SET status = ?,
         error = NULL,
         sinc_en = datetime('now')
     WHERE id = ?
-  `).run(id);
+  `).run('SINCRONIZADO', id);
 }
 
 export function marcarError(id: number, error: string, limiteIntentos: number) {
@@ -90,14 +110,14 @@ export function contarPendientes() {
   const pendientes = db.prepare(`
     SELECT COUNT(*) AS count
     FROM sync_log
-    WHERE status = 'PENDIENTE'
-  `).get() as { count: number };
+    WHERE status = ?
+  `).get('PENDIENTE') as { count: number };
 
   const errores = db.prepare(`
     SELECT COUNT(*) AS count
     FROM sync_log
-    WHERE status = 'ERROR'
-  `).get() as { count: number };
+    WHERE status = ?
+  `).get('ERROR') as { count: number };
 
   return {
     pendientes: pendientes?.count ?? 0,

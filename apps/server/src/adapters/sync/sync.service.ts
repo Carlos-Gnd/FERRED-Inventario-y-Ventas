@@ -208,6 +208,14 @@ export const SyncService = {
       throw new Error(`Tabla no permitida: ${tabla}`);
     }
 
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new Error(`Payload invalido para tabla ${tabla}`);
+    }
+
+    if (op !== 'CREATE' && !payload.id) {
+      throw new Error(`Payload sin id para operacion ${op} en ${tabla}`);
+    }
+
     const model = (prisma as any)[tabla];
     if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
 
