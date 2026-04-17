@@ -131,12 +131,12 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-  api.get('/categorias')
+    api.get('/categorias')
       .then(r => setCategorias(r.data))
       .catch(() => {
-        toast.error('No se pudieron cargar las categorías');
+        showToast('No se pudieron cargar las categorías', 'error');
       });
-}, []);
+  }, []);
 
   // Debounce search para no re-renderizar con cada tecla
   function handleBuscar(v: string) {
