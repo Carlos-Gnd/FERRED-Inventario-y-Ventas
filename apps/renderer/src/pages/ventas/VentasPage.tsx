@@ -13,6 +13,7 @@ import type { ToastData } from '../../components/ui';
 import type { TipoUnidad } from '../../types';
 import { TIPO_UNIDAD_LABELS } from '../../types';
 import { CantidadInput } from './components/CantidadInput';
+import { TicketModal } from '../ticket-preview/ticket-modal';
 
 // ── Tipos locales ────────────────────────────────────────────
 interface ProductoMock {
@@ -540,128 +541,17 @@ export default function VentasPage() {
       </div>
 
       {/* ── Modal: vista previa del ticket ──────────────────── */}
-      <Modal
+      <TicketModal
         open={modalConfirm}
-        onClose={() => !confirming && setModalConfirm(false)}
-        title="Vista previa del ticket"
-        subtitle="Revisa los datos antes de confirmar"
-        maxWidth={440}
-        icon={<IcoPrint />}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-          {/* Encabezado del ticket */}
-          <div style={{
-            background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-            borderRadius: '8px', padding: '12px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <div>
-              <p style={{ fontSize: '12px', color: 'var(--text-subtle)' }}>Cliente</p>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Consumidor Final</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '12px', color: 'var(--text-subtle)' }}>Fecha</p>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                {new Date().toLocaleDateString('es-SV')}
-              </p>
-            </div>
-          </div>
-
-          {/* Lineas del ticket */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <div style={{
-              display: 'grid', gridTemplateColumns: '1fr auto auto',
-              gap: '8px', padding: '6px 8px',
-              fontSize: '10px', fontWeight: 600, color: 'var(--text-subtle)',
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              borderBottom: '1px solid var(--border)',
-            }}>
-              <span>Producto</span>
-              <span style={{ textAlign: 'center' }}>Cant.</span>
-              <span style={{ textAlign: 'right' }}>Subtotal</span>
-            </div>
-            {carrito.map(linea => (
-              <div key={linea.producto.id} style={{
-                display: 'grid', gridTemplateColumns: '1fr auto auto',
-                gap: '8px', padding: '8px',
-                borderRadius: '6px', background: 'var(--bg-elevated)',
-              }}>
-                <div>
-                  <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {linea.producto.nombre}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>
-                    {fmt(linea.producto.precioConIva)} c/u
-                  </p>
-                </div>
-                <span style={{
-                  fontSize: '13px', fontWeight: 700, textAlign: 'center',
-                  fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-primary)',
-                  alignSelf: 'center',
-                }}>
-                  {linea.cantidad}
-                </span>
-                <span style={{
-                  fontSize: '13px', fontWeight: 700, textAlign: 'right',
-                  fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-primary)',
-                  alignSelf: 'center',
-                }}>
-                  {fmt(linea.subtotal)}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Totales */}
-          <div style={{
-            background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-            borderRadius: '8px', padding: '12px',
-            display: 'flex', flexDirection: 'column', gap: '6px',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
-              <span>Subtotal sin IVA</span>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{fmt(subtotalSinIva)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
-              <span>IVA (13%)</span>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{fmt(ivaTotal)}</span>
-            </div>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between',
-              paddingTop: '8px', borderTop: '1px solid var(--border)',
-            }}>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>TOTAL</span>
-              <span style={{
-                fontSize: '20px', fontWeight: 700,
-                fontFamily: 'JetBrains Mono, monospace', color: 'var(--accent)',
-              }}>
-                {fmt(totalFinal)}
-              </span>
-            </div>
-          </div>
-
-          {/* Botones */}
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <Button
-              variant="ghost"
-              onClick={() => setModalConfirm(false)}
-              disabled={confirming}
-              style={{ flex: 1 }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              loading={confirming}
-              onClick={confirmarVenta}
-              style={{ flex: 1, justifyContent: 'center' }}
-              icon={<IcoCheck />}
-            >
-              Confirmar cobro
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        confirming={confirming}
+        carrito={carrito}
+        subtotalSinIva={subtotalSinIva}
+        ivaTotal={ivaTotal}
+        totalFinal={totalFinal}
+        onClose={() => setModalConfirm(false)}
+        onConfirm={confirmarVenta}
+        fmt={fmt}
+      />
 
       {/* ── Modal: venta exitosa + imprimir ─────────────────── */}
       <Modal
