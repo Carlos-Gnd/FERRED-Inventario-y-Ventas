@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',       to: '/dashboard',       icon: <IcoDashboard />,   roles: ['ADMIN', 'CAJERO', 'BODEGA'] },
   { label: 'Productos',       to: '/productos',       icon: <IcoInventory />,   roles: ['ADMIN', 'BODEGA'] },
   { label: 'Stock',           to: '/stock',           icon: <IcoStock />,       roles: ['ADMIN', 'BODEGA'] },
+  { label: 'Recepción',       to: '/recepcion',       icon: <IcoInventory />,   roles: ['ADMIN', 'BODEGA'] },
   { label: 'Transferencias',  to: '/transferencias',  icon: <IcoTransfer />,    roles: ['ADMIN'] },
   { label: 'Ventas',          to: '/ventas',          icon: <IcoSales />,       roles: ['ADMIN', 'CAJERO'], badge: 'Pronto' },
   { label: 'Categorías',      to: '/categorias',      icon: <IcoCategories />,  roles: ['ADMIN'] },
