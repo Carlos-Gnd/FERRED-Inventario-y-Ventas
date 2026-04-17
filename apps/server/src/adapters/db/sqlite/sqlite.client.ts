@@ -208,6 +208,49 @@ export function eliminarProductoSqlite(id: number) {
   logPendienteSqlite('producto', 'DELETE', { id });
 }
 
+export function eliminarProductoPendienteSqlite(id: number) {
+  const db = getSqliteDb();
+  const localId = Math.abs(id);
+
+  const pendiente = db.prepare(`
+    SELECT id, payload
+    FROM sync_log
+    WHERE tabla = ?
+      AND operacion = ?
+      AND status = ?
+    ORDER BY creado_en DESC, id DESC
+  `).all('producto', 'CREATE', 'PENDIENTE')
+    .find((row: any) => {
+      try {
+        const payload = JSON.parse(row.payload);
+        return Number(payload.localId ?? payload.id) === localId;
+      } catch {
+        return false;
+      }
+    }) as { id: number; payload: string } | undefined;
+
+  if (!pendiente) return false;
+
+  const tx = db.transaction(() => {
+    db.prepare(`
+      UPDATE productos
+      SET activo = ?
+      WHERE id = ?
+    `).run(0, localId);
+
+    db.prepare(`
+      UPDATE sync_log
+      SET status = ?,
+          error = NULL,
+          sinc_en = datetime('now')
+      WHERE id = ?
+    `).run('SINCRONIZADO', pendiente.id);
+  });
+
+  tx();
+  return true;
+}
+
 export function obtenerPendientesSqlite() {
   const db = getSqliteDb();
 
