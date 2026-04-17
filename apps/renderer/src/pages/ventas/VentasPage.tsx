@@ -24,57 +24,13 @@ interface CartItem extends TicketItem {
 
 // ── Demo: productos con distintos tipos de unidad ────────────────────────────
 
-const DEMO_PRODUCTOS: CartItem[] = [
-  {
-    id: 1,
-    nombre:          'Taladro Perfotor 20V',
-    cantidad:        1,
-    precioBase:      159,
-    precioUnitario:  159,
-    subtotal:        159,
-    tipoUnidad:      'unidad',
-    stockDisponible: 8,
-  },
-  {
-    id: 2,
-    nombre:          'Set de Llaves Allen',
-    cantidad:        2,
-    precioBase:      22,
-    precioUnitario:  22,
-    subtotal:        44,
-    tipoUnidad:      'lote',
-    stockDisponible: 5,
-  },
-  {
-    id: 3,
-    nombre:          'Cable Eléctrico THHN',
-    cantidad:        3.50,
-    precioBase:      14.50,
-    precioUnitario:  14.50,
-    subtotal:        50.75,
-    tipoUnidad:      'medida',
-    unidadSimbolo:   'm',
-    stockDisponible: 100,
-  },
-  {
-    id: 4,
-    nombre:          'Masilla para Metal',
-    cantidad:        0.75,
-    precioBase:      18,
-    precioUnitario:  18,
-    subtotal:        13.50,
-    tipoUnidad:      'peso',
-    unidadSimbolo:   'kg',
-    stockDisponible: 10,
-  },
-];
 
 const IVA_RATE = 0.13;
 
 // ── Página ────────────────────────────────────────────────────────────────────
 
 export default function VentasPage() {
-  const [carrito,      setCarrito]      = useState<CartItem[]>(DEMO_PRODUCTOS);
+  const [carrito, setCarrito] = useState<CartItem[]>([]);
   const [previewOpen,  setPreviewOpen]  = useState(false);
   const [exitosaOpen,  setExitosaOpen]  = useState(false);
   const [folioActual,  setFolioActual]  = useState('');
@@ -84,15 +40,15 @@ export default function VentasPage() {
     setCarrito(prev =>
       prev.map(item => {
         if (item.id !== id) return item;
-        const subtotal = parseFloat((item.precioBase * nuevaCantidad).toFixed(2));
+        const subtotal = Math.round(item.precioBase * nuevaCantidad * 100) / 100;
         return { ...item, cantidad: nuevaCantidad, subtotal };
       }),
     );
   }
 
   const subtotalBruto = carrito.reduce((a, i) => a + i.subtotal, 0);
-  const iva           = parseFloat((subtotalBruto * IVA_RATE).toFixed(2));
-  const totalNeto     = parseFloat((subtotalBruto + iva).toFixed(2));
+  const iva = Math.round(subtotalBruto * IVA_RATE * 100) / 100;
+  const totalNeto = Math.round((subtotalBruto + iva) * 100) / 100;
 
   // Los TicketItem que esperan los modales (solo los campos que definen la interfaz)
   const ticketItems: TicketItem[] = carrito.map(({ id, nombre, cantidad, precioUnitario, subtotal }) => ({
@@ -113,7 +69,7 @@ export default function VentasPage() {
 
   function handleNuevaVenta() {
     setExitosaOpen(false);
-    setCarrito(DEMO_PRODUCTOS);
+    setCarrito([]);
     // TODO: resetear el estado del carrito / POS completo
   }
 
@@ -196,7 +152,7 @@ export default function VentasPage() {
                       tipoUnidad={item.tipoUnidad}
                       unidadSimbolo={item.unidadSimbolo}
                       valor={item.cantidad}
-                      onChange={v => actualizarCantidad(item.cantidad, v)}
+                      onChange={v => actualizarCantidad(item.id, v)}
                       min={0.01}
                       max={item.stockDisponible}
                     />

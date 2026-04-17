@@ -47,14 +47,14 @@ function ProductForm({ form, formErr, saving, categorias, onChange, onSave, onCa
         </div>
         <Select label="U. Medida" options={UNIDAD_OPTIONS} value={form.tipoUnidad}
           onChange={v => onChange('tipoUnidad', v)} />
-        <Input label="Stock inicial" type="number" placeholder="0"
+        <Input label="Stock inicial" type="number" min="0" placeholder="0"
           value={form.stockActual} onChange={v => onChange('stockActual', v)} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <Select label="Categoría" options={catOptions} value={form.categoriaId}
           onChange={v => onChange('categoriaId', v)} />
-        <Input label="Stock mínimo" type="number" placeholder="0"
+        <Input label="Stock mínimo" type="number" min="0" placeholder="0"
           value={form.stockMinimo} onChange={v => onChange('stockMinimo', v)} />
       </div>
 
@@ -67,9 +67,9 @@ function ProductForm({ form, formErr, saving, categorias, onChange, onSave, onCa
           Estructura de precios
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-          <Input label="Costo base ($)" type="number" placeholder="0.00"
+          <Input label="Costo base ($)" type="number" min="0" placeholder="0.00"
             value={form.precioCompra} onChange={v => onChange('precioCompra', v)} />
-          <Input label="Ganancia %" type="number" placeholder="30"
+          <Input label="Ganancia %" type="number" min="0" placeholder="30"
             value={form.porcentajeGanancia} onChange={v => onChange('porcentajeGanancia', v)} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
@@ -131,8 +131,12 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    api.get('/categorias').then(r => setCategorias(r.data)).catch(() => {});
-  }, []);
+  api.get('/categorias')
+      .then(r => setCategorias(r.data))
+      .catch(() => {
+        toast.error('No se pudieron cargar las categorías');
+      });
+}, []);
 
   // Debounce search para no re-renderizar con cada tecla
   function handleBuscar(v: string) {
