@@ -85,6 +85,7 @@ export function crearProductoSqlite(data: any, sucursalId?: number) {
 
   const id = Number(result.lastInsertRowid);
 
+  // Mantenemos la validación de sucursal para evitar errores de FK
   if (sucursalId && existeSucursalSqlite(db, sucursalId)) {
     db.prepare(`
       INSERT OR IGNORE INTO stock_sucursal
@@ -93,6 +94,7 @@ export function crearProductoSqlite(data: any, sucursalId?: number) {
     `).run(id, sucursalId, data.stockActual ?? 0, data.stockMinimo ?? 0);
   }
 
+  // Usamos el formato de log más completo (el de Nelson) para la sincronización
   logPendienteSqlite('producto', 'CREATE', {
     localId: id,
     sucursalId: sucursalId ?? null,
@@ -472,4 +474,3 @@ CREATE TABLE IF NOT EXISTS sync_log (
   creado_en TEXT NOT NULL DEFAULT (datetime('now')),
   sinc_en TEXT
 );
-`;

@@ -1,9 +1,9 @@
-
-//  * VentasPage.tsx
-//  * HU-02A / HU-02B: Modulo POS — diseno completo con datos mock
-//  * T-09B.2: CantidadInput adaptativo segun tipo de unidad
-//  * Pendiente: conectar endpoints reales (T-02A.1 -> T-02B.3)
- 
+/**
+ * VentasPage.tsx
+ * HU-02A / HU-02B: Modulo POS — diseño completo con datos mock
+ * HU-08B: Ticket imprimible con QR
+ * T-09B.2: CantidadInput adaptativo segun tipo de unidad
+ */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button }  from '../../components/ui/Button';
 import { Input }   from '../../components/ui/Input';
@@ -17,13 +17,13 @@ import { TicketModal } from '../ticket-preview/ticket-modal';
 
 // ── Tipos locales ────────────────────────────────────────────
 interface ProductoMock {
-  id:           number;
-  nombre:       string;
+  id:            number;
+  nombre:        string;
   codigoBarras: string;
   precioVenta:  number;
   precioConIva: number;
-  tieneIva:     boolean;
-  tipoUnidad:   TipoUnidad;
+  tieneIva:      boolean;
+  tipoUnidad:    TipoUnidad;
   stockActual:  number;
   categoria:    string;
 }
@@ -36,7 +36,7 @@ interface LineaCarrito {
 
 // ── Datos mock ───────────────────────────────────────────────
 const PRODUCTOS_MOCK: ProductoMock[] = [
-  { id: 1, nombre: 'Taladro Percutor 20V',    codigoBarras: '7501001001',  precioVenta: 114.16, precioConIva: 129.00, tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 8,   categoria: 'Herramientas Electricas' },
+  { id: 1, nombre: 'Taladro Percutor 20V',     codigoBarras: '7501001001',  precioVenta: 114.16, precioConIva: 129.00, tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 8,   categoria: 'Herramientas Electricas' },
   { id: 2, nombre: 'Set de Llaves Allen',      codigoBarras: '7501001002',  precioVenta: 19.47,  precioConIva: 22.00,  tieneIva: true,  tipoUnidad: 'LOTE',   stockActual: 1,   categoria: 'Ferreteria General' },
   { id: 3, nombre: 'Martillo Galpon 16oz',     codigoBarras: '7501001003',  precioVenta: 12.83,  precioConIva: 14.50,  tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 142, categoria: 'Ferreteria General' },
   { id: 4, nombre: 'Pintura Latex 4L',         codigoBarras: '7501001004',  precioVenta: 39.82,  precioConIva: 45.00,  tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 0,   categoria: 'Pinturas y Acabados' },
@@ -108,7 +108,7 @@ const IcoWarning = () => (
 
 // ── Componente principal ─────────────────────────────────────
 export default function VentasPage() {
-  // Escaneo y busqueda
+  // Escaneo y búsqueda
   const [barcode,      setBarcode]      = useState('');
   const [busqueda,     setBusqueda]     = useState('');
   const [resultados,   setResultados]   = useState<ProductoMock[]>([]);
@@ -131,10 +131,10 @@ export default function VentasPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Focus automatico en barcode al montar
+  // Focus automático en barcode al montar
   useEffect(() => { barcodeRef.current?.focus(); }, []);
 
-  // Busqueda con debounce
+  // Búsqueda con debounce
   useEffect(() => {
     if (busqTimer.current) clearTimeout(busqTimer.current);
     if (!busqueda.trim()) { setResultados([]); return; }
@@ -178,7 +178,7 @@ export default function VentasPage() {
     setTimeout(() => barcodeRef.current?.focus(), 50);
   }, []);
 
-  // Escaneo de codigo de barras
+  // Escaneo de código de barras
   function handleBarcode(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== 'Enter' || !barcode.trim()) return;
     const prod = PRODUCTOS_MOCK.find(p => p.codigoBarras === barcode.trim());
@@ -187,7 +187,7 @@ export default function VentasPage() {
     } else {
       setBusqueda(barcode.trim());
       setBarcode('');
-      showToast('Codigo no encontrado — buscando por nombre', 'warning');
+      showToast('Código no encontrado — buscando por nombre', 'warning');
     }
   }
 
@@ -221,7 +221,6 @@ export default function VentasPage() {
   // Confirmar venta
   async function confirmarVenta() {
     setConfirming(true);
-    // TODO T-02B.1: await api.post('/ventas', { lineas: carrito.map(...) })
     await new Promise(r => setTimeout(r, 1200)); // simula latencia
     const nro = `F-${Date.now().toString().slice(-6)}`;
     setNroFactura(nro);
@@ -238,12 +237,8 @@ export default function VentasPage() {
       {/* ── Layout de dos paneles ─────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '16px', flex: 1, minHeight: 0 }}>
 
-        {/* ════════════════════════════════════════════════════
-            PANEL IZQUIERDO — Ingreso de productos
-        ════════════════════════════════════════════════════ */}
+        {/* PANEL IZQUIERDO — Ingreso de productos */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
-
-          {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '34px', height: '34px', borderRadius: '8px',
@@ -258,7 +253,7 @@ export default function VentasPage() {
                 Ingreso de productos
               </h2>
               <p style={{ fontSize: '11px', color: 'var(--text-subtle)', marginTop: '1px' }}>
-                Escaneo de barra o busqueda manual
+                Escaneo de barra o búsqueda manual
               </p>
             </div>
           </div>
@@ -296,22 +291,22 @@ export default function VentasPage() {
             </div>
           </div>
 
-          {/* Busqueda manual */}
+          {/* Búsqueda manual */}
           <div style={{
             background: 'var(--bg-surface)', border: '1px solid var(--border)',
             borderRadius: '10px', padding: '14px', flex: 1,
           }}>
             <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-subtle)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Busqueda manual
+              Búsqueda manual
             </p>
             <Input
               value={busqueda}
               onChange={setBusqueda}
-              placeholder="Nombre, codigo o categoria..."
+              placeholder="Nombre, código o categoría..."
               icon={<IcoSearch />}
             />
 
-            {/* Resultados de busqueda */}
+            {/* Resultados */}
             {resultados.length > 0 && (
               <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {resultados.map(prod => (
@@ -326,16 +321,11 @@ export default function VentasPage() {
                       cursor: prod.stockActual === 0 ? 'not-allowed' : 'pointer',
                       opacity: prod.stockActual === 0 ? 0.6 : 1,
                       textAlign: 'left', fontFamily: 'inherit', width: '100%',
-                      transition: 'all 0.12s ease',
                     }}
-                    onMouseEnter={e => { if (prod.stockActual > 0) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = prodSelec?.id === prod.id ? 'var(--accent-glow)' : 'var(--bg-elevated)'; }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {prod.nombre}
-                        </span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{prod.nombre}</span>
                         <span style={{
                           fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
                           background: 'rgba(59,130,246,0.1)', color: 'var(--accent)',
@@ -345,57 +335,25 @@ export default function VentasPage() {
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>
-                          Stock: {prod.stockActual}
-                        </span>
-                        {prod.stockActual === 0 && (
-                          <span style={{ fontSize: '10px', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            <IcoWarning /> Sin stock en esta sucursal
-                          </span>
-                        )}
+                        <span style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>Stock: {prod.stockActual}</span>
                       </div>
                     </div>
-                    <span style={{
-                      fontSize: '14px', fontWeight: 700,
-                      color: prod.stockActual === 0 ? 'var(--text-subtle)' : 'var(--accent)',
-                      fontFamily: 'JetBrains Mono, monospace', marginLeft: '12px',
-                    }}>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace' }}>
                       {fmt(prod.precioConIva)}
                     </span>
                   </button>
                 ))}
               </div>
             )}
-
-            {busqueda.trim() && resultados.length === 0 && (
-              <div style={{ marginTop: '24px', textAlign: 'center', color: 'var(--text-subtle)', fontSize: '13px' }}>
-                No se encontraron productos para "{busqueda}"
-              </div>
-            )}
-
-            {!busqueda.trim() && !resultados.length && (
-              <div style={{
-                marginTop: '24px', textAlign: 'center',
-                color: 'var(--text-subtle)', fontSize: '12px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
-              }}>
-                <span style={{ fontSize: '28px', opacity: 0.3 }}>⌨</span>
-                <span>Busca productos por nombre o codigo</span>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* ════════════════════════════════════════════════════
-            PANEL DERECHO — Carrito de ventas
-        ════════════════════════════════════════════════════ */}
+        {/* PANEL DERECHO — Carrito */}
         <div style={{
           display: 'flex', flexDirection: 'column',
           background: 'var(--bg-surface)', border: '1px solid var(--border)',
           borderRadius: '10px', overflow: 'hidden',
         }}>
-
-          {/* Header del carrito */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '14px 16px', borderBottom: '1px solid var(--border)',
@@ -403,135 +361,67 @@ export default function VentasPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'var(--accent)' }}><IcoCart /></span>
               <div>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Carrito de ventas
-                </p>
-                <p style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '1px' }}>
-                  Cliente: Consumidor Final
-                </p>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Carrito de ventas</p>
+                <p style={{ fontSize: '11px', color: 'var(--accent)' }}>Cliente: Consumidor Final</p>
               </div>
             </div>
             {hayCarrito && (
-              <button
-                onClick={vaciarCarrito}
-                title="Vaciar carrito"
-                style={{
-                  background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-                  borderRadius: '6px', padding: '5px 8px', cursor: 'pointer',
-                  color: 'var(--danger)', display: 'flex', alignItems: 'center',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.15)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
-              >
+              <button onClick={vaciarCarrito} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', padding: '5px 8px', color: 'var(--danger)', cursor: 'pointer' }}>
                 <IcoClear />
               </button>
             )}
           </div>
 
-          {/* Lineas del carrito */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
             {!hayCarrito ? (
-              <div style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                justifyContent: 'center', height: '180px',
-                color: 'var(--text-subtle)', fontSize: '13px', gap: '8px',
-              }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '180px', color: 'var(--text-subtle)', gap: '8px' }}>
                 <span style={{ fontSize: '32px', opacity: 0.25 }}>🛒</span>
-                <span>El carrito esta vacio</span>
+                <span>El carrito está vacío</span>
               </div>
             ) : (
-              carrito.map((linea, idx) => {
-                const stockInsuficiente = linea.cantidad > linea.producto.stockActual;
-                return (
-                  <div
-                    key={linea.producto.id}
-                    style={{
-                      padding: '10px 8px', borderRadius: '8px', marginBottom: '4px',
-                      background: stockInsuficiente ? 'rgba(245,158,11,0.06)' : 'transparent',
-                      border: `1px solid ${stockInsuficiente ? 'rgba(245,158,11,0.2)' : 'transparent'}`,
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {/* Nombre y precio */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                      <div style={{ flex: 1, minWidth: 0, paddingRight: '8px' }}>
-                        <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {linea.producto.nombre}
-                        </p>
-                        <p style={{ fontSize: '11px', color: 'var(--text-subtle)', marginTop: '2px' }}>
-                          {fmt(linea.producto.precioConIva)} x {linea.cantidad} {TIPO_UNIDAD_LABELS[linea.producto.tipoUnidad].toLowerCase()}
-                        </p>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                        <span style={{
-                          fontSize: '14px', fontWeight: 700,
-                          fontFamily: 'JetBrains Mono, monospace',
-                          color: 'var(--text-primary)',
-                        }}>
-                          {fmt(linea.subtotal)}
-                        </span>
-                        <button
-                          onClick={() => eliminarLinea(idx)}
-                          style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            color: 'var(--text-subtle)', padding: '2px',
-                            display: 'flex', alignItems: 'center', borderRadius: '4px',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--danger)')}
-                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-subtle)')}
-                        >
-                          <IcoTrash />
-                        </button>
-                      </div>
+              carrito.map((linea, idx) => (
+                <div key={linea.producto.id} style={{ padding: '10px 8px', borderRadius: '8px', marginBottom: '4px', border: '1px solid transparent' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600 }}>{linea.producto.nombre}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>{fmt(linea.producto.precioConIva)} x {linea.cantidad}</p>
                     </div>
-
-                    {/* Control de cantidad adaptativo (T-09B.2) */}
-                    <CantidadInput
-                      tipoUnidad={linea.producto.tipoUnidad}
-                      valor={linea.cantidad}
-                      onChange={v => setCantidadLinea(idx, v)}
-                      min={1}
-                      max={linea.producto.stockActual}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'JetBrains Mono' }}>{fmt(linea.subtotal)}</span>
+                      <button onClick={() => eliminarLinea(idx)} style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer' }}>
+                        <IcoTrash />
+                      </button>
+                    </div>
                   </div>
-                );
-              })
+                  <CantidadInput
+                    tipoUnidad={linea.producto.tipoUnidad}
+                    valor={linea.cantidad}
+                    onChange={v => setCantidadLinea(idx, v)}
+                    min={1}
+                    max={linea.producto.stockActual}
+                  />
+                </div>
+              ))
             )}
           </div>
 
-          {/* Totales + boton confirmar */}
           <div style={{ padding: '14px 16px', borderTop: '1px solid var(--border)' }}>
             {hayCarrito && (
               <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  <span>Subtotal</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{fmt(subtotalSinIva)}</span>
+                  <span>Subtotal sin IVA</span>
+                  <span>{fmt(subtotalSinIva)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  <span>IVA (13%)</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{fmt(ivaTotal)}</span>
-                </div>
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  paddingTop: '8px', marginTop: '2px',
-                  borderTop: '1px solid var(--border)',
-                }}>
-                  <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>TOTAL</span>
-                  <span style={{
-                    fontSize: '20px', fontWeight: 700,
-                    fontFamily: 'JetBrains Mono, monospace',
-                    color: 'var(--text-primary)',
-                  }}>
-                    {fmt(totalFinal)}
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
+                  <span style={{ fontWeight: 700 }}>TOTAL</span>
+                  <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(totalFinal)}</span>
                 </div>
               </div>
             )}
-
             <Button
               onClick={() => setModalConfirm(true)}
               disabled={!hayCarrito || carrito.some(l => l.cantidad > l.producto.stockActual)}
-              style={{ width: '100%', justifyContent: 'center', height: '44px', fontSize: '14px' }}
+              style={{ width: '100%', justifyContent: 'center', height: '44px' }}
               icon={<IcoCheck />}
             >
               Confirmar venta
@@ -540,7 +430,7 @@ export default function VentasPage() {
         </div>
       </div>
 
-      {/* ── Modal: vista previa del ticket ──────────────────── */}
+      {/* ── Modal: vista previa del ticket (Ahora modularizado) ── */}
       <TicketModal
         open={modalConfirm}
         confirming={confirming}
@@ -553,48 +443,21 @@ export default function VentasPage() {
         fmt={fmt}
       />
 
-      {/* ── Modal: venta exitosa + imprimir ─────────────────── */}
+      {/* ── Modal: venta exitosa ─────────────────── */}
       <Modal
         open={modalTicket}
         onClose={() => { setModalTicket(false); vaciarCarrito(); }}
-        title="Venta registrada!"
+        title="¡Venta registrada!"
         subtitle={`Factura ${nroFactura ?? ''}`}
         maxWidth={400}
         icon={<IcoCheck />}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center' }}>
-          <div style={{
-            width: '64px', height: '64px', borderRadius: '50%',
-            background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '28px',
-          }}>
-            ✓
-          </div>
-          <div>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Venta completada por {fmt(totalFinal)}
-            </p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Nro. de factura: <strong style={{ fontFamily: 'JetBrains Mono, monospace' }}>{nroFactura}</strong>
-            </p>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>✓</div>
+          <p style={{ fontWeight: 600 }}>Venta completada por {fmt(totalFinal)}</p>
           <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-            <Button
-              variant="ghost"
-              onClick={() => { setModalTicket(false); vaciarCarrito(); }}
-              style={{ flex: 1 }}
-            >
-              Nueva venta
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => showToast('Enviando a impresora...', 'success')}
-              icon={<IcoPrint />}
-              style={{ flex: 1 }}
-            >
-              Imprimir ticket
-            </Button>
+            <Button variant="ghost" onClick={() => { setModalTicket(false); vaciarCarrito(); }} style={{ flex: 1 }}>Nueva venta</Button>
+            <Button variant="secondary" onClick={() => showToast('Enviando a impresora...', 'success')} icon={<IcoPrint />} style={{ flex: 1 }}>Imprimir ticket</Button>
           </div>
         </div>
       </Modal>
