@@ -19,40 +19,66 @@ export function useCriticalAlerts() {
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isMounted: () => boolean = () => true) => {
+    if (!isMounted()) return;
+
     if (rol === 'CAJERO') {
-      setSummary([]);
+      if (isMounted()) {
+        setSummary([]);
+      }
       return;
     }
 
-    setLoading(true);
+    if (isMounted()) {
+      setLoading(true);
+    }
     try {
       if (rol === 'ADMIN') {
         const { data } = await api.get<StockPorSucursalResumen[]>('/inventario/criticos-por-sucursal');
-        setSummary(data);
+        if (isMounted()) {
+          setSummary(data);
+        }
       } else {
-        const sucursalId = usuario?.sucursalId ?? 1;
+        const sucursalId = usuario?.sucursalId;
+        if (!sucursalId) {
+          if (isMounted()) {
+            setSummary([]);
+          }
+          return;
+        }
         const { data } = await api.get<{ total: number }>(`/inventario/criticos/${sucursalId}`);
-        setSummary([{
-          sucursalId,
-          sucursalNombre: usuario?.sucursalId ? `Sucursal ${usuario.sucursalId}` : 'Sin sucursal asignada',
-          criticos: data.total ?? 0,
-        }]);
+        if (isMounted()) {
+          setSummary([{
+            sucursalId,
+            sucursalNombre: `Sucursal ${sucursalId}`,
+            criticos: data.total ?? 0,
+          }]);
+        }
       }
     } catch {
       // La navegación solo necesita señal visual; en error conservamos el último estado.
     } finally {
-      setLoading(false);
+      if (isMounted()) {
+        setLoading(false);
+      }
     }
   }, [rol, usuario?.sucursalId]);
 
   useEffect(() => {
-    load();
+    let mounted = true;
+
+    const safeLoad = async () => {
+      if (!mounted) return;
+      await load(() => mounted);
+    };
+
+    safeLoad();
 
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(load, REFRESH_MS);
+    timerRef.current = setInterval(safeLoad, REFRESH_MS);
 
     return () => {
+      mounted = false;
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [load]);

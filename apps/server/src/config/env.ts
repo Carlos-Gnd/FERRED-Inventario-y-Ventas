@@ -23,7 +23,7 @@ export const env = {
 
   jwt: {
     secret:    required('JWT_SECRET'),
-    expiresIn: (process.env.JWT_EXPIRES_IN ?? '8h') as string,
+    expiresIn: process.env.JWT_EXPIRES_IN ?? '2h',
   },
 
   crypto: {

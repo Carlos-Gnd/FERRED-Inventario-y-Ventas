@@ -4,11 +4,12 @@ import { prisma } from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
 import { sincronizarStockTotal } from './inventario.routes';
+import { assertSameSucursal } from '../middleware/sucursal.guard';
 import {
   crearProductoSqlite,
   obtenerProductosPendientesSqlite,
   obtenerProductosSqlite,
-} from '../../db/sqlite.client';
+} from '../../db/sqlite/sqlite.client';
 
 export const productoRoutes = Router();
 
@@ -54,6 +55,8 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
       ? Number(sucursalId)
       : req.usuario?.sucursalId;
 
+    if (targetSucursalId && !assertSameSucursal(req, res, targetSucursalId)) return;
+
     const productos = await prisma.producto.findMany({
       where: {
         activo: true,
@@ -80,7 +83,7 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
     let resultado = productos;
     if (criticos === 'true' && targetSucursalId) {
       resultado = productos.filter((p) => {
-        const stock = (p as any).stocks?.[0];
+        const stock = (p as { stocks?: Array<{ cantidad: number; minimo: number }> }).stocks?.[0];
         return stock ? stock.cantidad <= stock.minimo : p.stockActual <= p.stockMinimo;
       });
     } else if (criticos === 'true') {
@@ -137,6 +140,8 @@ productoRoutes.get('/:id/stock/:sucursalId', roleMiddleware('ADMIN', 'CAJERO', '
   try {
     const productoId = Number(req.params.id);
     const sucursalId = Number(req.params.sucursalId);
+
+    if (!assertSameSucursal(req, res, sucursalId)) return;
 
     const stock = await prisma.stockSucursal.findUnique({
       where: { productoId_sucursalId: { productoId, sucursalId } },
@@ -291,7 +296,7 @@ productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), a
         where: { productoId_sucursalId: { productoId, sucursalId } },
         data: { cantidad: { decrement: cantidad } },
       });
-    });
+    }, { timeout: 10000 });
 
     await sincronizarStockTotal(productoId);
 

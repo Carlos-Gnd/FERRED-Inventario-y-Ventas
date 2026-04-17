@@ -35,7 +35,9 @@ async function initAntiSpam(): Promise<void> {
         // payload antiguo o malformado, ignorar
       }
     }
-    console.log(`[Alertas] Anti-spam cargado desde BD — ${ultimaAlerta.size} entradas`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Alertas] Anti-spam cargado desde BD — ${ultimaAlerta.size} entradas`);
+    }
   } catch (err: any) {
     console.warn('[Alertas] No se pudo cargar anti-spam desde BD:', err.message);
   }
@@ -62,6 +64,12 @@ async function getEmailBodeguero(sucursalId: number): Promise<string | null> {
   return bodeguero?.email ?? null;
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[c] ?? c
+  );
+}
+
 function construirHtmlCorreo(
   productos: Array<{ nombre: string; cantidad: number; minimo: number; estado: string }>,
   sucursalNombre: string,
@@ -73,7 +81,7 @@ function construirHtmlCorreo(
 
   const filas = productos.map(p => `
     <tr style="background:${p.estado === 'critico' ? '#fee2e2' : '#fef3c7'}">
-      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${p.nombre}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${escapeHtml(p.nombre)}</td>
       <td style=\"padding:8px 12px;text-align:center;font-weight:bold;color:${p.estado === 'critico' ? '#dc2626' : '#d97706'}\">${p.cantidad}</td>
       <td style="padding:8px 12px;text-align:center">${p.minimo}</td>
       <td style="padding:8px 12px;text-align:center">
@@ -89,7 +97,7 @@ function construirHtmlCorreo(
         <h1 style="color:white;margin:0;font-size:20px">
           ${esCritico ? 'ALERTA CRITICA DE STOCK' : 'Alerta de Stock Bajo'}
         </h1>
-        <p style="color:white;margin:6px 0 0;opacity:0.9">${sucursalNombre} — FERRED</p>
+        <p style="color:white;margin:6px 0 0;opacity:0.9">${escapeHtml(sucursalNombre)} — FERRED</p>
       </div>
       <div style="background:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
         <table style="width:100%;border-collapse:collapse;background:white;border:1px solid #e5e7eb">
@@ -179,10 +187,9 @@ async function checkStock(): Promise<void> {
       }));
 
       if (!transporte) {
-        console.log(`[Alertas] SIMULADO — ${paraAlertar.length} alertas en ${sucursalNombre}`);
-        productosInfo.forEach((p: any) =>
-          console.log(`  - ${p.nombre}: ${p.cantidad} / min ${p.minimo} (${p.estado})`)
-        );
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[Alertas] SIMULADO — ${paraAlertar.length} alertas en ${sucursalNombre}`);
+        }
         continue;
       }
 
@@ -198,7 +205,9 @@ async function checkStock(): Promise<void> {
         html,
       });
 
-      console.log(`[Alertas] Correo enviado a ${emailBodeguero} — ${paraAlertar.length} productos`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Alertas] Correo enviado a ${emailBodeguero} — ${paraAlertar.length} productos`);
+      }
     }
   } catch (err: any) {
     console.error('[Alertas] Error en checkStock:', err.message);
@@ -207,8 +216,7 @@ async function checkStock(): Promise<void> {
 
 export const AlertasService = {
   async start() {
-    console.log('[Alertas] Servicio iniciado — revision cada 60 minutos');
-    await initAntiSpam();          // B-16: sembrar anti-spam desde BD
+    await initAntiSpam();
     checkStock();
     setInterval(checkStock, INTERVALO_MS);
   },

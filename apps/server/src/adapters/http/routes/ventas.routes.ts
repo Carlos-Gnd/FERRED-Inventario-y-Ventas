@@ -98,7 +98,6 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     const total       = parseFloat((subtotal + iva).toFixed(2));
     const subtotalFix = parseFloat(subtotal.toFixed(2));
 
-    // Transacción atómica: verificar stock + factura + detalles + descuento
     const factura = await prisma.$transaction(async (tx) => {
       // Verificar stock DENTRO de la transacción para evitar race conditions
       const erroresStock: string[] = [];
@@ -155,15 +154,15 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       }
 
       return nuevaFactura;
-    });
+    }, { timeout: 10000 });
 
-    // Sincronizar stock_actual en productos (fuera de la tx)
-    try {
-      await Promise.all(
-        items.map(i => sincronizarStockTotal(i.productoId))
-      );
-    } catch (syncErr) {
-      console.error('[ventas] Error sincronizando stockTotal post-venta:', syncErr);
+    const syncResults = await Promise.allSettled(
+      items.map(i => sincronizarStockTotal(i.productoId))
+    );
+    for (const r of syncResults) {
+      if (r.status === 'rejected') {
+        console.error('[ventas] Error sincronizando stockTotal post-venta:', r.reason);
+      }
     }
 
     await logPendiente('facturaDte', 'CREATE', {

@@ -22,7 +22,6 @@ export function onConnectivityChange(cb: (online: boolean) => void) {
 function setOnline(value: boolean) {
   if (value === _online) return;
   _online = value;
-  console.log(value ? 'SyncService: conectado' : 'SyncService: offline');
   _listeners.forEach((cb) => cb(value));
 }
 
@@ -155,7 +154,6 @@ function limpiarPayload(tabla: string, payload: any) {
 
 export const SyncService = {
   start() {
-    console.log('SyncService iniciado');
     void this.run();
     setInterval(() => void this.run(), INTERVAL_MS);
   },
@@ -185,7 +183,9 @@ export const SyncService = {
     const pendientes = leerPendientesLocal(50).filter((log) => log.intentos < MAX_INTENTOS);
     if (!pendientes.length) return;
 
-    console.log(`Sync SQLite: ${pendientes.length} pendientes`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Sync SQLite: ${pendientes.length} pendientes`);
+    }
 
     let ok = 0;
     for (const log of pendientes) {

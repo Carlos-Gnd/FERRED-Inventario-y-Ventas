@@ -23,7 +23,6 @@ import { initSqlite }       from './adapters/db/sqlite/sqlite.client';
 import { contarPendientes } from './adapters/sync/sync.local';
 
 initSqlite();
-console.log('[SQLite] BD local inicializada');
 
 const app = express();
 const branchId = process.env.BRANCH_ID || '1';
@@ -49,7 +48,7 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 const loginLimiter = rateLimit({
   windowMs:        60 * 1000,
@@ -59,11 +58,20 @@ const loginLimiter = rateLimit({
   message:         { error: 'Demasiados intentos de inicio de sesión. Intentá de nuevo en 1 minuto.' },
 });
 
+const apiLimiter = rateLimit({
+  windowMs:        60 * 1000,
+  max:             100,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message:         { error: 'Demasiadas solicitudes. Intentá de nuevo en 1 minuto.' },
+});
+
 app.use('/api/auth', loginLimiter, authRoutes);
-app.get('/health', (_req, res) => res.json({ ok: true, branch: branchId }));
-app.get('/sync/pendientes-local', (_req, res) => res.json(contarPendientes()));
+app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.use(jwtMiddleware);
+app.use(apiLimiter);
+app.get('/sync/pendientes-local', (_req, res) => res.json(contarPendientes()));
 app.use('/api/usuarios',   usuarioRoutes);
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/productos',  productoRoutes);
@@ -76,8 +84,9 @@ app.use(errorMiddleware);
 
 const PORT = Number(process.env.PORT ?? 3001);
 app.listen(PORT, () => {
-  console.log(`✅ Servidor FERRED en http://localhost:${PORT}`);
-  console.log(`📦 Sucursal: ${branchId}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Servidor FERRED en http://localhost:${PORT} — sucursal ${branchId}`);
+  }
 });
 
 SyncService.start();
