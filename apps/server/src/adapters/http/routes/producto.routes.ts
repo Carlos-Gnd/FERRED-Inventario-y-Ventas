@@ -7,6 +7,7 @@ import { sincronizarStockTotal } from './inventario.routes';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import {
   crearProductoSqlite,
+  eliminarProductoPendienteSqlite,
   obtenerProductosPendientesSqlite,
   obtenerProductosSqlite,
 } from '../../db/sqlite/sqlite.client';
@@ -248,6 +249,16 @@ productoRoutes.put('/:id', roleMiddleware('ADMIN', 'BODEGA'), async (req: Reques
 productoRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
+
+    const eliminadoLocal = eliminarProductoPendienteSqlite(id);
+    if (eliminadoLocal) {
+      OfflineCache.invalidate('productos:');
+      return res.json({ mensaje: 'Producto eliminado localmente' });
+    }
+
+    if (id < 0) {
+      return res.status(404).json({ error: 'Producto local pendiente no encontrado' });
+    }
 
     if (!(await SyncService.checkConnectivity())) {
       await logPendiente('producto', 'DELETE', { id }, req.usuario?.id);
