@@ -1,14 +1,11 @@
 // Módulo de Ventas / POS
-// Componente: CantidadInput
+// Componente: CantidadInput (T-09B.2)
 // Adapta el campo de cantidad según el tipo de unidad del producto:
-//   - 'unidad' | 'lote'  → enteros, sin decimales
-//   - 'peso'   | 'medida' → decimales (2 lugares), muestra la unidad (kg, m, etc.)
+//   - UNIDAD | CAJA | LOTE → enteros, sin decimales
+//   - PESO   | MEDIDA      → decimales (2 lugares), muestra la unidad (lb, m, etc.)
 
 import { useRef } from 'react';
-
-// ── Tipos ────────────────────────────────────────────────────────────────────
-
-export type TipoUnidad = 'unidad' | 'lote' | 'peso' | 'medida';
+import type { TipoUnidad } from '../../../types';
 
 export interface CantidadInputProps {
   /** Tipo de unidad del producto */
@@ -19,7 +16,7 @@ export interface CantidadInputProps {
   valor: number;
   /** Callback cuando cambia el valor */
   onChange: (nuevoValor: number) => void;
-  /** Cantidad mínima permitida (default: 0) */
+  /** Cantidad mínima permitida (default: 1) */
   min?: number;
   /** Cantidad máxima permitida (stock disponible) */
   max?: number;
@@ -30,7 +27,7 @@ export interface CantidadInputProps {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function esDecimal(tipo: TipoUnidad): boolean {
-  return tipo === 'peso' || tipo === 'medida';
+  return tipo === 'PESO' || tipo === 'MEDIDA';
 }
 
 function stepDe(tipo: TipoUnidad): number {
@@ -44,10 +41,11 @@ function formatearValor(valor: number, tipo: TipoUnidad): string {
 
 function etiquetaTipo(tipo: TipoUnidad, simbolo?: string): string {
   switch (tipo) {
-    case 'unidad':  return 'und.';
-    case 'lote':    return 'lote(s)';
-    case 'peso':    return simbolo ?? 'kg';
-    case 'medida':  return simbolo ?? 'm';
+    case 'UNIDAD': return 'und.';
+    case 'CAJA':   return 'caja(s)';
+    case 'LOTE':   return 'lote(s)';
+    case 'PESO':   return simbolo ?? 'lb';
+    case 'MEDIDA': return simbolo ?? 'm';
   }
 }
 
