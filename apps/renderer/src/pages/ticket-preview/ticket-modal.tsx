@@ -1,6 +1,8 @@
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 
+// HU-08B Implementar el comprobante con codigo QR del DTE: ticket imprimible en impresora termica e historial digital de cada venta con el codigo QR vinculado al documento de Hacienda.
+
 // Estructura minima que el modal necesita de cada linea del carrito.
 // Se mantiene acotada para que el componente no dependa de todo el modelo de ventas.
 interface TicketLineItem {

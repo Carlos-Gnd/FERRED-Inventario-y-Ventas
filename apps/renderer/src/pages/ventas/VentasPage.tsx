@@ -1,9 +1,9 @@
-/**
- * VentasPage.tsx
- * HU-02A / HU-02B: Modulo POS — diseno completo con datos mock
- * T-09B.2: CantidadInput adaptativo segun tipo de unidad
- * Pendiente: conectar endpoints reales (T-02A.1 -> T-02B.3)
- */
+
+//  * VentasPage.tsx
+//  * HU-02A / HU-02B: Modulo POS — diseno completo con datos mock
+//  * T-09B.2: CantidadInput adaptativo segun tipo de unidad
+//  * Pendiente: conectar endpoints reales (T-02A.1 -> T-02B.3)
+ 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button }  from '../../components/ui/Button';
 import { Input }   from '../../components/ui/Input';
