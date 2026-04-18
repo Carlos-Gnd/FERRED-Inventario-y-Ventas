@@ -10,6 +10,7 @@ const INTERVAL_MS = 30_000;
 const MAX_INTENTOS = 5;
 
 let _online = true;
+let _consecutiveFailures = 0;
 let _listeners: ((online: boolean) => void)[] = [];
 
 export function onConnectivityChange(cb: (online: boolean) => void) {
@@ -167,9 +168,18 @@ export const SyncService = {
   async checkConnectivity(): Promise<boolean> {
     try {
       await prisma.$queryRaw`SELECT 1`;
+      if (_consecutiveFailures > 0) {
+        console.log('[sync] Conexion a base de datos restaurada');
+      }
+      _consecutiveFailures = 0;
       setOnline(true);
       return true;
-    } catch {
+    } catch (err: any) {
+      _consecutiveFailures++;
+      // Solo loguear las primeras 3 fallas y luego cada 10 ciclos para no spamear logs
+      if (_consecutiveFailures <= 3 || _consecutiveFailures % 10 === 0) {
+        console.error(`[sync] Sin conexion a DB (intento ${_consecutiveFailures}):`, err.message);
+      }
       setOnline(false);
       return false;
     }
