@@ -2,6 +2,7 @@
   "name": "ferred-app",
   "version": "2.4.0",
   "private": true,
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "pnpm --filter renderer dev",
     "dev:server": "pnpm --filter server dev",
