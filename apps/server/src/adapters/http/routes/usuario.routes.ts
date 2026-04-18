@@ -108,12 +108,13 @@ usuarioRoutes.post('/', roleMiddleware('ADMIN'), async (req: Request, res: Respo
       });
     }
 
-    const existe = await prisma.usuario.findUnique({ where: { email } });
+    const emailNorm = email.trim().toLowerCase();
+    const existe = await prisma.usuario.findUnique({ where: { email: emailNorm } });
     if (existe) return res.status(400).json({ error: 'El email ya está registrado' });
 
     const hash = await bcrypt.hash(contrasena, 12);
     const nuevo = await prisma.usuario.create({
-      data: { nombre, email, contrasenaHash: hash, rol, sucursalId, activo },
+      data: { nombre, email: emailNorm, contrasenaHash: hash, rol, sucursalId, activo },
       select: { id: true, nombre: true, email: true, rol: true, sucursalId: true, activo: true },
     });
 

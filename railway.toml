@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm install -g pnpm@9 && pnpm install && pnpm --filter server build"
+buildCommand = "npm install -g pnpm@9 && pnpm install && cd apps/server && npx prisma generate && cd ../.. && pnpm --filter server build"
 
 [deploy]
 startCommand = "node apps/server/dist/index.js"

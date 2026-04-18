@@ -4,7 +4,7 @@
 //   - UNIDAD | CAJA | LOTE → enteros, sin decimales
 //   - PESO   | MEDIDA      → decimales (2 lugares), muestra la unidad (lb, m, etc.)
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { TipoUnidad } from '../../../types';
 
 export interface CantidadInputProps {
@@ -65,27 +65,43 @@ export function CantidadInput({
   const etiqueta = etiquetaTipo(tipoUnidad, unidadSimbolo);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Estado local para permitir edición libre con teclado
+  const [editValue, setEditValue] = useState<string | null>(null);
+  const isEditing = editValue !== null;
+
+  function acotar(raw: number): number {
+    return Math.min(
+      max !== undefined ? max : Infinity,
+      Math.max(min, raw),
+    );
+  }
+
   function ajustar(delta: number) {
     const siguiente = parseFloat((valor + delta).toFixed(decimal ? 2 : 0));
-    const acotado   = Math.min(
-      max !== undefined ? max : Infinity,
-      Math.max(min, siguiente),
-    );
-    onChange(acotado);
+    onChange(acotar(siguiente));
+  }
+
+  function handleFocus() {
+    setEditValue(formatearValor(valor, tipoUnidad));
+  }
+
+  function handleBlur() {
+    if (editValue === null) return;
+    const parsed = decimal ? parseFloat(editValue) : parseInt(editValue, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      onChange(acotar(decimal ? parseFloat(parsed.toFixed(2)) : parsed));
+    }
+    setEditValue(null);
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value;
-    if (raw === '' || raw === '-') return;
+    setEditValue(e.target.value);
+  }
 
-    const parsed = decimal ? parseFloat(raw) : parseInt(raw, 10);
-    if (isNaN(parsed)) return;
-
-    const acotado = Math.min(
-      max !== undefined ? max : Infinity,
-      Math.max(min, parsed),
-    );
-    onChange(decimal ? parseFloat(acotado.toFixed(2)) : acotado);
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      inputRef.current?.blur();
+    }
   }
 
   // ── Estilos inline que usan las variables CSS del tema ──────────────────
@@ -94,10 +110,10 @@ export function CantidadInput({
     display:        'inline-flex',
     alignItems:     'center',
     gap:            '0',
-    border:         '1px solid var(--border-color, #d1d5db)',
-    borderRadius:   'var(--radius-md, 8px)',
+    border:         '1px solid var(--border)',
+    borderRadius:   '8px',
     overflow:       'hidden',
-    background:     disabled ? 'var(--bg-disabled, #f3f4f6)' : 'var(--bg-input, #fff)',
+    background:     disabled ? 'var(--bg-surface)' : 'var(--bg-elevated)',
     opacity:        disabled ? 0.55 : 1,
     height:         '38px',
     width:          '100%',
@@ -113,7 +129,7 @@ export function CantidadInput({
     background:      'transparent',
     border:          'none',
     cursor:          disabled ? 'not-allowed' : 'pointer',
-    color:           'var(--text-secondary, #6b7280)',
+    color:           'var(--text-muted)',
     fontSize:        '16px',
     fontWeight:      600,
     flexShrink:      0,
@@ -128,9 +144,9 @@ export function CantidadInput({
     textAlign:       'center',
     fontSize:        '14px',
     fontWeight:      600,
-    color:           'var(--text-primary, #111827)',
+    color:           'var(--text-primary)',
     background:      'transparent',
-    width:           0,      // flex controla el ancho
+    width:           0,
     minWidth:        0,
     padding:         '0 2px',
   };
@@ -138,10 +154,10 @@ export function CantidadInput({
   const badgeStyle: React.CSSProperties = {
     fontSize:        '11px',
     fontWeight:      500,
-    color:           'var(--accent, #2563eb)',
-    background:      'var(--accent-muted, #eff6ff)',
+    color:           'var(--accent)',
+    background:      'var(--accent-glow)',
     padding:         '2px 6px',
-    borderLeft:      '1px solid var(--border-color, #d1d5db)',
+    borderLeft:      '1px solid var(--border)',
     height:          '100%',
     display:         'flex',
     alignItems:      'center',
@@ -160,10 +176,10 @@ export function CantidadInput({
           onClick={() => ajustar(-step)}
           style={{
             ...btnStyle,
-            borderRight: '1px solid var(--border-color, #d1d5db)',
+            borderRight: '1px solid var(--border)',
           }}
           onMouseEnter={e => {
-            if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover, #f9fafb)';
+            if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)';
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
@@ -180,8 +196,11 @@ export function CantidadInput({
           step={step}
           min={min}
           max={max}
-          value={formatearValor(valor, tipoUnidad)}
+          value={isEditing ? editValue : formatearValor(valor, tipoUnidad)}
           onChange={handleChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           disabled={disabled}
           aria-label="Cantidad"
           style={inputStyle}
@@ -200,10 +219,10 @@ export function CantidadInput({
           onClick={() => ajustar(step)}
           style={{
             ...btnStyle,
-            borderLeft: '1px solid var(--border-color, #d1d5db)',
+            borderLeft: '1px solid var(--border)',
           }}
           onMouseEnter={e => {
-            if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover, #f9fafb)';
+            if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)';
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
@@ -220,10 +239,10 @@ export function CantidadInput({
             fontSize:  '11px',
             color:
               valor >= max
-                ? 'var(--danger, #dc2626)'
+                ? 'var(--danger)'
                 : valor >= max * 0.8
-                ? 'var(--warning, #d97706)'
-                : 'var(--text-secondary, #6b7280)',
+                ? 'var(--warning)'
+                : 'var(--text-muted)',
           }}
         >
           {valor >= max

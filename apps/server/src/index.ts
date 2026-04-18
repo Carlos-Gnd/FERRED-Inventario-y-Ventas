@@ -22,7 +22,7 @@ import { SyncService }      from './adapters/sync/sync.service';
 import { initSqlite }       from './adapters/db/sqlite/sqlite.client';
 import { contarPendientes } from './adapters/sync/sync.local';
 
-initSqlite();
+try { initSqlite(); } catch (e) { console.warn('[sqlite] Modo offline no disponible:', (e as Error).message); }
 
 const app = express();
 const branchId = process.env.BRANCH_ID || '1';

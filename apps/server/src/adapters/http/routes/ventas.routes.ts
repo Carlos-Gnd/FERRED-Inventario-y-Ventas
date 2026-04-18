@@ -93,7 +93,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       return res.status(409).json({ error: 'No se puede completar la venta', detalle: erroresUnidad });
     }
 
-    const subtotal    = items.reduce((acc, i) => acc + i.cantidad * i.precioUnit, 0);
+    const subtotal    = items.reduce((acc, i) => acc + parseFloat((i.cantidad * i.precioUnit).toFixed(2)), 0);
     const iva         = parseFloat((subtotal * 0.13).toFixed(2));
     const total       = parseFloat((subtotal + iva).toFixed(2));
     const subtotalFix = parseFloat(subtotal.toFixed(2));
