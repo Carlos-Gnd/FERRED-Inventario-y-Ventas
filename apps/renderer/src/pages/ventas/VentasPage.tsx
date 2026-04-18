@@ -1,7 +1,12 @@
 /**
  * VentasPage.tsx
- * HU-02A / HU-02B: Modulo POS — diseño completo con datos mock
- * HU-08B: Ticket imprimible con QR
+ * HU-02A: Modulo POS — conectado al API real
+ *   T-02A.2: Escaneo de codigo de barras via GET /api/productos/barcode/:codigo
+ *   T-02A.3: Busqueda manual con debounce 300ms via GET /api/productos?buscar=...
+ *   T-02A.4: Carrito con calculo de subtotal, IVA 13% y total; venta via POST /api/ventas
+ *   T-02A.5: Validacion de stock real de la sucursal activa
+ * HU-02B: Registro de venta y comprobante
+ * HU-08B / T-08B.2: Impresion de ticket con QR via Electron
  * T-09B.2: CantidadInput adaptativo segun tipo de unidad
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -14,45 +19,53 @@ import type { TipoUnidad } from '../../types';
 import { TIPO_UNIDAD_LABELS } from '../../types';
 import { CantidadInput } from './components/CantidadInput';
 import { TicketModal } from '../ticket-preview/ticket-modal';
+import { api } from '../../services/api.client';
+import { useAuthStore } from '../../store/authStore';
+import { useElectron } from '../../hooks/useElectron';
 
-// ── Tipos locales ────────────────────────────────────────────
-interface ProductoMock {
+// ── Tipos ───────────────────────────────────────────────────
+interface ProductoPOS {
   id:            number;
   nombre:        string;
-  codigoBarras: string;
-  precioVenta:  number;
-  precioConIva: number;
+  codigoBarras:  string | null;
+  precioVenta:   number;
+  precioConIva:  number;
   tieneIva:      boolean;
   tipoUnidad:    TipoUnidad;
-  stockActual:  number;
-  categoria:    string;
+  stockActual:   number;
+  categoria:     string;
 }
 
 interface LineaCarrito {
-  producto:  ProductoMock;
+  producto:  ProductoPOS;
   cantidad:  number;
   subtotal:  number;
 }
 
-// ── Datos mock ───────────────────────────────────────────────
-const PRODUCTOS_MOCK: ProductoMock[] = [
-  { id: 1, nombre: 'Taladro Percutor 20V',     codigoBarras: '7501001001',  precioVenta: 114.16, precioConIva: 129.00, tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 8,   categoria: 'Herramientas Electricas' },
-  { id: 2, nombre: 'Set de Llaves Allen',      codigoBarras: '7501001002',  precioVenta: 19.47,  precioConIva: 22.00,  tieneIva: true,  tipoUnidad: 'LOTE',   stockActual: 1,   categoria: 'Ferreteria General' },
-  { id: 3, nombre: 'Martillo Galpon 16oz',     codigoBarras: '7501001003',  precioVenta: 12.83,  precioConIva: 14.50,  tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 142, categoria: 'Ferreteria General' },
-  { id: 4, nombre: 'Pintura Latex 4L',         codigoBarras: '7501001004',  precioVenta: 39.82,  precioConIva: 45.00,  tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 0,   categoria: 'Pinturas y Acabados' },
-  { id: 5, nombre: 'Cinta Metrica 5m',         codigoBarras: '7501001005',  precioVenta: 7.08,   precioConIva: 8.00,   tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 55,  categoria: 'Ferreteria General' },
-  { id: 6, nombre: 'Disco de Corte 4.5"',      codigoBarras: '7501001006',  precioVenta: 3.54,   precioConIva: 4.00,   tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 30,  categoria: 'Herramientas Electricas' },
-  { id: 7, nombre: 'Cable THW #12 (m)',         codigoBarras: '7501001007',  precioVenta: 0.88,   precioConIva: 1.00,   tieneIva: true,  tipoUnidad: 'MEDIDA', stockActual: 200, categoria: 'Electricidad' },
-  { id: 8, nombre: 'Tubo PVC 1/2" x 3m',       codigoBarras: '7501001008',  precioVenta: 4.42,   precioConIva: 5.00,   tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 40,  categoria: 'Plomeria' },
-  { id: 9, nombre: 'Cemento 42.5kg',            codigoBarras: '7501001009',  precioVenta: 8.85,   precioConIva: 10.00,  tieneIva: true,  tipoUnidad: 'PESO',   stockActual: 20,  categoria: 'Construccion' },
-  { id: 10, nombre: 'Broca de Concreto 1/2"',   codigoBarras: '7501001010',  precioVenta: 2.65,   precioConIva: 3.00,   tieneIva: true,  tipoUnidad: 'UNIDAD', stockActual: 15,  categoria: 'Ferreteria General' },
-];
-
 // ── Helpers ───────────────────────────────────────────────────
 const fmt = (n: number) => `$${n.toFixed(2)}`;
 
-function calcLinea(prod: ProductoMock, cantidad: number): number {
+function calcLinea(prod: ProductoPOS, cantidad: number): number {
   return parseFloat((prod.precioConIva * cantidad).toFixed(2));
+}
+
+/** Normaliza la respuesta del API de productos al formato que usa el POS */
+function normalizarProducto(raw: any, sucursalId: number | null): ProductoPOS {
+  // El stock de la sucursal activa viene en raw.stocks[0] cuando se filtra por sucursalId
+  const stockSucursal = raw.stocks?.[0];
+  const stockActual   = stockSucursal?.cantidad ?? raw.stockActual ?? 0;
+
+  return {
+    id:           raw.id,
+    nombre:       raw.nombre,
+    codigoBarras: raw.codigoBarras ?? null,
+    precioVenta:  raw.precioVenta ?? 0,
+    precioConIva: raw.precioConIva ?? raw.precioVenta ?? 0,
+    tieneIva:     raw.tieneIva ?? true,
+    tipoUnidad:   (raw.tipoUnidad as TipoUnidad) ?? 'UNIDAD',
+    stockActual,
+    categoria:    raw.categoria?.nombre ?? 'Sin categoría',
+  };
 }
 
 // ── Iconos SVG ────────────────────────────────────────────────
@@ -99,20 +112,19 @@ const IcoPrint = () => (
     <rect x="6" y="14" width="12" height="8"/>
   </svg>
 );
-const IcoWarning = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-  </svg>
-);
 
 // ── Componente principal ─────────────────────────────────────
 export default function VentasPage() {
+  const usuario    = useAuthStore(s => s.usuario);
+  const sucursalId = usuario?.sucursalId ?? null;
+  const { printTicket } = useElectron();
+
   // Escaneo y búsqueda
   const [barcode,      setBarcode]      = useState('');
   const [busqueda,     setBusqueda]     = useState('');
-  const [resultados,   setResultados]   = useState<ProductoMock[]>([]);
-  const [prodSelec,    setProdSelec]    = useState<ProductoMock | null>(null);
+  const [resultados,   setResultados]   = useState<ProductoPOS[]>([]);
+  const [buscando,     setBuscando]     = useState(false);
+  const [prodSelec,    setProdSelec]    = useState<ProductoPOS | null>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
   const busqTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -124,6 +136,7 @@ export default function VentasPage() {
   const [modalConfirm, setModalConfirm] = useState(false);
   const [confirming,   setConfirming]   = useState(false);
   const [nroFactura,   setNroFactura]   = useState<string | null>(null);
+  const [facturaId,    setFacturaId]    = useState<number | null>(null);
   const [toast,        setToast]        = useState<ToastData | null>(null);
 
   const showToast = (msg: string, type: ToastData['type']) => {
@@ -131,27 +144,36 @@ export default function VentasPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Focus automático en barcode al montar
+  // Focus automatico en barcode al montar
   useEffect(() => { barcodeRef.current?.focus(); }, []);
 
-  // Búsqueda con debounce
+  // T-02A.3: Busqueda manual con debounce 300ms via API
   useEffect(() => {
     if (busqTimer.current) clearTimeout(busqTimer.current);
-    if (!busqueda.trim()) { setResultados([]); return; }
-    busqTimer.current = setTimeout(() => {
-      const q = busqueda.toLowerCase();
-      setResultados(
-        PRODUCTOS_MOCK.filter(p =>
-          p.nombre.toLowerCase().includes(q) ||
-          p.codigoBarras.includes(q) ||
-          p.categoria.toLowerCase().includes(q)
-        ).slice(0, 10)
-      );
-    }, 300);
-  }, [busqueda]);
+    if (!busqueda.trim()) { setResultados([]); setBuscando(false); return; }
 
-  // Agregar producto al carrito
-  const agregarAlCarrito = useCallback((prod: ProductoMock) => {
+    setBuscando(true);
+    busqTimer.current = setTimeout(async () => {
+      try {
+        const params: Record<string, string> = { buscar: busqueda.trim() };
+        if (sucursalId) params.sucursalId = String(sucursalId);
+
+        const { data } = await api.get('/productos', { params });
+        const productos: ProductoPOS[] = (data as any[])
+          .slice(0, 10)
+          .map(p => normalizarProducto(p, sucursalId));
+        setResultados(productos);
+      } catch {
+        setResultados([]);
+        showToast('Error al buscar productos', 'error');
+      } finally {
+        setBuscando(false);
+      }
+    }, 300);
+  }, [busqueda, sucursalId]);
+
+  // T-02A.5: Agregar producto al carrito con validacion de stock real
+  const agregarAlCarrito = useCallback((prod: ProductoPOS) => {
     if (prod.stockActual === 0) {
       showToast(`Sin stock: ${prod.nombre}`, 'error');
       return;
@@ -162,7 +184,7 @@ export default function VentasPage() {
         const linea = prev[idx];
         const nuevaCant = linea.cantidad + 1;
         if (nuevaCant > prod.stockActual) {
-          showToast(`Stock insuficiente (queda ${prod.stockActual})`, 'warning');
+          showToast(`Stock insuficiente (disponible: ${prod.stockActual})`, 'warning');
           return prev;
         }
         const copia = [...prev];
@@ -178,20 +200,40 @@ export default function VentasPage() {
     setTimeout(() => barcodeRef.current?.focus(), 50);
   }, []);
 
-  // Escaneo de código de barras
-  function handleBarcode(e: React.KeyboardEvent<HTMLInputElement>) {
+  // T-02A.2: Escaneo de codigo de barras via API
+  async function handleBarcode(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== 'Enter' || !barcode.trim()) return;
-    const prod = PRODUCTOS_MOCK.find(p => p.codigoBarras === barcode.trim());
-    if (prod) {
+
+    const codigo = barcode.trim();
+    try {
+      const { data } = await api.get(`/productos/barcode/${encodeURIComponent(codigo)}`);
+      // Si tiene sucursalId, obtener el stock de esa sucursal
+      let stockSucursal = data.stockActual ?? 0;
+      if (sucursalId) {
+        try {
+          const { data: stockData } = await api.get(`/productos/${data.id}/stock/${sucursalId}`);
+          stockSucursal = stockData.cantidad ?? 0;
+        } catch {
+          // Si falla, usar stockActual global
+        }
+      }
+
+      const prod = normalizarProducto({ ...data, stocks: [{ cantidad: stockSucursal }] }, sucursalId);
       agregarAlCarrito(prod);
-    } else {
-      setBusqueda(barcode.trim());
-      setBarcode('');
-      showToast('Código no encontrado — buscando por nombre', 'warning');
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        // Codigo no encontrado: activar busqueda por nombre
+        setBusqueda(codigo);
+        setBarcode('');
+        showToast('Codigo no encontrado — buscando por nombre', 'warning');
+      } else {
+        showToast('Error al buscar producto', 'error');
+        setBarcode('');
+      }
     }
   }
 
-  // Cambiar cantidad en carrito (valor absoluto desde CantidadInput)
+  // Cambiar cantidad en carrito
   function setCantidadLinea(idx: number, nuevaCantidad: number) {
     setCarrito(prev => {
       const linea = prev[idx];
@@ -210,23 +252,86 @@ export default function VentasPage() {
     setCarrito([]);
     setProdSelec(null);
     setNroFactura(null);
+    setFacturaId(null);
     setTimeout(() => barcodeRef.current?.focus(), 50);
   }
 
-  // Totales
+  // T-02A.4: Totales calculados en tiempo real
   const subtotalSinIva = carrito.reduce((acc, l) => acc + (l.producto.precioVenta * l.cantidad), 0);
   const ivaTotal       = carrito.reduce((acc, l) => acc + ((l.producto.precioConIva - l.producto.precioVenta) * l.cantidad), 0);
   const totalFinal     = carrito.reduce((acc, l) => acc + l.subtotal, 0);
 
-  // Confirmar venta
+  // T-02A.4: Confirmar venta via POST /api/ventas
   async function confirmarVenta() {
+    if (!sucursalId) {
+      showToast('Tu usuario no tiene sucursal asignada', 'error');
+      return;
+    }
+
     setConfirming(true);
-    await new Promise(r => setTimeout(r, 1200)); // simula latencia
-    const nro = `F-${Date.now().toString().slice(-6)}`;
-    setNroFactura(nro);
-    setConfirming(false);
-    setModalConfirm(false);
-    setModalTicket(true);
+    try {
+      const { data } = await api.post('/ventas', {
+        sucursalId,
+        items: carrito.map(l => ({
+          productoId: l.producto.id,
+          cantidad:   l.cantidad,
+          precioUnit: l.producto.precioVenta,
+        })),
+        clienteNombre: 'Consumidor Final',
+        tipoPago:      'efectivo',
+      });
+
+      const factura = data.factura;
+      setNroFactura(`F-${factura.id}`);
+      setFacturaId(factura.id);
+      setConfirming(false);
+      setModalConfirm(false);
+      setModalTicket(true);
+    } catch (err: any) {
+      setConfirming(false);
+      const detalle = err.response?.data?.detalle;
+      const mensaje = err.response?.data?.error ?? 'Error al registrar la venta';
+
+      if (Array.isArray(detalle)) {
+        showToast(detalle[0], 'error');
+      } else {
+        showToast(mensaje, 'error');
+      }
+    }
+  }
+
+  // T-08B.2: Imprimir ticket con QR via Electron
+  async function handlePrintTicket() {
+    if (!facturaId) {
+      showToast('No hay factura para imprimir', 'error');
+      return;
+    }
+
+    try {
+      // Obtener datos completos del ticket desde el API
+      const { data: ticket } = await api.get(`/ventas/${facturaId}/ticket`);
+
+      const result = await printTicket({
+        sucursal:    ticket.sucursal?.nombre,
+        cajero:      ticket.cajero,
+        fecha:       ticket.fecha,
+        tipoDte:     ticket.tipoDte,
+        total:       ticket.resumen.total,
+        items:       ticket.items.map((item: any) => ({
+          nombre:   item.nombre,
+          cantidad: item.cantidad,
+          precio:   item.precioUnit,
+        })),
+      });
+
+      if (result.ok) {
+        showToast(result.simulated ? 'Ticket simulado (no hay impresora)' : 'Ticket enviado a impresora', 'success');
+      } else {
+        showToast(result.error ?? 'Error al imprimir', 'error');
+      }
+    } catch {
+      showToast('Error al obtener datos del ticket', 'error');
+    }
   }
 
   const hayCarrito = carrito.length > 0;
@@ -253,7 +358,7 @@ export default function VentasPage() {
                 Ingreso de productos
               </h2>
               <p style={{ fontSize: '11px', color: 'var(--text-subtle)', marginTop: '1px' }}>
-                Escaneo de barra o búsqueda manual
+                Escaneo de barra o busqueda manual
               </p>
             </div>
           </div>
@@ -291,20 +396,27 @@ export default function VentasPage() {
             </div>
           </div>
 
-          {/* Búsqueda manual */}
+          {/* Busqueda manual */}
           <div style={{
             background: 'var(--bg-surface)', border: '1px solid var(--border)',
             borderRadius: '10px', padding: '14px', flex: 1,
           }}>
             <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-subtle)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Búsqueda manual
+              Busqueda manual
             </p>
             <Input
               value={busqueda}
               onChange={setBusqueda}
-              placeholder="Nombre, código o categoría..."
+              placeholder="Nombre, codigo o categoria..."
               icon={<IcoSearch />}
             />
+
+            {/* Indicador de carga */}
+            {buscando && (
+              <p style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                Buscando...
+              </p>
+            )}
 
             {/* Resultados */}
             {resultados.length > 0 && (
@@ -335,7 +447,13 @@ export default function VentasPage() {
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>Stock: {prod.stockActual}</span>
+                        <span style={{
+                          fontSize: '11px',
+                          color: prod.stockActual === 0 ? 'var(--danger)' : prod.stockActual <= 5 ? 'var(--warning)' : 'var(--text-subtle)',
+                          fontWeight: prod.stockActual <= 5 ? 600 : 400,
+                        }}>
+                          Stock: {prod.stockActual}
+                        </span>
                       </div>
                     </div>
                     <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace' }}>
@@ -376,11 +494,22 @@ export default function VentasPage() {
             {!hayCarrito ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '180px', color: 'var(--text-subtle)', gap: '8px' }}>
                 <span style={{ fontSize: '32px', opacity: 0.25 }}>🛒</span>
-                <span>El carrito está vacío</span>
+                <span>El carrito esta vacio</span>
               </div>
             ) : (
               carrito.map((linea, idx) => (
-                <div key={linea.producto.id} style={{ padding: '10px 8px', borderRadius: '8px', marginBottom: '4px', border: '1px solid transparent' }}>
+                <div
+                  key={linea.producto.id}
+                  style={{
+                    padding: '10px 8px', borderRadius: '8px', marginBottom: '4px',
+                    border: linea.cantidad > linea.producto.stockActual
+                      ? '1px solid rgba(239,68,68,0.3)'
+                      : '1px solid transparent',
+                    background: linea.cantidad > linea.producto.stockActual
+                      ? 'rgba(239,68,68,0.04)'
+                      : 'transparent',
+                  }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: '13px', fontWeight: 600 }}>{linea.producto.nombre}</p>
@@ -400,6 +529,12 @@ export default function VentasPage() {
                     min={1}
                     max={linea.producto.stockActual}
                   />
+                  {/* T-02A.5: Advertencia visual si cantidad excede stock */}
+                  {linea.cantidad > linea.producto.stockActual && (
+                    <p style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: 600, marginTop: '4px' }}>
+                      Stock insuficiente — disponible: {linea.producto.stockActual}
+                    </p>
+                  )}
                 </div>
               ))
             )}
@@ -411,6 +546,10 @@ export default function VentasPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
                   <span>Subtotal sin IVA</span>
                   <span>{fmt(subtotalSinIva)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  <span>IVA (13%)</span>
+                  <span>{fmt(ivaTotal)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
                   <span style={{ fontWeight: 700 }}>TOTAL</span>
@@ -430,7 +569,7 @@ export default function VentasPage() {
         </div>
       </div>
 
-      {/* ── Modal: vista previa del ticket (Ahora modularizado) ── */}
+      {/* ── Modal: vista previa del ticket ── */}
       <TicketModal
         open={modalConfirm}
         confirming={confirming}
@@ -447,7 +586,7 @@ export default function VentasPage() {
       <Modal
         open={modalTicket}
         onClose={() => { setModalTicket(false); vaciarCarrito(); }}
-        title="¡Venta registrada!"
+        title="Venta registrada!"
         subtitle={`Factura ${nroFactura ?? ''}`}
         maxWidth={400}
         icon={<IcoCheck />}
@@ -457,7 +596,7 @@ export default function VentasPage() {
           <p style={{ fontWeight: 600 }}>Venta completada por {fmt(totalFinal)}</p>
           <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
             <Button variant="ghost" onClick={() => { setModalTicket(false); vaciarCarrito(); }} style={{ flex: 1 }}>Nueva venta</Button>
-            <Button variant="secondary" onClick={() => showToast('Enviando a impresora...', 'success')} icon={<IcoPrint />} style={{ flex: 1 }}>Imprimir ticket</Button>
+            <Button variant="secondary" onClick={handlePrintTicket} icon={<IcoPrint />} style={{ flex: 1 }}>Imprimir ticket</Button>
           </div>
         </div>
       </Modal>
