@@ -261,6 +261,8 @@ inventarioRoutes.patch(
       const cantidad   = Number(req.body.cantidad);
       const minimo     = Number(req.body.minimo ?? 0);
       const motivo     = req.body.motivo as string | undefined;
+      const tipoMovimiento = req.body.tipoMovimiento as string | undefined;
+      const cantidadIngresada = Number(req.body.cantidadIngresada);
 
       if (!Number.isFinite(cantidad)) return res.status(400).json({ error: 'cantidad inválida' });
       if (!sucursalId)                return res.status(400).json({ error: 'sucursalId requerido' });
@@ -287,13 +289,121 @@ inventarioRoutes.patch(
       }, { timeout: 10000 });
 
       await logPendiente('stockSucursal', 'UPDATE', {
-        id: stock.id, productoId, sucursalId, cantidad: stock.cantidad, motivo,
+        id: stock.id,
+        productoId,
+        sucursalId,
+        cantidad: stock.cantidad,
+        motivo,
+        tipoMovimiento,
+        ...(Number.isFinite(cantidadIngresada) ? { cantidadIngresada } : {}),
       }, req.usuario?.id);
 
       OfflineCache.invalidate(`stock:${sucursalId}`);
       return res.json({ ok: true, stock, stockTotal: await getStockTotal(productoId) });
     } catch (err) { return next(err); }
   }
+);
+
+inventarioRoutes.get(
+  '/recepciones-historial',
+  roleMiddleware('ADMIN', 'BODEGA'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const syncModel = (prisma as any).syncLog;
+      if (!syncModel) return res.json([]);
+
+      const requestedSucursalId = Number(req.query.sucursalId);
+      const effectiveSucursalId =
+        req.usuario?.rol === 'ADMIN' && Number.isFinite(requestedSucursalId) && requestedSucursalId > 0
+          ? requestedSucursalId
+          : req.usuario?.rol === 'ADMIN'
+            ? null
+            : req.usuario?.sucursalId ?? null;
+
+      const where: Record<string, unknown> = {
+        tabla: 'stockSucursal',
+        operacion: 'UPDATE',
+        OR: [
+          { payload: { contains: '"motivo":"RECEPCION"' } },
+          { payload: { contains: '"tipoMovimiento":"RECEPCION"' } },
+        ],
+      };
+
+      if (effectiveSucursalId) {
+        where.AND = [
+          {
+            OR: [
+              { payload: { contains: `"sucursalId":${effectiveSucursalId}` } },
+              { payload: { contains: `"sucursalId":"${effectiveSucursalId}"` } },
+            ],
+          },
+        ];
+      }
+
+      const logs = await syncModel.findMany({
+        where,
+        include: {
+          usuario: { select: { nombre: true } },
+        },
+        orderBy: { creadoEn: 'desc' },
+        take: 100,
+      });
+
+      const parsedLogs = logs
+        .map((log: any) => {
+          try {
+            const payload = JSON.parse(log.payload ?? '{}');
+            return {
+              id: Number(log.id),
+              creadoEn: log.creadoEn,
+              usuarioNombre: log.usuario?.nombre ?? 'Sin responsable',
+              productoId: Number(payload.productoId),
+              sucursalId: Number(payload.sucursalId),
+              cantidadIngresada: Number(payload.cantidadIngresada ?? payload.cantidad ?? 0),
+            };
+          } catch {
+            return null;
+          }
+        })
+        .filter((log: any) =>
+          log
+          && Number.isFinite(log.productoId)
+          && Number.isFinite(log.sucursalId)
+          && Number.isFinite(log.cantidadIngresada)
+          && log.cantidadIngresada > 0
+        );
+
+      if (parsedLogs.length === 0) return res.json([]);
+
+      const productoIds = [...new Set(parsedLogs.map((log: any) => log.productoId))] as number[];
+      const sucursalIds = [...new Set(parsedLogs.map((log: any) => log.sucursalId))] as number[];
+
+      const [productos, sucursales] = await Promise.all([
+        prisma.producto.findMany({
+          where: { id: { in: productoIds } },
+          select: { id: true, nombre: true },
+        }),
+        prisma.sucursal.findMany({
+          where: { id: { in: sucursalIds } },
+          select: { id: true, nombre: true },
+        }),
+      ]);
+
+      const productosMap = new Map(productos.map((producto) => [producto.id, producto.nombre]));
+      const sucursalesMap = new Map(sucursales.map((sucursal) => [sucursal.id, sucursal.nombre]));
+
+      return res.json(parsedLogs.map((log: any) => ({
+        id: log.id,
+        creadoEn: log.creadoEn,
+        usuarioNombre: log.usuarioNombre,
+        productoNombre: productosMap.get(log.productoId) ?? `Producto ${log.productoId}`,
+        sucursalNombre: sucursalesMap.get(log.sucursalId) ?? `Sucursal ${log.sucursalId}`,
+        cantidadIngresada: log.cantidadIngresada,
+      })));
+    } catch (err) {
+      return next(err);
+    }
+  },
 );
 
 // ── POST /api/inventario/transferencia ─────────────────────────────────

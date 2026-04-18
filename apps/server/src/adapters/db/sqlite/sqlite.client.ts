@@ -297,6 +297,140 @@ export function obtenerPendientesSqlite() {
   `).all('PENDIENTE') as SyncQueueItem[];
 }
 
+export function obtenerRecepcionesSqlite(sucursalId?: number) {
+  const db = getSqliteDb();
+
+  const rows = db.prepare(`
+    SELECT
+      r.id,
+      r.total,
+      r.numero_factura AS numeroFactura,
+      r.observaciones,
+      r.creado_en AS creadoEn,
+      p.id AS proveedorId,
+      p.nombre AS proveedorNombre,
+      p.nit AS proveedorNit,
+      p.telefono AS proveedorTelefono,
+      p.email AS proveedorEmail,
+      p.direccion AS proveedorDireccion,
+      s.id AS sucursalId,
+      s.nombre AS sucursalNombre,
+      u.id AS usuarioId,
+      u.nombre AS usuarioNombre,
+      COUNT(d.id) AS detallesCount
+    FROM recepciones_mercancia r
+    LEFT JOIN proveedores p ON p.id = r.proveedor_id
+    LEFT JOIN sucursales s ON s.id = r.sucursal_id
+    LEFT JOIN usuarios u ON u.id = r.usuario_id
+    LEFT JOIN detalles_recepcion d ON d.recepcion_id = r.id
+    WHERE (? IS NULL OR r.sucursal_id = ?)
+    GROUP BY
+      r.id, r.total, r.numero_factura, r.observaciones, r.creado_en,
+      p.id, p.nombre, p.nit, p.telefono, p.email, p.direccion,
+      s.id, s.nombre,
+      u.id, u.nombre
+    ORDER BY r.creado_en DESC
+    LIMIT 100
+  `).all(sucursalId ?? null, sucursalId ?? null) as any[];
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    total: Number(row.total ?? 0),
+    numeroFactura: row.numeroFactura ?? null,
+    observaciones: row.observaciones ?? null,
+    creadoEn: row.creadoEn,
+    proveedor: {
+      nombre: row.proveedorNombre ?? 'Proveedor',
+    },
+    sucursal: {
+      nombre: row.sucursalNombre ?? 'Sucursal',
+    },
+    usuario: row.usuarioId ? { nombre: row.usuarioNombre ?? 'Sin responsable' } : null,
+    _count: {
+      detalles: Number(row.detallesCount ?? 0),
+    },
+  }));
+}
+
+export function obtenerRecepcionDetalleSqlite(id: number) {
+  const db = getSqliteDb();
+
+  const recepcion = db.prepare(`
+    SELECT
+      r.id,
+      r.total,
+      r.numero_factura AS numeroFactura,
+      r.observaciones,
+      r.creado_en AS creadoEn,
+      r.sucursal_id AS sucursalId,
+      p.id AS proveedorId,
+      p.nombre AS proveedorNombre,
+      p.nit AS proveedorNit,
+      p.telefono AS proveedorTelefono,
+      p.email AS proveedorEmail,
+      p.direccion AS proveedorDireccion,
+      s.id AS sucursalRefId,
+      s.nombre AS sucursalNombre,
+      u.id AS usuarioId,
+      u.nombre AS usuarioNombre
+    FROM recepciones_mercancia r
+    LEFT JOIN proveedores p ON p.id = r.proveedor_id
+    LEFT JOIN sucursales s ON s.id = r.sucursal_id
+    LEFT JOIN usuarios u ON u.id = r.usuario_id
+    WHERE r.id = ?
+  `).get(id) as any;
+
+  if (!recepcion) return null;
+
+  const detalles = db.prepare(`
+    SELECT
+      d.id,
+      d.cantidad,
+      d.costo_unit AS costoUnit,
+      d.subtotal,
+      pr.id AS productoId,
+      pr.nombre AS productoNombre,
+      pr.tipo_unidad AS tipoUnidad,
+      pr.codigo_barras AS codigoBarras
+    FROM detalles_recepcion d
+    LEFT JOIN productos pr ON pr.id = d.producto_id
+    WHERE d.recepcion_id = ?
+    ORDER BY d.id ASC
+  `).all(id) as any[];
+
+  return {
+    id: Number(recepcion.id),
+    total: Number(recepcion.total ?? 0),
+    numeroFactura: recepcion.numeroFactura ?? null,
+    observaciones: recepcion.observaciones ?? null,
+    creadoEn: recepcion.creadoEn,
+    sucursalId: Number(recepcion.sucursalId),
+    proveedor: {
+      id: recepcion.proveedorId ? Number(recepcion.proveedorId) : null,
+      nombre: recepcion.proveedorNombre ?? 'Proveedor',
+      nit: recepcion.proveedorNit ?? null,
+      telefono: recepcion.proveedorTelefono ?? null,
+      email: recepcion.proveedorEmail ?? null,
+      direccion: recepcion.proveedorDireccion ?? null,
+    },
+    sucursal: {
+      nombre: recepcion.sucursalNombre ?? 'Sucursal',
+    },
+    usuario: recepcion.usuarioId ? { nombre: recepcion.usuarioNombre ?? 'Sin responsable' } : null,
+    detalles: detalles.map((detalle) => ({
+      id: Number(detalle.id),
+      cantidad: Number(detalle.cantidad ?? 0),
+      costoUnit: Number(detalle.costoUnit ?? 0),
+      subtotal: Number(detalle.subtotal ?? 0),
+      producto: {
+        nombre: detalle.productoNombre ?? 'Producto',
+        tipoUnidad: detalle.tipoUnidad ?? null,
+        codigoBarras: detalle.codigoBarras ?? null,
+      },
+    })),
+  };
+}
+
 export function marcarSincronizado(id: number) {
   const db = getSqliteDb();
 
