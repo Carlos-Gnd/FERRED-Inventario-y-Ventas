@@ -6,6 +6,7 @@ import { AuthGuard }       from './guards/AuthGuard';
 import { RoleGuard }       from './guards/RoleGuard';
 import { AppShell }        from '../components/layout/AppShell';
 import LoginPage           from '../pages/auth/LoginPage';
+import { useAuthStore }    from '../store/authStore';
 import DashboardPage       from '../pages/dashboard/DashboardPage';
 import UsersPage           from '../pages/users/UsersPage';
 import CategoriesPage      from '../pages/categories/CategoriesPage';
@@ -17,12 +18,17 @@ import StockPage           from '../pages/stock/StockPage';
 import VentasPage          from '../pages/ventas/VentasPage';
 import ReportsPage         from '../pages/reports/ReportsPage';
 
+function LoginRoute() {
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />;
+}
+
 export function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Ruta pública de login */}
-        <Route path="/login" element={<LoginPage />} />
+        {/* Ruta pública de login — redirige a dashboard si ya está autenticado */}
+        <Route path="/login" element={<LoginRoute />} />
 
         {/*
           El layout principal se carga en '/' y envuelve las rutas internas

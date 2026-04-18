@@ -59,8 +59,8 @@ function normalizarProducto(raw: any, sucursalId: number | null): ProductoPOS {
     id:           raw.id,
     nombre:       raw.nombre,
     codigoBarras: raw.codigoBarras ?? null,
-    precioVenta:  raw.precioVenta ?? 0,
-    precioConIva: raw.precioConIva ?? raw.precioVenta ?? 0,
+    precioVenta:  raw.precioVenta || 0,
+    precioConIva: raw.precioConIva || raw.precioVenta || 0,
     tieneIva:     raw.tieneIva ?? true,
     tipoUnidad:   (raw.tipoUnidad as TipoUnidad) ?? 'UNIDAD',
     stockActual,
@@ -176,6 +176,10 @@ export default function VentasPage() {
   const agregarAlCarrito = useCallback((prod: ProductoPOS) => {
     if (prod.stockActual === 0) {
       showToast(`Sin stock: ${prod.nombre}`, 'error');
+      return;
+    }
+    if (prod.precioConIva <= 0) {
+      showToast(`Producto sin precio asignado: ${prod.nombre}`, 'error');
       return;
     }
     setCarrito(prev => {

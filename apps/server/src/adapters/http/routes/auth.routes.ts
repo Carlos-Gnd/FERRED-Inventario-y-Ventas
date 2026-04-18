@@ -21,8 +21,9 @@ authRoutes.post('/login', async (req: Request, res: Response, next: NextFunction
     }
 
     const { email, password } = parsed.data;
+    const emailNorm = email.trim().toLowerCase();
 
-    const usuario = await prisma.usuario.findUnique({ where: { email } });
+    const usuario = await prisma.usuario.findUnique({ where: { email: emailNorm } });
     if (!usuario || !usuario.activo) {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }

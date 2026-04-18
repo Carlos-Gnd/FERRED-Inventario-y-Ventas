@@ -541,7 +541,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 
 CREATE TABLE IF NOT EXISTS productos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  categoria_id INTEGER REFERENCES categorias(id),
+  categoria_id INTEGER,
   nombre TEXT NOT NULL,
   codigo_barras TEXT UNIQUE,
   tipo_unidad TEXT NOT NULL DEFAULT 'UNIDAD',
@@ -568,8 +568,8 @@ CREATE TABLE IF NOT EXISTS stock_sucursal (
 
 CREATE TABLE IF NOT EXISTS facturas_dte (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  sucursal_id INTEGER REFERENCES sucursales(id),
-  usuario_id INTEGER REFERENCES usuarios(id),
+  sucursal_id INTEGER,
+  usuario_id INTEGER,
   codigo_generacion TEXT UNIQUE,
   numero_control TEXT UNIQUE,
   tipo_dte TEXT NOT NULL DEFAULT '01',
@@ -606,8 +606,8 @@ CREATE TABLE IF NOT EXISTS proveedores (
 CREATE TABLE IF NOT EXISTS recepciones_mercancia (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   proveedor_id INTEGER NOT NULL REFERENCES proveedores(id),
-  sucursal_id INTEGER NOT NULL REFERENCES sucursales(id),
-  usuario_id INTEGER REFERENCES usuarios(id),
+  sucursal_id INTEGER NOT NULL,
+  usuario_id INTEGER,
   numero_factura TEXT,
   total REAL NOT NULL DEFAULT 0,
   observaciones TEXT,
@@ -628,7 +628,7 @@ CREATE TABLE IF NOT EXISTS sync_log (
   tabla TEXT NOT NULL,
   operacion TEXT NOT NULL,
   payload TEXT NOT NULL,
-  usuario_id INTEGER REFERENCES usuarios(id),
+  usuario_id INTEGER,
   status TEXT NOT NULL DEFAULT 'PENDIENTE',
   intentos INTEGER NOT NULL DEFAULT 0,
   error TEXT,
