@@ -135,6 +135,9 @@ export default function InventoryReceptionPage() {
         sucursalId: destino,
         cantidad: cantidadTotal,
         minimo: minimoDestino,
+        motivo: 'RECEPCION',
+        tipoMovimiento: 'RECEPCION',
+        cantidadIngresada: recibida,
       });
 
       showToast('Ingreso registrado correctamente', 'success');

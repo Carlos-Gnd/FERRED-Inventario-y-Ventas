@@ -34,11 +34,12 @@ export function logPendienteLocal(
   assertTablaSync(tabla);
 
   const db = getSqlite();
+  const usuarioIdSeguro = existeUsuarioLocal(db, usuarioId) ? usuarioId ?? null : null;
 
   const result = db.prepare(`
     INSERT INTO sync_log (tabla, operacion, payload, usuario_id, status)
     VALUES (?, ?, ?, ?, ?)
-  `).run(tabla, operacion, JSON.stringify(payload), usuarioId ?? null, 'PENDIENTE');
+  `).run(tabla, operacion, JSON.stringify(payload), usuarioIdSeguro, 'PENDIENTE');
 
   return Number(result.lastInsertRowid);
 }
@@ -69,6 +70,18 @@ function assertTablaSync(tabla: string) {
   if (!TABLAS_SYNC.has(tabla)) {
     throw new Error(`Tabla no permitida para sync local: ${tabla}`);
   }
+}
+
+function existeUsuarioLocal(db: ReturnType<typeof getSqlite>, usuarioId?: number) {
+  if (!usuarioId || !Number.isFinite(usuarioId)) return false;
+
+  const row = db.prepare(`
+    SELECT id
+    FROM usuarios
+    WHERE id = ?
+  `).get(usuarioId);
+
+  return Boolean(row);
 }
 
 export function marcarSincronizado(id: number) {
