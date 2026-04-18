@@ -197,6 +197,11 @@ export function obtenerProductosPendientesSqlite() {
 }
 
 export function eliminarProductoSqlite(id: number) {
+  desactivarProductoSqlite(id);
+  logPendienteSqlite('producto', 'DELETE', { id });
+}
+
+export function desactivarProductoSqlite(id: number) {
   const db = getSqliteDb();
 
   db.prepare(`
@@ -204,8 +209,30 @@ export function eliminarProductoSqlite(id: number) {
     SET activo = ?
     WHERE id = ?
   `).run(0, id);
+}
 
-  logPendienteSqlite('producto', 'DELETE', { id });
+export function obtenerIdsProductosEliminacionPendienteSqlite() {
+  const db = getSqliteDb();
+
+  const pendientes = db.prepare(`
+    SELECT payload
+    FROM sync_log
+    WHERE tabla = ?
+      AND operacion = ?
+      AND status = ?
+    ORDER BY creado_en ASC, id ASC
+  `).all('producto', 'DELETE', 'PENDIENTE') as Array<{ payload: string }>;
+
+  return pendientes
+    .map((row) => {
+      try {
+        const payload = JSON.parse(row.payload);
+        return Number(payload.id);
+      } catch {
+        return NaN;
+      }
+    })
+    .filter((id) => Number.isInteger(id) && id > 0);
 }
 
 export function eliminarProductoPendienteSqlite(id: number) {
