@@ -501,3 +501,4 @@ CREATE TABLE IF NOT EXISTS sync_log (
   creado_en TEXT NOT NULL DEFAULT (datetime('now')),
   sinc_en TEXT
 );
+`;
