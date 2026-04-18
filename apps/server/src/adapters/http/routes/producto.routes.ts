@@ -7,7 +7,9 @@ import { sincronizarStockTotal } from './inventario.routes';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import {
   crearProductoSqlite,
+  desactivarProductoSqlite,
   eliminarProductoPendienteSqlite,
+  obtenerIdsProductosEliminacionPendienteSqlite,
   obtenerProductosPendientesSqlite,
   obtenerProductosSqlite,
 } from '../../db/sqlite/sqlite.client';
@@ -43,9 +45,13 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
     const { buscar, categoriaId, criticos, sucursalId } = req.query;
     const cacheKey = `productos:${JSON.stringify(req.query)}`;
     const online = await SyncService.checkConnectivity();
+    const eliminadosPendientes = new Set(obtenerIdsProductosEliminacionPendienteSqlite());
 
     if (!online) {
-      return res.json(filtrarProductosLocales(obtenerProductosSqlite(), {
+      const productosLocales = obtenerProductosSqlite()
+        .filter((producto: any) => !eliminadosPendientes.has(Number(producto.id)));
+
+      return res.json(filtrarProductosLocales(productosLocales, {
         buscar: String(buscar ?? ''),
         categoriaId: categoriaId ? Number(categoriaId) : undefined,
         criticos: criticos === 'true',
@@ -81,14 +87,14 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
       orderBy: { nombre: 'asc' },
     });
 
-    let resultado = productos;
+    let resultado = productos.filter((producto) => !eliminadosPendientes.has(producto.id));
     if (criticos === 'true' && targetSucursalId) {
-      resultado = productos.filter((p) => {
+      resultado = resultado.filter((p) => {
         const stock = (p as { stocks?: Array<{ cantidad: number; minimo: number }> }).stocks?.[0];
         return stock ? stock.cantidad <= stock.minimo : p.stockActual <= p.stockMinimo;
       });
     } else if (criticos === 'true') {
-      resultado = productos.filter((p) => p.stockActual <= p.stockMinimo);
+      resultado = resultado.filter((p) => p.stockActual <= p.stockMinimo);
     }
 
     const pendientesLocales = filtrarProductosLocales(obtenerProductosPendientesSqlite(), {
@@ -261,7 +267,9 @@ productoRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res:
     }
 
     if (!(await SyncService.checkConnectivity())) {
+      desactivarProductoSqlite(id);
       await logPendiente('producto', 'DELETE', { id }, req.usuario?.id);
+      OfflineCache.invalidate('productos:');
       return res.json({ mensaje: 'Producto eliminado offline' });
     }
 
