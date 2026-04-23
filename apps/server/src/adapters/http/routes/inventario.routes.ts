@@ -10,6 +10,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma }         from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
+import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
 
 export const inventarioRoutes = Router();
@@ -41,10 +42,19 @@ inventarioRoutes.get('/status', (_req, res) => {
 });
 
 // ── GET /api/inventario/stock/:sucursalId ───────────────────────────────
-inventarioRoutes.get('/stock/:sucursalId', async (req: Request, res: Response, next: NextFunction) => {
+inventarioRoutes.get(
+  '/stock/:sucursalId',
+  roleMiddleware('ADMIN', 'BODEGA', 'CAJERO'),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sucursalId = Number(req.params.sucursalId);
-    const cacheKey   = `stock:${sucursalId}`;
+    if (isNaN(sucursalId) || sucursalId < 1) {
+      return res.status(400).json({ error: 'sucursalId inválido' });
+    }
+
+    if (!assertSameSucursal(req, res, sucursalId)) return;
+
+    const cacheKey = `stock:${sucursalId}`;
 
     if (!SyncService.isOnline()) {
       const cached = OfflineCache.get(cacheKey);
@@ -69,12 +79,21 @@ inventarioRoutes.get('/stock/:sucursalId', async (req: Request, res: Response, n
     OfflineCache.set(cacheKey, stocks);
     return res.json(stocks);
   } catch (err) { return next(err); }
-});
+  },
+);
 
 // ── GET /api/inventario/criticos/:sucursalId ────────────────────────────
-inventarioRoutes.get('/criticos/:sucursalId', async (req: Request, res: Response, next: NextFunction) => {
+inventarioRoutes.get(
+  '/criticos/:sucursalId',
+  roleMiddleware('ADMIN', 'BODEGA'),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sucursalId = Number(req.params.sucursalId);
+    if (isNaN(sucursalId) || sucursalId < 1) {
+      return res.status(400).json({ error: 'sucursalId inválido' });
+    }
+
+    if (!assertSameSucursal(req, res, sucursalId)) return;
 
     const criticos = await prisma.$queryRaw<Array<{
       id: number; productoId: number; sucursalId: number;
@@ -92,21 +111,26 @@ inventarioRoutes.get('/criticos/:sucursalId', async (req: Request, res: Response
 
     return res.json({ total: criticos.length, criticos });
   } catch (err) { return next(err); }
-});
+  },
+);
 
 // ── GET /api/inventario/criticos-detalle ──────────────────────────────────
-// T-03.3: Detalle completo de alertas para dashboard/modal
 inventarioRoutes.get(
   '/criticos-detalle',
   roleMiddleware('ADMIN', 'BODEGA'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const rolUsuario  = (req as any).usuario?.rol;
+      const rolUsuario  = req.usuario?.rol;
       const sucursalReq = Number(req.query.sucursalId);
+
+      if (rolUsuario !== 'ADMIN' && !req.usuario?.sucursalId) {
+        return res.status(403).json({ error: 'Tu usuario no tiene sucursal asignada' });
+      }
+
       const sucursalId =
         rolUsuario === 'ADMIN'
           ? (Number.isFinite(sucursalReq) && sucursalReq > 0 ? sucursalReq : null)
-          : Number((req as any).usuario?.sucursalId ?? 0);
+          : req.usuario!.sucursalId;
 
       const criticos = sucursalId
         ? await prisma.$queryRaw<Array<{
@@ -186,7 +210,6 @@ inventarioRoutes.get(
 );
 
 // ── GET /api/inventario/criticos-por-sucursal ───────────────────────────
-// T-06.5: Conteo de productos críticos agrupado por sucursal (solo ADMIN)
 inventarioRoutes.get(
   '/criticos-por-sucursal',
   roleMiddleware('ADMIN'),
@@ -219,8 +242,6 @@ inventarioRoutes.get(
   }
 );
 
-// ── PATCH /api/inventario/:productoId/ajuste
-
 // ── PATCH /api/inventario/:productoId/ajuste ────────────────────────────
 inventarioRoutes.patch(
   '/:productoId/ajuste',
@@ -236,13 +257,26 @@ inventarioRoutes.patch(
       if (!Number.isFinite(cantidad)) return res.status(400).json({ error: 'cantidad inválida' });
       if (!sucursalId)                return res.status(400).json({ error: 'sucursalId requerido' });
 
-      const stock = await prisma.stockSucursal.upsert({
-        where:  { productoId_sucursalId: { productoId, sucursalId } },
-        create: { productoId, sucursalId, cantidad: Math.max(0, cantidad), minimo },
-        update: { cantidad, minimo },
-      });
+      if (!assertSameSucursal(req, res, sucursalId)) return;
 
-      await sincronizarStockTotal(productoId);
+      const stock = await prisma.$transaction(async (tx) => {
+        const s = await tx.stockSucursal.upsert({
+          where:  { productoId_sucursalId: { productoId, sucursalId } },
+          create: { productoId, sucursalId, cantidad: Math.max(0, cantidad), minimo },
+          update: { cantidad, minimo },
+        });
+
+        const resultado = await tx.stockSucursal.aggregate({
+          where: { productoId },
+          _sum:  { cantidad: true },
+        });
+        await tx.producto.update({
+          where: { id: productoId },
+          data:  { stockActual: resultado._sum.cantidad ?? 0 },
+        });
+
+        return s;
+      }, { timeout: 10000 });
 
       await logPendiente('stockSucursal', 'UPDATE', {
         id: stock.id, productoId, sucursalId, cantidad: stock.cantidad, motivo,
@@ -255,7 +289,6 @@ inventarioRoutes.patch(
 );
 
 // ── POST /api/inventario/transferencia ─────────────────────────────────
-// BUG-09 FIX: verificacion de stock DENTRO de la transaccion para evitar TOCTOU
 inventarioRoutes.post(
   '/transferencia',
   roleMiddleware('ADMIN'),
@@ -272,9 +305,11 @@ inventarioRoutes.post(
         return res.status(400).json({ error: 'Datos de transferencia inválidos' });
       }
 
-      // BUG-09 FIX: verificacion y descuento DENTRO de la misma transaccion
+      if (origenId === destinoId) {
+        return res.status(400).json({ error: 'Origen y destino deben ser diferentes' });
+      }
+
       const [stockOrigen, stockDestino] = await prisma.$transaction(async (tx) => {
-        // Verificar stock suficiente dentro de la transaccion
         const origen = await tx.stockSucursal.findUnique({
           where: { productoId_sucursalId: { productoId, sucursalId: origenId } },
         });
@@ -295,11 +330,17 @@ inventarioRoutes.post(
         });
 
         return [stockOrigen, stockDestino];
-      });
+      }, { timeout: 10000 });
 
       await sincronizarStockTotal(productoId);
+
+      await logPendiente('stockSucursal', 'UPDATE', {
+        productoId, origenId, destinoId, cantidad, tipo: 'TRANSFERENCIA',
+      }, req.usuario?.id);
+
       OfflineCache.invalidate(`stock:${origenId}`);
       OfflineCache.invalidate(`stock:${destinoId}`);
+      OfflineCache.invalidate('productos:');
 
       return res.json({
         mensaje: 'Transferencia realizada',
@@ -318,7 +359,7 @@ inventarioRoutes.post(
 // ── GET /api/inventario/stock-comparativo ───────────────────────────────
 inventarioRoutes.get(
   '/stock-comparativo',
-  roleMiddleware('ADMIN'),
+  roleMiddleware('ADMIN', 'BODEGA'),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const productos = await prisma.producto.findMany({
@@ -374,30 +415,21 @@ inventarioRoutes.get(
 
 // ── GET /api/inventario/sync-pendientes ─────────────────────────────────
 // T-07C.2: Conteo de registros pendientes, sincronizados y con error
-// BUG-10 FIX: usar JSON.parse en lugar de string matching fragil
+// BUG-M10 FIX: filtrar por usuarioId directamente en vez de string matching sobre payload JSON
 inventarioRoutes.get('/sync-pendientes', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const usuarioId  = req.usuario?.id    ?? null;
     const sucursalId = req.usuario?.sucursalId ?? null;
+    const esAdmin    = req.usuario?.rol === 'ADMIN';
 
-    // BUG-10 FIX: obtener todos los logs y filtrar por sucursalId parseando el JSON
-    const todosLogs = await prisma.syncLog.findMany({
-      select: { status: true, payload: true },
-    });
+    // BUG-M10: filtrar por usuarioId directamente en vez de string matching sobre payload JSON
+    const whereBase = (!esAdmin && usuarioId) ? { usuarioId } : {};
 
-    const filtrados = sucursalId
-      ? todosLogs.filter(log => {
-          try {
-            const payload = JSON.parse(log.payload);
-            return payload.sucursalId === sucursalId;
-          } catch {
-            return false;
-          }
-        })
-      : todosLogs;
-
-    const pendientes    = filtrados.filter(l => l.status === 'PENDIENTE').length;
-    const sincronizados = filtrados.filter(l => l.status === 'SINCRONIZADO').length;
-    const errores       = filtrados.filter(l => l.status === 'ERROR').length;
+    const [pendientes, sincronizados, errores] = await Promise.all([
+      prisma.syncLog.count({ where: { ...whereBase, status: 'PENDIENTE' } }),
+      prisma.syncLog.count({ where: { ...whereBase, status: 'SINCRONIZADO' } }),
+      prisma.syncLog.count({ where: { ...whereBase, status: 'ERROR' } }),
+    ]);
 
     return res.json({
       pendientes,

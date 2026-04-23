@@ -1,19 +1,16 @@
 import { prisma } from '../db/prisma/prisma.client';
 import {
-  marcarErrorSync,
+  leerPendientesLocal,
+  logPendienteLocal,
+  marcarError,
   marcarSincronizado,
-  obtenerPendientesSqlite,
-} from '../db/sqlite.client';
+} from './sync.local';
 
 const INTERVAL_MS = 30_000;
 const MAX_INTENTOS = 5;
 
-let _online = false;
+let _online = true;
 let _listeners: ((online: boolean) => void)[] = [];
-
-export function isOnline() {
-  return _online;
-}
 
 export function onConnectivityChange(cb: (online: boolean) => void) {
   _listeners.push(cb);
@@ -24,9 +21,7 @@ export function onConnectivityChange(cb: (online: boolean) => void) {
 
 function setOnline(value: boolean) {
   if (value === _online) return;
-
   _online = value;
-  console.log(value ? 'Conectado' : 'Offline');
   _listeners.forEach((cb) => cb(value));
 }
 
@@ -46,12 +41,10 @@ export const OfflineCache = {
   get<T>(key: string): T | null {
     const entry = cache.get(key);
     if (!entry) return null;
-
     if (Date.now() > entry.expiresAt) {
       cache.delete(key);
       return null;
     }
-
     return entry.data as T;
   },
 
@@ -68,15 +61,24 @@ export async function logPendiente(
   payload: object,
   usuarioId?: number
 ) {
-  await prisma.syncLog.create({
-    data: {
-      tabla,
-      operacion,
-      payload: JSON.stringify(payload),
-      usuarioId: usuarioId ?? null,
-      status: 'PENDIENTE',
-    },
-  });
+  logPendienteLocal(tabla, operacion, payload, usuarioId);
+
+  if (!SyncService.isOnline()) return;
+
+  // BUG-A02: awaitar y loguear el error en vez de silenciarlo
+  try {
+    await prisma.syncLog.create({
+      data: {
+        tabla,
+        operacion,
+        payload: JSON.stringify(payload),
+        usuarioId: usuarioId ?? null,
+        status: 'PENDIENTE',
+      },
+    });
+  } catch (err: any) {
+    console.error('[SyncService] Error al crear syncLog remoto:', err.message);
+  }
 }
 
 const TABLAS_PERMITIDAS = new Set([
@@ -85,6 +87,10 @@ const TABLAS_PERMITIDAS = new Set([
   'usuario',
   'stockSucursal',
   'facturaDte',
+  'detalleVenta',
+  'proveedor',
+  'recepcionMercancia',
+  'detalleRecepcion',
 ]);
 
 const CAMPOS_ESCALARES: Record<string, string[]> = {
@@ -105,8 +111,8 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'creadoEn',
   ],
   categoria: ['id', 'nombre', 'descripcion', 'activo'],
+  // BUG-A03: eliminado 'passwordHash' — el campo correcto en Prisma es 'contrasenaHash'
   usuario: ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo'],
-  syncLog: ['id', 'tabla', 'operacion', 'payload', 'usuarioId', 'status', 'intentos', 'error', 'creadoEn', 'sincEn'],
   stockSucursal: ['id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'actualizadoEn'],
   facturaDte: [
     'id',
@@ -124,11 +130,23 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'sincronizado',
     'creadoEn',
   ],
+  detalleVenta: ['id', 'facturaId', 'productoId', 'cantidad', 'precioUnit', 'subtotal'],
+  proveedor: ['id', 'nombre', 'nit', 'telefono', 'email', 'direccion', 'activo', 'creadoEn'],
+  recepcionMercancia: [
+    'id',
+    'proveedorId',
+    'sucursalId',
+    'usuarioId',
+    'numeroFactura',
+    'total',
+    'observaciones',
+    'creadoEn',
+  ],
+  detalleRecepcion: ['id', 'recepcionId', 'productoId', 'cantidad', 'costoUnit', 'subtotal'],
 };
 
-function limpiarPayload(tabla: string, payload: any): any {
+function limpiarPayload(tabla: string, payload: any) {
   const campos = CAMPOS_ESCALARES[tabla];
-
   if (!campos) {
     throw new Error(`Tabla no soportada: ${tabla}`);
   }
@@ -140,7 +158,6 @@ function limpiarPayload(tabla: string, payload: any): any {
 
 export const SyncService = {
   start() {
-    console.log('SyncService iniciado');
     void this.run();
     setInterval(() => void this.run(), INTERVAL_MS);
   },
@@ -148,8 +165,6 @@ export const SyncService = {
   async run() {
     const online = await this.checkConnectivity();
     if (!online) return;
-
-    await this.pushPendientesSqlite();
     await this.pushPendientes();
   },
 
@@ -168,67 +183,28 @@ export const SyncService = {
     return _online;
   },
 
-  async pushPendientesSqlite() {
-    const pendientes = obtenerPendientesSqlite().filter((log) => log.intentos < MAX_INTENTOS);
-
+  async pushPendientes() {
+    const pendientes = leerPendientesLocal(50).filter((log) => log.intentos < MAX_INTENTOS);
     if (!pendientes.length) return;
 
-    console.log(`Sync SQLite: ${pendientes.length} pendientes`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Sync SQLite: ${pendientes.length} pendientes`);
+    }
 
+    let ok = 0;
     for (const log of pendientes) {
       try {
         const payload = JSON.parse(log.payload);
-
         await this.aplicarOperacion(log.tabla, log.operacion, payload);
         marcarSincronizado(log.id);
+        ok++;
       } catch (err: any) {
-        console.error(`Error sync SQLite ${log.id}`, err.message);
-        marcarErrorSync(
-          log.id,
-          log.intentos + 1 >= MAX_INTENTOS ? 'ERROR' : 'PENDIENTE'
-        );
+        console.error(`Error sync SQLite ${log.id}:`, err.message);
+        marcarError(log.id, err.message, MAX_INTENTOS);
       }
     }
 
-    cache.clear();
-  },
-
-  async pushPendientes() {
-    const pendientes = await prisma.syncLog.findMany({
-      where: { status: 'PENDIENTE', intentos: { lt: MAX_INTENTOS } },
-      orderBy: { creadoEn: 'asc' },
-      take: 50,
-    });
-
-    if (!pendientes.length) return;
-
-    console.log(`Procesando ${pendientes.length} pendientes`);
-
-    for (const log of pendientes) {
-      try {
-        const payload = JSON.parse(log.payload);
-
-        await this.aplicarOperacion(log.tabla, log.operacion, payload);
-
-        await prisma.syncLog.update({
-          where: { id: log.id },
-          data: { status: 'SINCRONIZADO', sincEn: new Date() },
-        });
-      } catch (err: any) {
-        console.error(`Error sync ${log.id}`, err.message);
-
-        await prisma.syncLog.update({
-          where: { id: log.id },
-          data: {
-            intentos: { increment: 1 },
-            error: err.message,
-            status: log.intentos + 1 >= MAX_INTENTOS ? 'ERROR' : 'PENDIENTE',
-          },
-        });
-      }
-    }
-
-    cache.clear();
+    if (ok > 0) cache.clear();
   },
 
   async aplicarOperacion(tabla: string, op: string, payload: any) {
@@ -236,15 +212,24 @@ export const SyncService = {
       throw new Error(`Tabla no permitida: ${tabla}`);
     }
 
-    const model = (prisma as any)[tabla] as any;
-
-    if (!model) {
-      throw new Error(`Modelo no encontrado: ${tabla}`);
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new Error(`Payload invalido para tabla ${tabla}`);
     }
 
-    const data = limpiarPayload(tabla, payload);
+    if (op !== 'CREATE' && !payload.id) {
+      throw new Error(`Payload sin id para operacion ${op} en ${tabla}`);
+    }
 
     if (op === 'CREATE') {
+      if (tabla === 'producto') {
+        await crearProductoDesdePendiente(payload);
+        return;
+      }
+
+      const model = (prisma as any)[tabla];
+      if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
+      const data = limpiarPayload(tabla, payload);
+
       if (data.id) {
         await model.upsert({
           where: { id: data.id },
@@ -257,26 +242,60 @@ export const SyncService = {
       return;
     }
 
+    const model = (prisma as any)[tabla];
+    if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
+    const data = limpiarPayload(tabla, payload);
+
     if (!data.id) {
       throw new Error(`Payload sin id en ${tabla}`);
     }
 
     if (op === 'UPDATE') {
-      await model.update({
-        where: { id: data.id },
-        data,
-      });
+      await model.update({ where: { id: data.id }, data });
       return;
     }
 
     if (op === 'DELETE') {
-      await model.update({
-        where: { id: data.id },
-        data: { activo: false },
-      });
+      await model.update({ where: { id: data.id }, data: { activo: false } });
       return;
     }
 
     throw new Error(`Operacion no soportada: ${op}`);
   },
 };
+
+async function crearProductoDesdePendiente(payload: any) {
+  const { id: _id, localId: _localId, sucursalId, creadoEn: _creadoEn, ...data } = payload;
+  const productoData = limpiarPayload('producto', data) as any;
+  delete productoData.id;
+  delete productoData.creadoEn;
+
+  const producto = productoData.codigoBarras
+    ? await prisma.producto.upsert({
+      where: { codigoBarras: String(productoData.codigoBarras) },
+      update: productoData,
+      create: productoData,
+    })
+    : await prisma.producto.create({ data: productoData });
+
+  if (sucursalId) {
+    await prisma.stockSucursal.upsert({
+      where: {
+        productoId_sucursalId: {
+          productoId: producto.id,
+          sucursalId: Number(sucursalId),
+        },
+      },
+      create: {
+        productoId: producto.id,
+        sucursalId: Number(sucursalId),
+        cantidad: Number(productoData.stockActual ?? 0),
+        minimo: Number(productoData.stockMinimo ?? 0),
+      },
+      update: {
+        cantidad: Number(productoData.stockActual ?? 0),
+        minimo: Number(productoData.stockMinimo ?? 0),
+      },
+    });
+  }
+}
