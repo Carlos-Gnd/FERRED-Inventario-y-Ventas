@@ -16,9 +16,13 @@ function required(name: string): string {
   return val;
 }
 
+// BUG-A09: usar el mismo patrón de nombre que Electron (ferred_branch{BRANCH_ID}.db)
+const branchId = Number(process.env.BRANCH_ID ?? 1);
+const sqliteFallback = path.resolve(process.cwd(), `data/ferred_branch${branchId}.db`);
+
 export const env = {
   port:     Number(process.env.PORT ?? 3001),
-  branchId: Number(process.env.BRANCH_ID ?? 1),
+  branchId,
   nodeEnv:  process.env.NODE_ENV ?? 'development',
 
   jwt: {
@@ -44,6 +48,7 @@ export const env = {
   },
 
   sqlite: {
-    path: process.env.SQLITE_PATH ?? path.resolve(process.cwd(), 'data/ferred_offline.db'),
+    // BUG-A09: fallback unificado con ferred_branch{BRANCH_ID}.db igual que Electron
+    path: process.env.SQLITE_PATH ?? sqliteFallback,
   },
 } as const;
