@@ -4,7 +4,6 @@ const { app, BrowserWindow, shell, ipcMain, Menu, Tray, nativeImage } = require(
 const path    = require('path');
 const { fork } = require('child_process');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
-const { initDb, getDb, closeDb } = require('./src/db/sqlite.init');
 
 // ── Importar handlers IPC ────────────────────────────────────
 require('./ipc/printer.ipc');
@@ -33,7 +32,7 @@ function startServer() {
     ...process.env,
     BRANCH_ID,
     NODE_ENV: 'production',
-    DATABASE_URL: `file:${path.join(app.getPath('userData'), `ferred_branch${BRANCH_ID}.db`)}`,
+    SQLITE_PATH: path.join(app.getPath('userData'), `ferred_branch${BRANCH_ID}.db`),
   };
 
   serverProcess = fork(serverEntry, [], { env, silent: false });
@@ -59,7 +58,7 @@ function createWindow() {
       preload:          path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration:  false,
-      sandbox:          false,
+      sandbox:          true,
       webSecurity:      !IS_DEV,
     },
   });
@@ -174,20 +173,12 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => mainWindow?.close());
 
 // ── Contar registros pendientes de sync en SQLite local ──────
-ipcMain.handle('get-sync-pendientes', () => {
-  const db = getDb();
-  if (!db) return { pendientes: 0, errores: 0 };
+ipcMain.handle('get-sync-pendientes', async () => {
   try {
-    const pendientes = db.prepare(
-      "SELECT COUNT(*) as count FROM sync_log WHERE status = 'PENDIENTE'"
-    ).get();
-    const errores = db.prepare(
-      "SELECT COUNT(*) as count FROM sync_log WHERE status = 'ERROR'"
-    ).get();
-    return {
-      pendientes: pendientes?.count ?? 0,
-      errores: errores?.count ?? 0
-    };
+    const port = process.env.PORT || '3001';
+    const response = await fetch(`http://127.0.0.1:${port}/sync/pendientes-local`);
+    if (!response.ok) return { pendientes: 0, errores: 0 };
+    return await response.json();
   } catch {
     return { pendientes: 0, errores: 0 };
   }
@@ -196,11 +187,6 @@ ipcMain.handle('get-sync-pendientes', () => {
 // ── Ciclo de vida de la app ──────────────────────────────────
 app.whenReady().then(async () => {
   buildMenu();
-
-  // Inicializar base de datos local SQLite
-  const branchId = process.env.BRANCH_ID || '1';
-  initDb(branchId);
-  console.log(`[Electron] BD local SQLite inicializada para sucursal ${branchId}`);
 
   startServer();
 
@@ -226,6 +212,5 @@ app.on('before-quit', () => {
     serverProcess.kill();
     serverProcess = null;
   }
-  closeDb();
   tray?.destroy();
 });

@@ -2,6 +2,7 @@
   "name": "ferred-app",
   "version": "2.4.0",
   "private": true,
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "pnpm --filter renderer dev",
     "dev:server": "pnpm --filter server dev",
@@ -16,8 +17,13 @@
     "db:setup": "mkdir -p data && pnpm db:migrate && pnpm db:seed"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "concurrently": "^8.2.2",
+    "electron": "^30.5.1",
     "tailwindcss": "^4.2.1",
     "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0"
   }
 }

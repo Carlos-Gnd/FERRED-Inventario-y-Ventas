@@ -12,11 +12,13 @@ interface InputProps {
   disabled?:    boolean;
   style?:       CSSProperties;
   rows?:        number;     // si > 0 → textarea
+  min?:         string | number;
+  max?:         string | number;
 }
 
 export function Input({
   label, value, onChange, type = 'text',
-  placeholder, error, icon, suffix, disabled = false, style, rows,
+  placeholder, error, icon, suffix, disabled = false, style, rows, min, max,
 }: InputProps) {
   const [focused, setFocused] = useState(false);
 
@@ -81,6 +83,8 @@ export function Input({
             onBlur={() => setFocused(false)}
             placeholder={placeholder}
             disabled={disabled}
+            min={min}
+            max={max}
             style={inputStyle}
           />
         )}

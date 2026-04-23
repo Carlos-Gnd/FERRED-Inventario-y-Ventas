@@ -19,8 +19,8 @@ export function OfflineBanner({ syncState }: Props) {
 
   return (
     <div
-      role="status"
-      aria-live="polite"
+      role="alert"
+      aria-live="assertive"
       style={{
         width:          '100%',
         flexShrink:     0,

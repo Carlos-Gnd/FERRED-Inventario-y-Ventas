@@ -5,6 +5,7 @@
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { roleMiddleware } from '../middleware/role.middleware';
+import { assertSameSucursal } from '../middleware/sucursal.guard';
 import {
   enviarDteHacienda,
   reenviarDTE,
@@ -15,6 +16,15 @@ import {
 import { prisma } from '../../db/prisma/prisma.client';
 
 export const dteRoutes = Router();
+
+// Carga la sucursalId de una factura para chequear pertenencia
+async function getFacturaSucursalId(facturaId: number): Promise<number | null | undefined> {
+  const f = await prisma.facturaDte.findUnique({
+    where:  { id: facturaId },
+    select: { sucursalId: true },
+  });
+  return f?.sucursalId;
+}
 
 // GET /api/dte/sucursal/:sucursalId?limit=50&offset=0
 dteRoutes.get(
@@ -29,6 +39,9 @@ dteRoutes.get(
       if (isNaN(sucursalId) || sucursalId < 1) {
         return res.status(400).json({ error: 'sucursalId inválido' });
       }
+
+      // BUG-N1: un CAJERO solo puede listar DTEs de su propia sucursal
+      if (!assertSameSucursal(req, res, sucursalId)) return;
 
       const resultado = await listarDTEsSucursal(sucursalId, limit, offset);
       return res.json(resultado);
@@ -46,6 +59,11 @@ dteRoutes.get(
       if (isNaN(facturaId) || facturaId < 1) {
         return res.status(400).json({ error: 'id inválido' });
       }
+
+      // BUG-N1: validar pertenencia antes de exponer el estado
+      const sucursalFactura = await getFacturaSucursalId(facturaId);
+      if (sucursalFactura === undefined) return res.status(404).json({ error: 'Factura DTE no encontrada' });
+      if (!assertSameSucursal(req, res, sucursalFactura)) return;
 
       const estado = await obtenerEstadoDTE(facturaId);
       return res.json(estado);
@@ -70,10 +88,13 @@ dteRoutes.get(
 
       const factura = await prisma.facturaDte.findUnique({
         where:  { id: facturaId },
-        select: { codigoGeneracion: true, creadoEn: true },
+        select: { codigoGeneracion: true, creadoEn: true, sucursalId: true },
       });
 
       if (!factura) return res.status(404).json({ error: 'Factura no encontrada' });
+
+      // BUG-N1: validar pertenencia antes de exponer el QR
+      if (!assertSameSucursal(req, res, factura.sucursalId)) return;
 
       if (!factura.codigoGeneracion) {
         return res.status(409).json({ error: 'La factura aún no tiene codigoGeneracion (enviar DTE primero)' });
@@ -98,6 +119,11 @@ dteRoutes.post(
         return res.status(400).json({ error: 'id inválido' });
       }
 
+      // BUG-N1: validar pertenencia antes de enviar a Hacienda
+      const sucursalFactura = await getFacturaSucursalId(facturaId);
+      if (sucursalFactura === undefined) return res.status(404).json({ error: 'Factura DTE no encontrada' });
+      if (!assertSameSucursal(req, res, sucursalFactura)) return;
+
       const resultado = await enviarDteHacienda(facturaId);
       const status    = resultado.ok ? 200 : 502;
       return res.status(status).json(resultado);
@@ -118,6 +144,11 @@ dteRoutes.post(
       if (isNaN(facturaId) || facturaId < 1) {
         return res.status(400).json({ error: 'id inválido' });
       }
+
+      // BUG-N1: validar pertenencia antes de reenviar
+      const sucursalFactura = await getFacturaSucursalId(facturaId);
+      if (sucursalFactura === undefined) return res.status(404).json({ error: 'Factura DTE no encontrada' });
+      if (!assertSameSucursal(req, res, sucursalFactura)) return;
 
       const resultado = await reenviarDTE(facturaId);
       const status    = resultado.ok ? 200 : 502;

@@ -26,9 +26,8 @@ function numeroALetras(monto: number): string {
   return `${entero} DOLARES CON ${decimal.toString().padStart(2, '0')}/100`;
 }
 
-async function generarNumeroControl(sucursalId: number): Promise<string> {
-  const count = await prisma.facturaDte.count({ where: { sucursalId } });
-  const seq   = String(count + 1).padStart(15, '0');
+async function generarNumeroControl(sucursalId: number, facturaId: number): Promise<string> {
+  const seq   = String(facturaId).padStart(15, '0');
   const estab = String(sucursalId).padStart(4, '0');
   return `DTE-01-${estab}P001-${seq}`;
 }
@@ -53,7 +52,7 @@ export async function construirJsonDTE(facturaId: number): Promise<{
   if (!factura) throw new Error(`Factura ${facturaId} no encontrada`);
 
   const codigoGeneracion = factura.codigoGeneracion ?? crypto.randomUUID().toUpperCase();
-  const numeroControl    = factura.numeroControl    ?? await generarNumeroControl(factura.sucursalId!);
+  const numeroControl    = factura.numeroControl    ?? await generarNumeroControl(factura.sucursalId!, factura.id);
   const fechaEmision     = factura.creadoEn.toISOString().split('T')[0];
   const horaEmision      = factura.creadoEn.toISOString().split('T')[1].substring(0, 8);
 
@@ -191,6 +190,7 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
     // Intentar enviar al Sandbox de Hacienda
     let estadoFinal   = 'SIMULADO';
     let selloRecibido: string | undefined;
+    let sincronizado  = false;
 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -207,7 +207,7 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
         `${env.dte.sandboxUrl}/fe/dte/recepcion`,
         {
           ambiente:         (dteJson as any).identificacion.ambiente,
-          idEnvio:          1,
+          idEnvio:          facturaId,
           version:          1,
           tipoDte:          '01',
           documento:        Buffer.from(JSON.stringify(dteJson)).toString('base64'),
@@ -219,24 +219,40 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
       if (response.data?.estado === 'PROCESADO') {
         estadoFinal   = 'PROCESADO';
         selloRecibido = response.data?.selloRecibido;
+        sincronizado  = true;
       } else {
         estadoFinal = 'ERROR_HACIENDA';
         const errMsg = JSON.stringify(response.data?.observaciones ?? response.data);
         await prisma.facturaDte.update({
           where: { id: facturaId },
-          data:  { estado: estadoFinal },
+          data:  { estado: estadoFinal, sincronizado: false },
         });
         return { ok: false, estado: estadoFinal, error: errMsg };
       }
     } catch (axiosErr: any) {
-      // Sandbox no disponible — marcar como SIMULADO (no bloquear la venta)
-      estadoFinal = 'SIMULADO';
+      const errData = axiosErr?.response?.data;
+      const hasHttpResponse = Boolean(axiosErr?.response);
+
+      // Si Hacienda respondió (4xx/5xx), es error real y NO debe pasar como SIMULADO.
+      if (hasHttpResponse) {
+        estadoFinal = 'ERROR_HACIENDA';
+        const errMsg = JSON.stringify(errData ?? { message: axiosErr.message });
+        await prisma.facturaDte.update({
+          where: { id: facturaId },
+          data:  { estado: estadoFinal, sincronizado: false },
+        });
+        return { ok: false, estado: estadoFinal, error: errMsg };
+      }
+
+      // Sandbox no disponible (timeout/red/DNS) — permitir modo simulado sin bloquear venta.
+      estadoFinal  = 'SIMULADO';
+      sincronizado = false;
       console.warn('[DTE] Sandbox no disponible — modo SIMULADO:', axiosErr.message);
     }
 
     await prisma.facturaDte.update({
       where: { id: facturaId },
-      data:  { estado: estadoFinal, sincronizado: true },
+      data:  { estado: estadoFinal, sincronizado },
     });
 
     return { ok: true, estado: estadoFinal, selloRecibido, qrBase64 };
@@ -247,7 +263,7 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
       where: { id: facturaId },
       data:  { estado: 'ERROR_INTERNO' },
     }).catch(() => {});
-    return { ok: false, estado: 'ERROR_INTERNO', error: err.message };
+    return { ok: false, estado: 'ERROR_INTERNO', error: 'No se pudo procesar el DTE. Contacte al administrador.' };
   }
 }
 

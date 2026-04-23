@@ -59,8 +59,8 @@ usuarioRoutes.get('/', roleMiddleware('ADMIN'), async (req: Request, res: Respon
         ...(activo !== undefined ? { activo: activo === 'true' } : {}),
         ...(buscar ? {
           OR: [
-            { nombre: { contains: String(buscar) } },
-            { email:  { contains: String(buscar) } },
+            { nombre: { contains: String(buscar), mode: 'insensitive' as const } },
+            { email:  { contains: String(buscar), mode: 'insensitive' as const } },
           ],
         } : {}),
       },
@@ -100,12 +100,21 @@ usuarioRoutes.post('/', roleMiddleware('ADMIN'), async (req: Request, res: Respo
 
     const { nombre, email, contrasena, rol, sucursalId, activo } = parsed.data;
 
-    const existe = await prisma.usuario.findUnique({ where: { email } });
+    // BUG-N10: un ADMIN solo puede crear usuarios en su propia sucursal
+    const adminSucursalId = req.usuario!.sucursalId;
+    if (sucursalId !== adminSucursalId) {
+      return res.status(403).json({
+        error: 'No tenés permisos para crear usuarios en otra sucursal',
+      });
+    }
+
+    const emailNorm = email.trim().toLowerCase();
+    const existe = await prisma.usuario.findUnique({ where: { email: emailNorm } });
     if (existe) return res.status(400).json({ error: 'El email ya está registrado' });
 
     const hash = await bcrypt.hash(contrasena, 12);
     const nuevo = await prisma.usuario.create({
-      data: { nombre, email, contrasenaHash: hash, rol, sucursalId, activo },
+      data: { nombre, email: emailNorm, contrasenaHash: hash, rol, sucursalId, activo },
       select: { id: true, nombre: true, email: true, rol: true, sucursalId: true, activo: true },
     });
 
@@ -123,7 +132,10 @@ usuarioRoutes.put('/:id', roleMiddleware('ADMIN'), validarSucursalTarget, async 
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
-    const { contrasena, ...resto } = parsed.data;
+    // BUG-N10: validarSucursalTarget ya validó el target, pero si el body
+    // incluye sucursalId se podría mover el usuario fuera de la sucursal
+    // del ADMIN. No se permite cambiar la sucursal por esta vía.
+    const { contrasena, sucursalId: _ignorarSucursalId, ...resto } = parsed.data;
     const data: any = { ...resto };
     if (contrasena) data.contrasenaHash = await bcrypt.hash(contrasena, 12);
 

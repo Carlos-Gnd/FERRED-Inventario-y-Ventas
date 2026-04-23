@@ -5,6 +5,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma }         from '../../db/prisma/prisma.client';
+import { obtenerRecepcionDetalleSqlite, obtenerRecepcionesSqlite } from '../../db/sqlite/sqlite.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache } from '../../sync/sync.service';
 import { sincronizarStockTotal }      from './inventario.routes';
@@ -194,6 +195,11 @@ proveedorRoutes.post(
 // ── GET /api/proveedores/recepciones ──────────────────────────
 proveedorRoutes.get('/recepciones', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!tienePrismaRecepciones()) {
+      const sucursalId = req.usuario?.rol !== 'ADMIN' ? req.usuario?.sucursalId : undefined;
+      return res.json(obtenerRecepcionesSqlite(sucursalId));
+    }
+
     // Un no-ADMIN solo ve recepciones de su sucursal
     const where = req.usuario?.rol !== 'ADMIN' && req.usuario?.sucursalId
       ? { sucursalId: req.usuario.sucursalId }
@@ -212,12 +218,29 @@ proveedorRoutes.get('/recepciones', async (req: Request, res: Response, next: Ne
     });
 
     return res.json(recepciones);
-  } catch (err) { return next(err); }
+  } catch (err: any) {
+    if (debeUsarSqlite(err)) {
+      const sucursalId = req.usuario?.rol !== 'ADMIN' ? req.usuario?.sucursalId : undefined;
+      return res.json(obtenerRecepcionesSqlite(sucursalId));
+    }
+    return next(err);
+  }
 });
 
 // ── GET /api/proveedores/recepciones/:id ──────────────────────
 proveedorRoutes.get('/recepciones/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!tienePrismaRecepciones()) {
+      const recepcion = obtenerRecepcionDetalleSqlite(Number(req.params.id));
+      if (!recepcion) return res.status(404).json({ error: 'Recepción no encontrada' });
+
+      if (req.usuario?.rol !== 'ADMIN' && recepcion.sucursalId !== req.usuario?.sucursalId) {
+        return res.status(403).json({ error: 'No podés ver recepciones de otra sucursal' });
+      }
+
+      return res.json(recepcion);
+    }
+
     const id = Number(req.params.id);
     const recepcion = await prisma.recepcionMercancia.findUnique({
       where:   { id },
@@ -237,5 +260,44 @@ proveedorRoutes.get('/recepciones/:id', async (req: Request, res: Response, next
     }
 
     return res.json(recepcion);
-  } catch (err) { return next(err); }
+  } catch (err: any) {
+    if (debeUsarSqlite(err)) {
+      const recepcion = obtenerRecepcionDetalleSqlite(Number(req.params.id));
+      if (!recepcion) return res.status(404).json({ error: 'Recepción no encontrada' });
+
+      if (req.usuario?.rol !== 'ADMIN' && recepcion.sucursalId !== req.usuario?.sucursalId) {
+        return res.status(403).json({ error: 'No podés ver recepciones de otra sucursal' });
+      }
+
+      return res.json(recepcion);
+    }
+    return next(err);
+  }
 });
+
+function tienePrismaRecepciones() {
+  const client = prisma as any;
+  return Boolean(client?.recepcionMercancia);
+}
+
+function debeUsarSqlite(err: any) {
+  const mensaje = String(err?.message ?? '').toLowerCase();
+  const code = String(err?.code ?? '').toLowerCase();
+
+  return (
+    code === 'p1001' ||
+    code === 'p2021' ||
+    code === 'p2022' ||
+    mensaje.includes("can't reach database server") ||
+    mensaje.includes('connection') ||
+    mensaje.includes('connect') ||
+    mensaje.includes('timeout') ||
+    mensaje.includes('cannot read properties of undefined') ||
+    mensaje.includes('does not exist') ||
+    mensaje.includes('relation') ||
+    mensaje.includes('column') ||
+    mensaje.includes('table') ||
+    mensaje.includes('econnrefused') ||
+    mensaje.includes('enotfound')
+  );
+}

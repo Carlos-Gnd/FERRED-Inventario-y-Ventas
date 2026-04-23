@@ -8,6 +8,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma }          from '../../db/prisma/prisma.client';
 import { roleMiddleware }  from '../middleware/role.middleware';
+import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente }    from '../../sync/sync.service';
 import { sincronizarStockTotal } from './inventario.routes';
 import { enviarDteHacienda }    from '../../dte/dte.service';
@@ -92,12 +93,11 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       return res.status(409).json({ error: 'No se puede completar la venta', detalle: erroresUnidad });
     }
 
-    const subtotal    = items.reduce((acc, i) => acc + i.cantidad * i.precioUnit, 0);
+    const subtotal    = items.reduce((acc, i) => acc + parseFloat((i.cantidad * i.precioUnit).toFixed(2)), 0);
     const iva         = parseFloat((subtotal * 0.13).toFixed(2));
     const total       = parseFloat((subtotal + iva).toFixed(2));
     const subtotalFix = parseFloat(subtotal.toFixed(2));
 
-    // Transacción atómica: verificar stock + factura + detalles + descuento
     const factura = await prisma.$transaction(async (tx) => {
       // Verificar stock DENTRO de la transacción para evitar race conditions
       const erroresStock: string[] = [];
@@ -154,15 +154,15 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       }
 
       return nuevaFactura;
-    });
+    }, { timeout: 10000 });
 
-    // Sincronizar stock_actual en productos (fuera de la tx)
-    try {
-      await Promise.all(
-        items.map(i => sincronizarStockTotal(i.productoId))
-      );
-    } catch (syncErr) {
-      console.error('[ventas] Error sincronizando stockTotal post-venta:', syncErr);
+    const syncResults = await Promise.allSettled(
+      items.map(i => sincronizarStockTotal(i.productoId))
+    );
+    for (const r of syncResults) {
+      if (r.status === 'rejected') {
+        console.error('[ventas] Error sincronizando stockTotal post-venta:', r.reason);
+      }
     }
 
     await logPendiente('facturaDte', 'CREATE', {
@@ -207,6 +207,9 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
 ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const facturaId = Number(req.params.id);
+    if (isNaN(facturaId) || facturaId < 1) {
+      return res.status(400).json({ error: 'id inválido' });
+    }
 
     const factura = await prisma.facturaDte.findUnique({
       where:   { id: facturaId },
@@ -226,6 +229,9 @@ ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: R
     if (!factura) {
       return res.status(404).json({ error: 'Factura no encontrada' });
     }
+
+    // BUG-N2: validar pertenencia antes de devolver el ticket completo
+    if (!assertSameSucursal(req, res, factura.sucursalId)) return;
 
     return res.json({
       facturaId:        factura.id,

@@ -23,7 +23,7 @@ export const env = {
 
   jwt: {
     secret:    required('JWT_SECRET'),
-    expiresIn: (process.env.JWT_EXPIRES_IN ?? '90d') as string,
+    expiresIn: process.env.JWT_EXPIRES_IN ?? '2h',
   },
 
   crypto: {
@@ -41,5 +41,9 @@ export const env = {
     authToken:   process.env.DTE_AUTH_TOKEN,
     sandboxUser: process.env.DTE_SANDBOX_USER,
     sandboxPass: process.env.DTE_SANDBOX_PASS,
+  },
+
+  sqlite: {
+    path: process.env.SQLITE_PATH ?? path.resolve(process.cwd(), 'data/ferred_offline.db'),
   },
 } as const;

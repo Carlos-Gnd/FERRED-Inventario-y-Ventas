@@ -56,12 +56,15 @@ export default function DashboardPage() {
       }
 
       try {
+        const sucursalId = usuario?.sucursalId;
         const [prods, cats, invRes] = await Promise.allSettled([
           api.get('/productos'),
           api.get('/categorias'),
           rol === 'ADMIN'
             ? api.get('/inventario/criticos-por-sucursal')
-            : api.get(`/inventario/criticos/${usuario?.sucursalId ?? 1}`),
+            : sucursalId
+              ? api.get(`/inventario/criticos/${sucursalId}`)
+              : Promise.resolve({ data: { total: 0 } }),
         ]);
 
         if (!mounted) return;
@@ -75,9 +78,9 @@ export default function DashboardPage() {
           } else {
             const { total } = invRes.value.data;
             setStockData([{
-              sucursalId: usuario?.sucursalId ?? 0,
-              sucursalNombre: usuario?.sucursalId
-                ? `Sucursal ${usuario.sucursalId}`
+              sucursalId: sucursalId ?? 0,
+              sucursalNombre: sucursalId
+                ? `Sucursal ${sucursalId}`
                 : 'Sin sucursal asignada',
               criticos: total ?? 0,
             }]);
@@ -243,7 +246,6 @@ export default function DashboardPage() {
               <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Tendencia de Ventas</h3>
               <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>Módulo en desarrollo</p>
             </div>
-            <Badge variant="neutral">Pronto</Badge>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', height: '140px' }}>
             {BARS.map((h, i) => (
@@ -264,34 +266,37 @@ export default function DashboardPage() {
           <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Accesos Rápidos</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {rol !== 'CAJERO' && (
-              <a href="/productos" style={{
+              <button onClick={() => navigate('/productos')} style={{
                 display: 'flex', alignItems: 'center', gap: '10px',
                 padding: '12px', borderRadius: '8px', textDecoration: 'none',
                 background: 'var(--bg-elevated)', border: '1px solid var(--border)',
                 color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600,
+                cursor: 'pointer', width: '100%', textAlign: 'left',
               }}>
                 <span style={{ fontSize: '18px' }}>📦</span> Inventario
-              </a>
+              </button>
             )}
             {(rol === 'ADMIN' || rol === 'CAJERO') && (
-              <a href="/ventas" style={{
+              <button onClick={() => navigate('/ventas')} style={{
                 display: 'flex', alignItems: 'center', gap: '10px',
                 padding: '12px', borderRadius: '8px', textDecoration: 'none',
                 background: 'var(--bg-elevated)', border: '1px solid var(--border)',
                 color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600,
+                cursor: 'pointer', width: '100%', textAlign: 'left',
               }}>
-                <span style={{ fontSize: '18px' }}>🛒</span> Ventas <Badge variant="neutral">Pronto</Badge>
-              </a>
+                <span style={{ fontSize: '18px' }}>🛒</span> Ventas
+              </button>
             )}
             {rol === 'ADMIN' && (
-              <a href="/usuarios" style={{
+              <button onClick={() => navigate('/usuarios')} style={{
                 display: 'flex', alignItems: 'center', gap: '10px',
                 padding: '12px', borderRadius: '8px', textDecoration: 'none',
                 background: 'var(--bg-elevated)', border: '1px solid var(--border)',
                 color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600,
+                cursor: 'pointer', width: '100%', textAlign: 'left',
               }}>
                 <span style={{ fontSize: '18px' }}>👥</span> Usuarios
-              </a>
+              </button>
             )}
           </div>
         </div>
