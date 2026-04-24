@@ -256,14 +256,14 @@ productoRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res:
   try {
     const id = Number(req.params.id);
 
-    const eliminadoLocal = eliminarProductoPendienteSqlite(id);
-    if (eliminadoLocal) {
+    // BUG-A13: validar id < 0 ANTES de intentar cualquier operación
+    if (id < 0) {
+      const eliminadoLocal = eliminarProductoPendienteSqlite(id);
+      if (!eliminadoLocal) {
+        return res.status(404).json({ error: 'Producto local pendiente no encontrado' });
+      }
       OfflineCache.invalidate('productos:');
       return res.json({ mensaje: 'Producto eliminado localmente' });
-    }
-
-    if (id < 0) {
-      return res.status(404).json({ error: 'Producto local pendiente no encontrado' });
     }
 
     if (!(await SyncService.checkConnectivity())) {

@@ -10,7 +10,6 @@ const INTERVAL_MS = 30_000;
 const MAX_INTENTOS = 5;
 
 let _online = true;
-let _consecutiveFailures = 0;
 let _listeners: ((online: boolean) => void)[] = [];
 
 export function onConnectivityChange(cb: (online: boolean) => void) {
@@ -66,17 +65,20 @@ export async function logPendiente(
 
   if (!SyncService.isOnline()) return;
 
-  prisma.syncLog.create({
-    data: {
-      tabla,
-      operacion,
-      payload: JSON.stringify(payload),
-      usuarioId: usuarioId ?? null,
-      status: 'PENDIENTE',
-    },
-  }).catch(() => {
-    // SQLite local ya guardo la operacion; este espejo remoto es best-effort.
-  });
+  // BUG-A02: awaitar y loguear el error en vez de silenciarlo
+  try {
+    await prisma.syncLog.create({
+      data: {
+        tabla,
+        operacion,
+        payload: JSON.stringify(payload),
+        usuarioId: usuarioId ?? null,
+        status: 'PENDIENTE',
+      },
+    });
+  } catch (err: any) {
+    console.error('[SyncService] Error al crear syncLog remoto:', err.message);
+  }
 }
 
 const TABLAS_PERMITIDAS = new Set([
@@ -109,7 +111,8 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'creadoEn',
   ],
   categoria: ['id', 'nombre', 'descripcion', 'activo'],
-  usuario: ['id', 'nombre', 'email', 'contrasenaHash', 'passwordHash', 'rol', 'sucursalId', 'activo'],
+  // BUG-A03: eliminado 'passwordHash' — el campo correcto en Prisma es 'contrasenaHash'
+  usuario: ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo'],
   stockSucursal: ['id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'actualizadoEn'],
   facturaDte: [
     'id',
@@ -168,18 +171,9 @@ export const SyncService = {
   async checkConnectivity(): Promise<boolean> {
     try {
       await prisma.$queryRaw`SELECT 1`;
-      if (_consecutiveFailures > 0) {
-        console.log('[sync] Conexion a base de datos restaurada');
-      }
-      _consecutiveFailures = 0;
       setOnline(true);
       return true;
-    } catch (err: any) {
-      _consecutiveFailures++;
-      // Solo loguear las primeras 3 fallas y luego cada 10 ciclos para no spamear logs
-      if (_consecutiveFailures <= 3 || _consecutiveFailures % 10 === 0) {
-        console.error(`[sync] Sin conexion a DB (intento ${_consecutiveFailures}):`, err.message);
-      }
+    } catch {
       setOnline(false);
       return false;
     }
@@ -222,7 +216,6 @@ export const SyncService = {
       throw new Error(`Payload invalido para tabla ${tabla}`);
     }
 
-    // Validación de ID: Solo CREATE puede ir sin ID (si el DB remoto lo genera)
     if (op !== 'CREATE' && !payload.id) {
       throw new Error(`Payload sin id para operacion ${op} en ${tabla}`);
     }
@@ -249,7 +242,6 @@ export const SyncService = {
       return;
     }
 
-    // Lógica para UPDATE y DELETE
     const model = (prisma as any)[tabla];
     if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
     const data = limpiarPayload(tabla, payload);
