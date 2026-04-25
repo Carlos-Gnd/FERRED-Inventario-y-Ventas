@@ -18,7 +18,7 @@ import type { ToastData } from '../../components/ui';
 import type { TipoUnidad } from '../../types';
 import { TIPO_UNIDAD_LABELS } from '../../types';
 import { CantidadInput } from './components/CantidadInput';
-import { TicketModal } from '../ticket-preview/ticket-modal';
+import { TicketModal } from '../ticket-preview/TicketModal';
 import { api } from '../../services/api.client';
 import { useAuthStore } from '../../store/authStore';
 import { useElectron } from '../../hooks/useElectron';
