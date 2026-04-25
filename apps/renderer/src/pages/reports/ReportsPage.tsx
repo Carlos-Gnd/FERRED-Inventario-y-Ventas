@@ -157,7 +157,7 @@ export default function ReportsPage() {
     }
   }, [currentPage, totalPages]);
 
-  const visibleName = usuario?.nombre?.trim() || 'Andres Mendoza';
+  const visibleName = usuario?.nombre?.trim() || 'Usuario desconocido';
   const visibleRole = usuario?.rol === 'ADMIN' ? 'Administrador' : 'Bodeguero';
   const pageStart = filteredItems.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
   const pageEnd = filteredItems.length === 0 ? 0 : Math.min(safeCurrentPage * PAGE_SIZE, filteredItems.length);

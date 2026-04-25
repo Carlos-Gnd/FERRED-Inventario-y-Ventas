@@ -37,12 +37,13 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
   'http://127.0.0.1:4173',
+  'null', // Electron renderer en producción (file:// origin)
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    const effectiveOrigin = origin ?? 'null';
+    if (ALLOWED_ORIGINS.includes(effectiveOrigin)) return callback(null, true);
     callback(new Error(`CORS: origen no permitido → ${origin}`));
   },
   credentials: true,
