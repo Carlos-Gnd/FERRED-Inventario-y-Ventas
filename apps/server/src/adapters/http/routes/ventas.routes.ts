@@ -30,6 +30,27 @@ const VentaSchema = z.object({
 });
 
 // ── Validar cantidad según tipoUnidad (T-09B.3) ──────────────
+const VentasSemanalesQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(14).optional().default(7),
+});
+
+const WEEKDAY_LABELS = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'] as const;
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function toWeekdayLabel(date: Date): string {
+  return WEEKDAY_LABELS[date.getDay()] ?? 'N/A';
+}
+
 function validarCantidadPorUnidad(
   cantidad: number,
   tipoUnidad: string | null,
@@ -204,6 +225,73 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
 
 // ── GET /api/ventas/:id/ticket ────────────────────────────────
 // T-08B.3: Datos completos para reimprimir un ticket desde historial
+ventasRoutes.get('/estadisticas/semanales', roleMiddleware('ADMIN', 'CAJERO', 'BODEGA'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = VentasSemanalesQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'ParÃ¡metros invÃ¡lidos',
+        detalle: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const { days } = parsed.data;
+    const esAdmin = req.usuario?.rol === 'ADMIN';
+    const sucursalId = esAdmin ? null : req.usuario?.sucursalId ?? null;
+
+    if (!esAdmin && !sucursalId) {
+      return res.status(403).json({ error: 'Tu usuario no tiene sucursal asignada' });
+    }
+
+    const today = startOfDay(new Date());
+    const fromDate = new Date(today);
+    fromDate.setDate(today.getDate() - (days - 1));
+
+    const ventas = await prisma.facturaDte.findMany({
+      where: {
+        creadoEn: { gte: fromDate },
+        ...(sucursalId ? { sucursalId } : {}),
+      },
+      select: {
+        creadoEn: true,
+        total: true,
+      },
+      orderBy: { creadoEn: 'asc' },
+    });
+
+    const dias = Array.from({ length: days }, (_, index) => {
+      const date = new Date(fromDate);
+      date.setDate(fromDate.getDate() + index);
+      return {
+        date: toDateKey(date),
+        label: toWeekdayLabel(date),
+        total: 0,
+        ventas: 0,
+      };
+    });
+
+    const diasMap = new Map(dias.map((dia) => [dia.date, dia]));
+
+    for (const venta of ventas) {
+      const key = toDateKey(new Date(venta.creadoEn));
+      const dia = diasMap.get(key);
+      if (!dia) continue;
+
+      dia.ventas += 1;
+      dia.total = Number((dia.total + Number(venta.total ?? 0)).toFixed(2));
+    }
+
+    const totalPeriodo = Number(dias.reduce((acc, dia) => acc + dia.total, 0).toFixed(2));
+    const totalVentas = dias.reduce((acc, dia) => acc + dia.ventas, 0);
+
+    return res.json({
+      dias,
+      totalPeriodo,
+      totalVentas,
+    });
+  } catch (err) { return next(err); }
+});
+
 ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const facturaId = Number(req.params.id);
