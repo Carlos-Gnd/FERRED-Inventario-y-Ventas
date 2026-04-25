@@ -8,7 +8,7 @@ import { prisma }         from '../../db/prisma/prisma.client';
 import { obtenerRecepcionDetalleSqlite, obtenerRecepcionesSqlite } from '../../db/sqlite/sqlite.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache } from '../../sync/sync.service';
-import { sincronizarStockTotal }      from './inventario.routes';
+import { sincronizarStockTotal }      from '../services/stock-sync.service';
 
 export const proveedorRoutes = Router();
 

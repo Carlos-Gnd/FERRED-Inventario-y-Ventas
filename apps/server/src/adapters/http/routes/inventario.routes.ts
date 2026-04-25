@@ -15,18 +15,8 @@ import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service
 
 export const inventarioRoutes = Router();
 
-// ── BUG-06 FIX: sincronizarStockTotal ──────────────────────────────────
-export async function sincronizarStockTotal(productoId: number): Promise<void> {
-  const resultado = await prisma.stockSucursal.aggregate({
-    where: { productoId },
-    _sum:  { cantidad: true },
-  });
-  const totalStock = resultado._sum.cantidad ?? 0;
-  await prisma.producto.update({
-    where: { id: productoId },
-    data:  { stockActual: totalStock },
-  });
-}
+// DT-04: sincronizarStockTotal extraída a services/stock-sync.service.ts
+import { sincronizarStockTotal } from '../services/stock-sync.service';
 
 async function getStockTotal(productoId: number): Promise<number> {
   const r = await prisma.stockSucursal.aggregate({
@@ -37,7 +27,7 @@ async function getStockTotal(productoId: number): Promise<number> {
 }
 
 // ── GET /api/inventario/status ──────────────────────────────────────────
-inventarioRoutes.get('/status', (_req, res) => {
+inventarioRoutes.get('/status', roleMiddleware('ADMIN', 'BODEGA', 'CAJERO'), (_req, res) => {
   res.json({ online: SyncService.isOnline() });
 });
 

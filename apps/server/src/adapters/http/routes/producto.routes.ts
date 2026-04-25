@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
-import { sincronizarStockTotal } from './inventario.routes';
+import { sincronizarStockTotal } from '../services/stock-sync.service';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import {
   crearProductoSqlite,
