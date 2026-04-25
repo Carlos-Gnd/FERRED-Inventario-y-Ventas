@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { api } from '../../services/api.client';
+import styles from './LoginPage.module.css';
 
 const IconMail = ({ color }: { color: string }) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -43,51 +44,22 @@ const IconCart = ({ color }: { color: string }) => (
     <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
   </svg>
 );
+const IconTag = ({ color }: { color: string }) => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/>
+  </svg>
+);
 
-const DARK = {
-  pageBg:'#0B1221',leftBg:'linear-gradient(170deg,#131F35 0%,#0F1A2E 100%)',leftBorder:'rgba(59,130,246,0.1)',
-  logoBg:'rgba(16,185,129,0.1)',logoBorder:'rgba(16,185,129,0.3)',logoColor:'#10B981',
-  title:'#F0F6FF',subtitle:'rgba(148,163,184,0.5)',itemBg:'rgba(59,130,246,0.05)',
-  itemBorder:'rgba(59,130,246,0.1)',itemIconBg:'rgba(16,185,129,0.08)',itemIcon:'#10B981',
-  itemTitle:'#10B981',itemDesc:'rgba(148,163,184,0.4)',footer:'rgba(148,163,184,0.25)',
-  cardBg:'#162032',cardBorder:'rgba(59,130,246,0.12)',accentBar:'linear-gradient(90deg,#3B82F6,#10B981,#3B82F6)',
-  dividerColor:'rgba(148,163,184,0.2)',sectionLabel:'rgba(148,163,184,0.4)',label:'rgba(148,163,184,0.6)',
-  inputBg:'rgba(10,18,36,0.6)',inputBorder:'rgba(59,130,246,0.12)',inputFocus:'rgba(59,130,246,0.55)',
-  inputGlow:'rgba(59,130,246,0.08)',inputColor:'#EFF6FF',iconDefault:'rgba(148,163,184,0.3)',
-  iconFocus:'#3B82F6',eyeColor:'#3B82F6',forgotColor:'rgba(59,130,246,0.7)',
-  btnBg:'linear-gradient(135deg,#10B981 0%,#059669 100%)',btnColor:'#FFFFFF',btnShadow:'0 4px 18px rgba(16,185,129,0.3)',
-  spinnerTrack:'rgba(255,255,255,0.15)',spinnerColor:'#10B981',
-  errorBg:'rgba(220,38,38,0.08)',errorBorder:'rgba(220,38,38,0.25)',errorColor:'#F87171',
-  footerBg:'rgba(0,0,0,0.15)',footerBorder:'rgba(59,130,246,0.08)',footerColor:'rgba(148,163,184,0.25)',
-  toggleBg:'rgba(22,32,50,0.95)',toggleBorder:'rgba(59,130,246,0.25)',toggleColor:'#94A3B8',
-  toggleShadow:'0 2px 10px rgba(0,0,0,0.3)',wrapperShadow:'0 40px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(59,130,246,0.1)',
-  glowA:'rgba(59,130,246,0.06)',glowB:'rgba(16,185,129,0.04)',ring:'rgba(59,130,246,',
-};
-const LIGHT = {
-  pageBg:'#EDE8DF',leftBg:'linear-gradient(170deg,#E8E2D6 0%,#D8CEBC 100%)',leftBorder:'rgba(160,120,50,0.2)',
-  logoBg:'#FFFFFF',logoBorder:'rgba(200,150,60,0.3)',logoColor:'#B87820',
-  title:'#2C1A06',subtitle:'rgba(80,50,15,0.5)',itemBg:'rgba(255,255,255,0.5)',
-  itemBorder:'rgba(180,130,40,0.15)',itemIconBg:'rgba(212,130,10,0.08)',itemIcon:'#B87820',
-  itemTitle:'#3D2209',itemDesc:'rgba(80,50,15,0.45)',footer:'rgba(80,50,15,0.3)',
-  cardBg:'#FDFAF5',cardBorder:'rgba(180,130,50,0.15)',accentBar:'linear-gradient(90deg,#E8A020,#F0C040,#E8A020)',
-  dividerColor:'rgba(160,110,30,0.25)',sectionLabel:'rgba(100,65,15,0.5)',label:'#6B4010',
-  inputBg:'#FFFFFF',inputBorder:'rgba(180,130,50,0.25)',inputFocus:'#D4820A',inputGlow:'rgba(212,130,10,0.1)',
-  inputColor:'#1C1005',iconDefault:'rgba(160,110,40,0.35)',iconFocus:'#D4820A',
-  eyeColor:'#C07010',forgotColor:'#C07010',
-  btnBg:'linear-gradient(135deg,#E8A020 0%,#D4820A 100%)',btnColor:'#FFFFFF',btnShadow:'0 4px 16px rgba(212,130,10,0.35)',
-  spinnerTrack:'rgba(100,65,15,0.15)',spinnerColor:'#D4820A',
-  errorBg:'rgba(200,40,30,0.06)',errorBorder:'rgba(200,40,30,0.25)',errorColor:'#B91C1C',
-  footerBg:'rgba(230,180,60,0.04)',footerBorder:'rgba(180,130,50,0.12)',footerColor:'rgba(100,65,15,0.35)',
-  toggleBg:'rgba(255,255,255,0.85)',toggleBorder:'rgba(180,130,50,0.25)',toggleColor:'#6B4010',
-  toggleShadow:'0 2px 10px rgba(120,80,20,0.12)',wrapperShadow:'0 32px 64px rgba(100,70,20,0.18),0 0 0 1px rgba(180,130,50,0.14)',
-  glowA:'rgba(224,160,32,0.06)',glowB:'rgba(245,200,66,0.05)',ring:'rgba(180,130,50,',
-};
+const INFO_ITEMS = [
+  { Icon: IconTag,  title: 'Inventario', desc: 'Gestion en tiempo real' },
+  { Icon: IconBox,  title: 'Productos',  desc: 'Catalogo completo' },
+  { Icon: IconCart,  title: 'Ventas',     desc: 'Control de pedidos' },
+];
 
 export default function LoginPage() {
   const navigate    = useNavigate();
   const { setAuth } = useAuthStore();
   const { isDark, toggleTheme } = useThemeStore();
-  const T = isDark ? DARK : LIGHT;
 
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
@@ -95,12 +67,6 @@ export default function LoginPage() {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
   const [focused,  setFocused]  = useState<string | null>(null);
-
-  const INFO_ITEMS = [
-    { Icon: ({ color }: any) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>, title: 'Inventario', desc: 'Gestión en tiempo real' },
-    { Icon: IconBox,  title: 'Productos', desc: 'Catálogo completo' },
-    { Icon: IconCart, title: 'Ventas',    desc: 'Control de pedidos' },
-  ];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -111,265 +77,132 @@ export default function LoginPage() {
       setAuth(data.usuario, data.token);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Correo o contraseña incorrectos.');
+      setError(err.response?.data?.error ?? 'Correo o contrasena incorrectos.');
     } finally { setLoading(false); }
   }
 
-  const inputStyle = (field: string): React.CSSProperties => ({
-    width: '100%',
-    padding: field === 'password' ? '11px 44px 11px 40px' : '11px 14px 11px 40px',
-    background: T.inputBg,
-    border: `1px solid ${focused === field ? T.inputFocus : T.inputBorder}`,
-    borderRadius: '6px',
-    color: T.inputColor,
-    fontSize: '13.5px',
-    fontFamily: "'Georgia', serif",
-    outline: 'none',
-    boxShadow: focused === field ? `0 0 0 3px ${T.inputGlow}` : 'none',
-    transition: 'all 0.18s ease',
-  });
+  const themeClass = isDark ? undefined : styles.light;
+  const iconColor = (field: string) => focused === field ? 'var(--lp-icon-focus)' : 'var(--lp-icon-default)';
 
   return (
-    <>
-      <style>{`
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body, #root { width: 100%; height: 100%; }
-        @keyframes spin   { to { transform: rotate(360deg); } }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes shake  { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
-        .ff-card { animation: fadeUp 0.42s cubic-bezier(.22,.68,0,1.15) both; }
-        .ff-btn  { transition: all 0.18s ease; }
-        .ff-btn:hover:not(:disabled) { filter: brightness(1.07); transform: translateY(-1px); }
-        .ff-btn:active:not(:disabled){ transform: translateY(0); }
-        .ff-toggle { transition: all 0.2s ease; }
-        .ff-toggle:hover { filter: brightness(1.08); transform: scale(1.02); }
-        .ff-forgot { transition: opacity 0.15s; opacity: 0.7; }
-        .ff-forgot:hover { opacity: 1; text-decoration: underline; }
+    <div className={`${styles.page} ${themeClass ?? ''}`}>
+      <div className={styles.ambientGlow} />
 
-        /* ── Responsive login ── */
-        .login-grid { display: grid; grid-template-columns: 1fr 1fr; }
-        .login-left  { display: flex; }
-        .login-form-pad { padding: 44px 48px; }
+      <button className={styles.themeToggle} onClick={toggleTheme}>
+        <span style={{ fontSize: '13px' }}>{isDark ? '\u2600\uFE0F' : '\uD83C\uDF19'}</span>
+        <span>{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
+      </button>
 
-        @media (max-width: 640px) {
-          .login-grid { grid-template-columns: 1fr; }
-          .login-left  { display: none !important; }
-          .login-form-pad { padding: 32px 24px; }
-          /* Mostrar mini logo en móvil dentro del form */
-          .login-mobile-brand { display: flex !important; }
-        }
-      `}</style>
-
-      <div style={{
-        position: 'fixed', inset: 0,
-        background: T.pageBg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: "'Georgia','Times New Roman',serif",
-        padding: '16px',
-        overflow: 'auto',
-        transition: 'background 0.35s ease',
-      }}>
-        {/* Ambient glow */}
-        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-          background: `radial-gradient(ellipse at 20% 60%, ${T.glowA} 0%, transparent 55%), radial-gradient(ellipse at 80% 20%, ${T.glowB} 0%, transparent 50%)` }} />
-
-        {/* Theme toggle */}
-        <button className="ff-toggle" onClick={toggleTheme} style={{
-          position: 'fixed', top: '14px', right: '14px', zIndex: 100,
-          display: 'flex', alignItems: 'center', gap: '6px',
-          padding: '7px 14px', background: T.toggleBg,
-          border: `1px solid ${T.toggleBorder}`, borderRadius: '20px',
-          color: T.toggleColor, fontSize: '11px', fontWeight: 600,
-          fontFamily: "'Georgia',serif", letterSpacing: '0.05em',
-          cursor: 'pointer', boxShadow: T.toggleShadow,
-          backdropFilter: 'blur(12px)',
-        }}>
-          <span style={{ fontSize: '13px' }}>{isDark ? '☀️' : '🌙'}</span>
-          <span className="hide-xs">{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
-        </button>
-
-        {/* CARD */}
-        <div className="ff-card login-grid" style={{
-          position: 'relative', zIndex: 1,
-          width: '100%', maxWidth: '820px',
-          borderRadius: '12px',
-          boxShadow: T.wrapperShadow,
-          overflow: 'hidden',
-          transition: 'box-shadow 0.35s ease',
-        }}>
-
-          {/* LEFT PANEL — oculto en móvil */}
-          <aside className="login-left" style={{
-            flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            background: T.leftBg,
-            borderRight: `1px solid ${T.leftBorder}`,
-            padding: '52px 32px', gap: '22px',
-            transition: 'background 0.35s ease',
-          }}>
-            <div style={{
-              width: '72px', height: '72px',
-              background: T.logoBg, border: `1px solid ${T.logoBorder}`,
-              borderRadius: '14px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 4px 20px ${T.logoColor}25`,
-            }}>
-              <IconWrench color={T.logoColor} size={30} />
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <h2 style={{ color: T.title, fontSize: '22px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Ferred</h2>
-              <p style={{ marginTop: '5px', color: T.subtitle, fontSize: '9px', letterSpacing: '0.28em', textTransform: 'uppercase' }}>Ferretería &amp; Suministros</p>
-            </div>
-            <div style={{ width: '36px', height: '1px', background: `linear-gradient(90deg,transparent,${T.dividerColor},transparent)` }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-              {INFO_ITEMS.map(({ Icon, title, desc }) => (
-                <div key={title} style={{
-                  display: 'flex', alignItems: 'center', gap: '12px',
-                  padding: '10px 14px',
-                  background: T.itemBg, border: `1px solid ${T.itemBorder}`,
-                  borderRadius: '8px',
-                }}>
-                  <div style={{ width: '30px', height: '30px', borderRadius: '6px', background: T.itemIconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon color={T.itemIcon} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '11px', color: T.itemTitle, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title}</div>
-                    <div style={{ fontSize: '10px', color: T.itemDesc, marginTop: '2px', fontStyle: 'italic' }}>{desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p style={{ marginTop: 'auto', fontSize: '10px', color: T.footer, letterSpacing: '0.1em', textAlign: 'center' }}>© 2026 Ferred · v2.4</p>
-          </aside>
-
-          {/* RIGHT — form */}
-          <main style={{
-            background: T.cardBg, display: 'flex', flexDirection: 'column',
-            borderRadius: '0 12px 12px 0', overflow: 'hidden',
-            transition: 'background 0.35s ease',
-          }}>
-            <div style={{ height: '3px', background: T.accentBar, flexShrink: 0 }} />
-
-            <form onSubmit={handleSubmit} className="login-form-pad" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-
-              {/* Mini brand — solo visible en móvil */}
-              <div className="login-mobile-brand" style={{
-                display: 'none',
-                alignItems: 'center', gap: '12px',
-                marginBottom: '28px',
-              }}>
-                <div style={{
-                  width: '44px', height: '44px',
-                  background: T.logoBg, border: `1px solid ${T.logoBorder}`,
-                  borderRadius: '10px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: `0 3px 12px ${T.logoColor}20`,
-                  flexShrink: 0,
-                }}>
-                  <IconWrench color={T.logoColor} size={22} />
+      <div className={styles.card}>
+        {/* LEFT PANEL */}
+        <aside className={styles.leftPanel}>
+          <div className={styles.logoBox}>
+            <IconWrench color="var(--lp-logo-color)" size={30} />
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <h2 className={styles.brandTitle}>Ferred</h2>
+            <p className={styles.brandSubtitle}>Ferreteria &amp; Suministros</p>
+          </div>
+          <div className={styles.divider} />
+          <div className={styles.infoList}>
+            {INFO_ITEMS.map(({ Icon, title, desc }) => (
+              <div key={title} className={styles.infoItem}>
+                <div className={styles.infoItemIcon}>
+                  <Icon color="var(--lp-item-icon)" />
                 </div>
                 <div>
-                  <h2 style={{ color: T.title, fontSize: '18px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', margin: 0 }}>Ferred</h2>
-                  <p style={{ color: T.subtitle, fontSize: '9px', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: '2px' }}>Ferretería &amp; Suministros</p>
+                  <div className={styles.infoItemTitle}>{title}</div>
+                  <div className={styles.infoItemDesc}>{desc}</div>
                 </div>
               </div>
+            ))}
+          </div>
+          <p className={styles.leftFooter}>&copy; 2026 Ferred &middot; v2.4</p>
+        </aside>
 
-              {/* Section label */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '28px' }}>
-                <div style={{ flex: 1, height: '1px', background: T.sectionLabel, opacity: 0.35 }} />
-                <span style={{ fontSize: '9px', color: T.sectionLabel, letterSpacing: '0.22em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Acceso al sistema</span>
-                <div style={{ flex: 1, height: '1px', background: T.sectionLabel, opacity: 0.35 }} />
+        {/* RIGHT — form */}
+        <main className={styles.rightPanel}>
+          <div className={styles.accentBar} />
+
+          <form onSubmit={handleSubmit} className={styles.formPad}>
+            {/* Mini brand — solo visible en movil */}
+            <div className={styles.mobileBrand}>
+              <div className={styles.mobileLogo}>
+                <IconWrench color="var(--lp-logo-color)" size={22} />
               </div>
-
-              {error && (
-                <div style={{
-                  marginBottom: '18px', padding: '10px 14px',
-                  background: T.errorBg, border: `1px solid ${T.errorBorder}`,
-                  borderRadius: '6px', color: T.errorColor,
-                  fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px',
-                  animation: 'shake 0.3s ease',
-                }}>
-                  <span>⚠</span> {error}
-                </div>
-              )}
-
-              {/* Email */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '9px', letterSpacing: '0.18em', textTransform: 'uppercase', color: T.label, fontWeight: 600, marginBottom: '8px' }}>
-                  Correo electrónico
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex' }}>
-                    <IconMail color={focused === 'email' ? T.iconFocus : T.iconDefault} />
-                  </span>
-                  <input type="email" value={email}
-                    onChange={e => { setError(null); setEmail(e.target.value); }}
-                    onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
-                    placeholder="usuario@ferred.com"
-                    style={inputStyle('email')} />
-                </div>
+              <div>
+                <h2 className={styles.mobileBrandTitle}>Ferred</h2>
+                <p className={styles.mobileBrandSub}>Ferreteria &amp; Suministros</p>
               </div>
+            </div>
 
-              {/* Password */}
-              <div style={{ marginBottom: '28px' }}>
-                <label style={{ display: 'block', fontSize: '9px', letterSpacing: '0.18em', textTransform: 'uppercase', color: T.label, fontWeight: 600, marginBottom: '8px' }}>
-                  Contraseña
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex' }}>
-                    <IconLock color={focused === 'password' ? T.iconFocus : T.iconDefault} />
-                  </span>
-                  <input type={showPass ? 'text' : 'password'} value={password}
-                    onChange={e => { setError(null); setPassword(e.target.value); }}
-                    onFocus={() => setFocused('password')} onBlur={() => setFocused(null)}
-                    placeholder="••••••••••"
-                    style={inputStyle('password')} />
-                  <button type="button" onClick={() => setShowPass(s => !s)} style={{
-                    position: 'absolute', right: '11px', top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '4px', opacity: 0.6, display: 'flex',
-                  }}>
-                    {showPass ? <IconEyeOff color={T.eyeColor} /> : <IconEyeOn color={T.eyeColor} />}
-                  </button>
-                </div>
-                <div style={{ textAlign: 'right', marginTop: '8px' }}>
-                  <a href="#" className="ff-forgot" style={{ fontSize: '11px', color: T.forgotColor, textDecoration: 'none', fontStyle: 'italic' }}>
-                    ¿Olvidaste tu contraseña?
-                  </a>
-                </div>
+            {/* Section label */}
+            <div className={styles.sectionLabel}>
+              <div className={styles.sectionLine} />
+              <span className={styles.sectionText}>Acceso al sistema</span>
+              <div className={styles.sectionLine} />
+            </div>
+
+            {error && (
+              <div className={styles.errorBox}>
+                <span>&#9888;</span> {error}
               </div>
+            )}
 
-              <button type="submit" className="ff-btn" disabled={loading} style={{
-                width: '100%', padding: '14px',
-                background: loading ? 'rgba(0,0,0,0.1)' : T.btnBg,
-                border: '1px solid transparent', borderRadius: '6px',
-                color: loading ? 'var(--text-subtle)' : T.btnColor,
-                fontSize: '11px', fontWeight: 700,
-                letterSpacing: '0.22em', textTransform: 'uppercase',
-                fontFamily: "'Georgia',serif",
-                cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: loading ? 'none' : T.btnShadow,
-              }}>
-                {loading ? (
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <span style={{ display: 'inline-block', width: '13px', height: '13px', border: `2px solid ${T.spinnerTrack}`, borderTopColor: T.spinnerColor, borderRadius: '50%', animation: 'spin 0.75s linear infinite' }} />
-                    Verificando...
-                  </span>
-                ) : 'Iniciar sesión'}
-              </button>
-            </form>
+            {/* Email */}
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel}>Correo electronico</label>
+              <div className={styles.inputWrap}>
+                <span className={styles.inputIcon}>
+                  <IconMail color={iconColor('email')} />
+                </span>
+                <input type="email" value={email}
+                  onChange={e => { setError(null); setEmail(e.target.value); }}
+                  onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
+                  placeholder="usuario@ferred.com"
+                  className={styles.input} />
+              </div>
+            </div>
 
-            <footer style={{
-              padding: '12px 24px', borderTop: `1px solid ${T.footerBorder}`,
-              background: T.footerBg, textAlign: 'center',
-              fontSize: '9px', letterSpacing: '0.12em', color: T.footerColor,
-              fontFamily: "'Georgia',serif", flexShrink: 0,
-            }}>
-              © 2026 Ferred — Sistema de Gestión v2.4
-            </footer>
-            <div style={{ height: '2px', background: T.accentBar, flexShrink: 0 }} />
-          </main>
-        </div>
+            {/* Password */}
+            <div className={styles.fieldGroupLast}>
+              <label className={styles.fieldLabel}>Contrasena</label>
+              <div className={styles.inputWrap}>
+                <span className={styles.inputIcon}>
+                  <IconLock color={iconColor('password')} />
+                </span>
+                <input type={showPass ? 'text' : 'password'} value={password}
+                  onChange={e => { setError(null); setPassword(e.target.value); }}
+                  onFocus={() => setFocused('password')} onBlur={() => setFocused(null)}
+                  placeholder="••••••••••"
+                  className={styles.inputPassword} />
+                <button type="button" onClick={() => setShowPass(s => !s)} className={styles.eyeBtn}>
+                  {showPass ? <IconEyeOff color="var(--lp-eye-color)" /> : <IconEyeOn color="var(--lp-eye-color)" />}
+                </button>
+              </div>
+              <div className={styles.forgotRow}>
+                <a href="#" className={styles.forgotLink}>
+                  Olvidaste tu contrasena?
+                </a>
+              </div>
+            </div>
+
+            <button type="submit" className={styles.submitBtn} disabled={loading}>
+              {loading ? (
+                <span className={styles.spinnerWrap}>
+                  <span className={styles.spinner} />
+                  Verificando...
+                </span>
+              ) : 'Iniciar sesion'}
+            </button>
+          </form>
+
+          <footer className={styles.pageFooter}>
+            &copy; 2026 Ferred — Sistema de Gestion v1.2.1
+          </footer>
+          <div className={styles.accentBar} />
+        </main>
       </div>
-    </>
+    </div>
   );
 }

@@ -10,7 +10,7 @@ import { prisma }          from '../../db/prisma/prisma.client';
 import { roleMiddleware }  from '../middleware/role.middleware';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente }    from '../../sync/sync.service';
-import { sincronizarStockTotal } from './inventario.routes';
+import { sincronizarStockTotal } from '../services/stock-sync.service';
 import { enviarDteHacienda }    from '../../dte/dte.service';
 
 export const ventasRoutes = Router();
