@@ -12,6 +12,7 @@ import { prisma }         from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
+import { obtenerStockSucursalSqlite } from '../../db/sqlite/sqlite.client';
 
 export const inventarioRoutes = Router();
 
@@ -45,10 +46,11 @@ inventarioRoutes.get(
     if (!assertSameSucursal(req, res, sucursalId)) return;
 
     const cacheKey = `stock:${sucursalId}`;
+    const online = await SyncService.checkConnectivity();
 
-    if (!SyncService.isOnline()) {
-      const cached = OfflineCache.get(cacheKey);
-      if (cached) return res.json(cached);
+    if (!online) {
+      console.info(`[inventario.stock] modo=offline origen=sqlite sucursalId=${sucursalId}`);
+      return res.json(obtenerStockSucursalSqlite(sucursalId));
     }
 
     const stocks = await prisma.stockSucursal.findMany({
@@ -66,9 +68,18 @@ inventarioRoutes.get(
       orderBy: { producto: { nombre: 'asc' } },
     });
 
+    console.info(`[inventario.stock] modo=online origen=prisma sucursalId=${sucursalId}`);
     OfflineCache.set(cacheKey, stocks);
     return res.json(stocks);
-  } catch (err) { return next(err); }
+  } catch (err) {
+    if (esErrorConexionPrisma(err)) {
+      const sucursalId = Number(req.params.sucursalId);
+      console.info(`[inventario.stock] modo=offline origen=sqlite sucursalId=${sucursalId} motivo=prisma_caido`);
+      return res.json(obtenerStockSucursalSqlite(sucursalId));
+    }
+
+    return next(err);
+  }
   },
 );
 
@@ -430,3 +441,19 @@ inventarioRoutes.get('/sync-pendientes', async (req: Request, res: Response, nex
     });
   } catch (err) { return next(err); }
 });
+
+function esErrorConexionPrisma(err: unknown) {
+  const error = err as { code?: unknown; message?: unknown };
+  const mensaje = String(error?.message ?? '').toLowerCase();
+  const code = String(error?.code ?? '').toLowerCase();
+
+  return (
+    ['p1001', 'p1002', 'p1008', 'p1017'].includes(code) ||
+    mensaje.includes("can't reach database server") ||
+    mensaje.includes('timed out fetching a new connection') ||
+    mensaje.includes('connection refused') ||
+    mensaje.includes('server has closed the connection') ||
+    mensaje.includes('econnrefused') ||
+    mensaje.includes('enotfound')
+  );
+}
