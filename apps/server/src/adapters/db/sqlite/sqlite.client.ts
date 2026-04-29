@@ -17,6 +17,7 @@
 
     const schema = readSchema();
     _db.exec(schema);
+    ensureUpdatedAtColumns(_db);
 
     return _db;
   }
@@ -541,6 +542,71 @@
     return SQLITE_SCHEMA;
   }
 
+  function ensureUpdatedAtColumns(db: Database.Database) {
+    ensureColumn(db, 'categorias', 'updated_at', 'TEXT');
+    ensureColumn(db, 'productos', 'updated_at', 'TEXT');
+    ensureColumn(db, 'stock_sucursal', 'updated_at', 'TEXT');
+
+    db.prepare(`
+      UPDATE categorias
+      SET updated_at = datetime('now')
+      WHERE updated_at IS NULL
+    `).run();
+
+    db.prepare(`
+      UPDATE productos
+      SET updated_at = COALESCE(creado_en, datetime('now'))
+      WHERE updated_at IS NULL
+    `).run();
+
+    db.prepare(`
+      UPDATE stock_sucursal
+      SET updated_at = COALESCE(actualizado_en, datetime('now'))
+      WHERE updated_at IS NULL
+    `).run();
+
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS categorias_touch_updated_at
+      AFTER UPDATE ON categorias
+      FOR EACH ROW
+      WHEN NEW.updated_at = OLD.updated_at
+      BEGIN
+        UPDATE categorias SET updated_at = datetime('now') WHERE id = OLD.id;
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS productos_touch_updated_at
+      AFTER UPDATE ON productos
+      FOR EACH ROW
+      WHEN NEW.updated_at = OLD.updated_at
+      BEGIN
+        UPDATE productos SET updated_at = datetime('now') WHERE id = OLD.id;
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS stock_sucursal_touch_updated_at
+      AFTER UPDATE ON stock_sucursal
+      FOR EACH ROW
+      WHEN NEW.updated_at = OLD.updated_at
+      BEGIN
+        UPDATE stock_sucursal
+        SET updated_at = datetime('now'),
+            actualizado_en = datetime('now')
+        WHERE id = OLD.id;
+      END;
+    `);
+  }
+
+  function ensureColumn(
+    db: Database.Database,
+    table: string,
+    column: string,
+    definition: string
+  ) {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    if (columns.some((item) => item.name === column)) return;
+
+    db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+  }
+
   function logPendienteSqlite(
     tabla: string,
     operacion: 'CREATE' | 'UPDATE' | 'DELETE',
@@ -600,7 +666,8 @@
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL UNIQUE,
     descripcion TEXT,
-    activo INTEGER NOT NULL DEFAULT 1
+    activo INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS usuarios (
@@ -628,7 +695,8 @@
     stock_actual INTEGER NOT NULL DEFAULT 0,
     stock_minimo INTEGER NOT NULL DEFAULT 0,
     activo INTEGER NOT NULL DEFAULT 1,
-    creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+    creado_en TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS stock_sucursal (
@@ -638,6 +706,7 @@
     cantidad INTEGER NOT NULL DEFAULT 0,
     minimo INTEGER NOT NULL DEFAULT 0,
     actualizado_en TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(producto_id, sucursal_id)
   );
 

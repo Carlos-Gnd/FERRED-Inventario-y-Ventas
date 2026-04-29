@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS categorias (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nombre TEXT NOT NULL UNIQUE,
   descripcion TEXT,
-  activo INTEGER NOT NULL DEFAULT 1
+  activo INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS usuarios (
@@ -39,7 +40,8 @@ CREATE TABLE IF NOT EXISTS productos (
   stock_actual INTEGER NOT NULL DEFAULT 0,
   stock_minimo INTEGER NOT NULL DEFAULT 0,
   activo INTEGER NOT NULL DEFAULT 1,
-  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+  creado_en TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS stock_sucursal (
@@ -49,6 +51,7 @@ CREATE TABLE IF NOT EXISTS stock_sucursal (
   cantidad INTEGER NOT NULL DEFAULT 0,
   minimo INTEGER NOT NULL DEFAULT 0,
   actualizado_en TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(producto_id, sucursal_id)
 );
 
