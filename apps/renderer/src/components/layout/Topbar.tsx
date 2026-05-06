@@ -13,15 +13,18 @@ export function Topbar() {
   const navigate   = useNavigate();
   const { usuario, logout } = useAuthStore();
   const { isDark, toggleTheme } = useThemeStore();
-  const { status, isOnline, syncState } = useNetworkStatus();
+  const { status, isOnline, syncState, isSyncing, syncError, syncNow } = useNetworkStatus();
   const branchLabel = usuario?.sucursalId
     ? `Sucursal ${usuario.sucursalId}`
     : 'Sin sucursal asignada';
 
   // ── Lógica de confirmación post-sync ──────────────────────
   const [showSynced, setShowSynced] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const prevPendientes = useRef<number>(syncState.pendientes);
   const syncTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const prev = prevPendientes.current;
@@ -43,11 +46,68 @@ export function Topbar() {
 
   function handleLogout() { logout(); navigate('/login'); }
 
+  async function handleSyncNow() {
+    try {
+      await syncNow();
+      setSyncFeedback('Sincronizacion completada');
+      setShowSynced(true);
+    } catch {
+      setSyncFeedback('No se pudo sincronizar');
+    }
+
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = setTimeout(() => setSyncFeedback(null), 3500);
+  }
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => {
+      clearInterval(timer);
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    };
+  }, []);
+
   const initials = (name: string) =>
     name.trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('');
 
+  const getLastSyncInfo = () => {
+    if (!isOnline) {
+      return {
+        label: 'Ultima sync: sin conexion',
+        color: 'var(--text-subtle)',
+        background: 'rgba(148,163,184,0.1)',
+        border: 'rgba(148,163,184,0.25)',
+      };
+    }
+
+    if (!syncState.lastSync) {
+      return {
+        label: 'Ultima sync: pendiente',
+        color: 'var(--warning)',
+        background: 'rgba(245,158,11,0.1)',
+        border: 'rgba(245,158,11,0.35)',
+      };
+    }
+
+    const diffMs = Math.max(0, now - syncState.lastSync.getTime());
+    const diffMin = Math.floor(diffMs / 60_000);
+    const label = diffMin < 1
+      ? 'Ultima sync: hace menos de 1m'
+      : `Ultima sync: hace ${diffMin}m`;
+    const isStale = diffMin > 15;
+
+    return {
+      label,
+      color: isStale ? 'var(--warning)' : 'var(--success)',
+      background: isStale ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.08)',
+      border: isStale ? 'rgba(245,158,11,0.35)' : 'rgba(16,185,129,0.2)',
+    };
+  };
+
   // ── Indicador de red ────────────────────────────────────────
   const NetIndicator = () => {
+    const lastSync = getLastSyncInfo();
+
     if (status === 'checking') return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
         <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--warning)', animation: 'pulse 1s infinite' }} />
@@ -61,6 +121,9 @@ export function Topbar() {
         border: '1px solid rgba(239,68,68,0.25)', borderRadius: '20px' }}>
         <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--danger)' }} />
         <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--danger)' }}>Sin conexión</span>
+        <span style={{ fontSize: '10px', color: 'var(--text-subtle)', fontWeight: 600 }}>
+          - {lastSync.label.replace('Ultima sync: ', '')}
+        </span>
         {syncState.pendientes > 0 && (
           <span style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 700 }}>
             · {syncState.pendientes} pendientes
@@ -116,6 +179,26 @@ export function Topbar() {
     );
   };
 
+  const LastSyncIndicator = () => {
+    const info = getLastSyncInfo();
+
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '6px',
+        padding: '4px 10px',
+        background: info.background,
+        border: `1px solid ${info.border}`,
+        borderRadius: '20px',
+        whiteSpace: 'nowrap',
+      }}>
+        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: info.color }} />
+        <span style={{ fontSize: '11px', fontWeight: 600, color: info.color }}>
+          {info.label}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <header style={{
       height: '52px',
@@ -139,7 +222,41 @@ export function Topbar() {
 
       {/* Indicador de red — oculto en xs */}
       <div className="hide-xs">
-        <NetIndicator />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <NetIndicator />
+          <LastSyncIndicator />
+          {isOnline && (
+            <button
+              onClick={handleSyncNow}
+              disabled={isSyncing}
+              title={syncError ?? 'Sincronizar ahora'}
+              style={{
+                minHeight: '28px',
+                padding: '0 10px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: isSyncing ? 'var(--bg-elevated)' : 'var(--accent)',
+                color: isSyncing ? 'var(--text-muted)' : '#fff',
+                cursor: isSyncing ? 'wait' : 'pointer',
+                fontSize: '11px',
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+            </button>
+          )}
+          {syncFeedback && (
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              color: syncFeedback.includes('No se') ? 'var(--danger)' : 'var(--success)',
+              whiteSpace: 'nowrap',
+            }}>
+              {syncFeedback}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Theme toggle */}

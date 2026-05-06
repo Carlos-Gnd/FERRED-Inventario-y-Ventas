@@ -22,24 +22,32 @@ export function useNetworkStatus() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const [status,    setStatus]    = useState<NetworkStatus>('checking');
   const [syncState, setSyncState] = useState<SyncState>({ pendientes: 0, sincronizados: 0, errores: 0, lastSync: null });
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const statusRef = useRef(status);
   const pingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Ping real al servidor
   const checkServer = useCallback(async () => {
     try {
-      await api.get('/health', {
-        timeout: 4000,
-        baseURL: '',
-      });
-      setStatus('online');
+      if (!isAuthenticated) {
+        await api.get('/health', {
+          timeout: 4000,
+          baseURL: '',
+        });
+        setStatus('online');
+        return;
+      }
+
+      const { data } = await api.get('/inventario/status', { timeout: 4000 });
+      setStatus(data.online ? 'online' : 'offline');
     } catch (err: unknown) {
       // BUG-M01: loguear para trazabilidad; la UI sigue mostrando modo offline
       const msg = (err as { message?: string })?.message ?? String(err);
       console.warn('[useNetworkStatus] ping fallido:', msg);
       setStatus('offline');
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Obtener conteo de pendientes
   const fetchSyncState = useCallback(async () => {
@@ -53,13 +61,50 @@ export function useNetworkStatus() {
     }
 
     try {
-      const { data } = await api.get('/inventario/sync-pendientes', { timeout: 4000 });
-      setSyncState({ pendientes: data.pendientes, sincronizados: data.sincronizados ?? 0, errores: data.errores, lastSync: new Date() });
+      const [pendientesRes, snapshotRes] = await Promise.all([
+        api.get('/inventario/sync-pendientes', { timeout: 4000 }),
+        api.get('/sync/snapshot/status', { timeout: 4000 }),
+      ]);
+      const lastSyncAt = snapshotRes.data.lastSyncAt
+        ? new Date(snapshotRes.data.lastSyncAt)
+        : null;
+
+      setSyncState({
+        pendientes:    pendientesRes.data.pendientes,
+        sincronizados: pendientesRes.data.sincronizados ?? 0,
+        errores:       pendientesRes.data.errores,
+        lastSync:      lastSyncAt,
+      });
     } catch (err) {
       console.error('[useNetworkStatus] Error al obtener estado de sincronizacion:', err);
       // Si falla, conservamos el ultimo estado conocido.
     }
   }, [isAuthenticated]);
+
+  const syncNow = useCallback(async () => {
+    if (!isAuthenticated || statusRef.current !== 'online' || isSyncing) return null;
+
+    setIsSyncing(true);
+    setSyncError(null);
+
+    try {
+      const { data } = await api.post('/sync/snapshot', undefined, { timeout: 30_000 });
+      const lastSyncAt = data.lastSyncAt ? new Date(data.lastSyncAt) : new Date();
+
+      setSyncState(prev => ({
+        ...prev,
+        lastSync: lastSyncAt,
+      }));
+      await fetchSyncState();
+      return data;
+    } catch (err: any) {
+      const message = err?.response?.data?.error ?? 'No se pudo sincronizar ahora';
+      setSyncError(message);
+      throw err;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [fetchSyncState, isAuthenticated, isSyncing]);
 
   useEffect(() => {
     statusRef.current = status;
@@ -67,7 +112,7 @@ export function useNetworkStatus() {
 
   useEffect(() => {
     // Escuchar eventos del browser
-    const onOnline  = () => { setStatus('online');  checkServer(); fetchSyncState(); };
+    const onOnline  = () => { setStatus('checking'); checkServer(); fetchSyncState(); };
     const onOffline = () => setStatus('offline');
 
     window.addEventListener('online',  onOnline);
@@ -96,7 +141,10 @@ export function useNetworkStatus() {
     isOffline:  status === 'offline',
     isChecking: status === 'checking',
     syncState,
+    isSyncing,
+    syncError,
     checkNow:   checkServer,
     refreshSync: fetchSyncState,
+    syncNow,
   };
 }

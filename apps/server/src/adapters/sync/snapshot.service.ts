@@ -200,6 +200,10 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
   };
 }
 
+export function getLastSnapshotAt(sucursalId: number): Date | null {
+  return lastRefresh.get(sucursalId) ?? null;
+}
+
 export const SnapshotService = {
   start(sucursalId: number) {
     if (SyncService.isOnline()) {
