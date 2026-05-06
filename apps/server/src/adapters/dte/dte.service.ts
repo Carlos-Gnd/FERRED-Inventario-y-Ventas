@@ -262,7 +262,9 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
     await prisma.facturaDte.update({
       where: { id: facturaId },
       data:  { estado: 'ERROR_INTERNO' },
-    }).catch(() => {});
+    }).catch((updateErr: any) => {
+      console.error('[DTE] Error al actualizar estado tras fallo interno:', updateErr.message);
+    });
     return { ok: false, estado: 'ERROR_INTERNO', error: 'No se pudo procesar el DTE. Contacte al administrador.' };
   }
 }

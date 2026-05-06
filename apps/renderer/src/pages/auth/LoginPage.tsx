@@ -181,9 +181,9 @@ export default function LoginPage() {
                 </button>
               </div>
               <div className={styles.forgotRow}>
-                <a href="#" className={styles.forgotLink}>
+                <span className={styles.forgotLink} title="Contacta a tu administrador para restablecer tu contraseña" style={{ cursor: 'default', opacity: 0.5 }}>
                   Olvidaste tu contrasena?
-                </a>
+                </span>
               </div>
             </div>
 

@@ -7,7 +7,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // ── Importar handlers IPC ────────────────────────────────────
 require('./ipc/printer.ipc');
-require('./ipc/server.ipc');
+const { waitForServer } = require('./ipc/server.ipc');
 
 // ── Config ───────────────────────────────────────────────────
 const DEV_URL    = process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173';
@@ -59,7 +59,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration:  false,
       sandbox:          true,
-      webSecurity:      !IS_DEV,
+      webSecurity:      true,
     },
   });
 
@@ -192,6 +192,15 @@ app.whenReady().then(async () => {
 
   const win = createWindow();
   createTray();
+
+  // BUG-C02: esperar al servidor Express antes de cargar el renderer en producción
+  if (!IS_DEV) {
+    const serverOk = await waitForServer(win);
+    if (!serverOk) {
+      console.error('[Electron] El servidor no respondió a tiempo — la app puede estar en modo degradado.');
+    }
+  }
+
   await loadRenderer(win);
 });
 
