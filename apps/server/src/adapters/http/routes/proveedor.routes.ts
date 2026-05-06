@@ -131,7 +131,7 @@ proveedorRoutes.post(
         items.reduce((acc, i) => acc + i.cantidad * i.costoUnit, 0).toFixed(2),
       );
 
-      const recepcion = await prisma.$transaction(async (tx) => {
+      const recepcion = await prisma.$transaction(async (tx: any) => {
         const nueva = await tx.recepcionMercancia.create({
           data: {
             proveedorId,

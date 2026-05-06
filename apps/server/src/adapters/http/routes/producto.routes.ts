@@ -89,14 +89,14 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
       orderBy: { nombre: 'asc' },
     });
 
-    let resultado = productos.filter((producto) => !eliminadosPendientes.has(producto.id));
+    let resultado = productos.filter((producto: any) => !eliminadosPendientes.has(producto.id));
     if (criticos === 'true' && targetSucursalId) {
-      resultado = resultado.filter((p) => {
+      resultado = resultado.filter((p: any) => {
         const stock = (p as { stocks?: Array<{ cantidad: number; minimo: number }> }).stocks?.[0];
         return stock ? stock.cantidad <= stock.minimo : p.stockActual <= p.stockMinimo;
       });
     } else if (criticos === 'true') {
-      resultado = resultado.filter((p) => p.stockActual <= p.stockMinimo);
+      resultado = resultado.filter((p: any) => p.stockActual <= p.stockMinimo);
     }
 
     const pendientesLocales = filtrarProductosLocales(obtenerProductosPendientesSqlite(), {
@@ -306,7 +306,7 @@ productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), a
       return res.json({ mensaje: 'Stock actualizado offline' });
     }
 
-    const stockActualizado = await prisma.$transaction(async (tx) => {
+    const stockActualizado = await prisma.$transaction(async (tx: any) => {
       const stock = await tx.stockSucursal.findUnique({
         where: { productoId_sucursalId: { productoId, sucursalId } },
       });

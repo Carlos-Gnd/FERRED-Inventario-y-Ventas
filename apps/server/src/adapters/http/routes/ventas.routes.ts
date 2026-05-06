@@ -106,7 +106,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     // T-09B.3: validar cantidad vs tipoUnidad
     const erroresUnidad: string[] = [];
     for (const item of items) {
-      const producto = productos.find(p => p.id === item.productoId)!;
+      const producto = productos.find((p: any) => p.id === item.productoId)!;
       const errUnidad = validarCantidadPorUnidad(item.cantidad, producto.tipoUnidad, producto.nombre);
       if (errUnidad) erroresUnidad.push(errUnidad);
     }
@@ -119,7 +119,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     const total       = parseFloat((subtotal + iva).toFixed(2));
     const subtotalFix = parseFloat(subtotal.toFixed(2));
 
-    const factura = await prisma.$transaction(async (tx) => {
+    const factura = await prisma.$transaction(async (tx: any) => {
       // Verificar stock DENTRO de la transacción para evitar race conditions
       const erroresStock: string[] = [];
       for (const item of items) {
@@ -127,7 +127,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
           where: { productoId_sucursalId: { productoId: item.productoId, sucursalId } },
         });
         if (!stock || stock.cantidad < item.cantidad) {
-          const nombre = productos.find(p => p.id === item.productoId)!.nombre;
+          const nombre = productos.find((p: any) => p.id === item.productoId)!.nombre;
           erroresStock.push(
             `"${nombre}" no tiene stock suficiente en esta sucursal. ` +
             `Disponible: ${stock?.cantidad ?? 0}, solicitado: ${item.cantidad}`
@@ -331,7 +331,7 @@ ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: R
       clienteNombre:    factura.clienteNombre,
       tipoDte:          factura.tipoDte,
       estado:           factura.estado,
-      items: factura.detalles.map(d => ({
+      items: factura.detalles.map((d: any) => ({
         nombre:     d.producto.nombre,
         tipoUnidad: d.producto.tipoUnidad,
         cantidad:   d.cantidad,
