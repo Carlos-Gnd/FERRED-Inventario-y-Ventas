@@ -33,7 +33,10 @@ export function useNetworkStatus() {
         baseURL: '',
       });
       setStatus('online');
-    } catch {
+    } catch (err: unknown) {
+      // BUG-M01: loguear para trazabilidad; la UI sigue mostrando modo offline
+      const msg = (err as { message?: string })?.message ?? String(err);
+      console.warn('[useNetworkStatus] ping fallido:', msg);
       setStatus('offline');
     }
   }, []);
