@@ -30,9 +30,13 @@ const schema = z.object({
 });
 
 function calcularPrecios(data: any) {
-  if (data.precioCompra !== undefined && data.porcentajeGanancia !== undefined) {
-    const precioVenta = data.precioCompra * (1 + data.porcentajeGanancia / 100);
-    data.precioVenta = Math.round(precioVenta * 100) / 100;
+  const compra    = Number(data.precioCompra);
+  const ganancia  = Number(data.porcentajeGanancia);
+
+  if (data.precioCompra !== undefined && data.porcentajeGanancia !== undefined
+      && !isNaN(compra) && !isNaN(ganancia) && compra >= 0 && ganancia >= 0) {
+    const precioVenta = compra * (1 + ganancia / 100);
+    data.precioVenta  = Math.round(precioVenta * 100) / 100;
     data.precioConIva = data.tieneIva
       ? Math.round(precioVenta * 1.13 * 100) / 100
       : data.precioVenta;
