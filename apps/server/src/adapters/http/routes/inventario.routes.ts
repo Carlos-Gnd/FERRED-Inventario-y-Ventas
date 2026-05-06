@@ -28,8 +28,9 @@ async function getStockTotal(productoId: number): Promise<number> {
 }
 
 // ── GET /api/inventario/status ──────────────────────────────────────────
-inventarioRoutes.get('/status', roleMiddleware('ADMIN', 'BODEGA', 'CAJERO'), (_req, res) => {
-  res.json({ online: SyncService.isOnline() });
+inventarioRoutes.get('/status', roleMiddleware('ADMIN', 'BODEGA', 'CAJERO'), async (_req, res) => {
+  const online = await SyncService.checkConnectivity();
+  res.json({ online });
 });
 
 // ── GET /api/inventario/stock/:sucursalId ───────────────────────────────

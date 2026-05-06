@@ -5,10 +5,31 @@
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { roleMiddleware } from '../middleware/role.middleware';
-import { bootstrapSnapshot, refreshSnapshot } from '../../sync/snapshot.service';
+import { bootstrapSnapshot, getLastSnapshotAt, refreshSnapshot } from '../../sync/snapshot.service';
 import { SyncService } from '../../sync/sync.service';
 
 export const syncRoutes = Router();
+
+syncRoutes.get(
+  '/snapshot/status',
+  roleMiddleware('ADMIN', 'BODEGA', 'CAJERO'),
+  async (req: Request, res: Response) => {
+    const sucursalId = req.usuario?.sucursalId;
+
+    if (!sucursalId) {
+      return res.status(400).json({ error: 'Tu usuario no tiene sucursal asignada' });
+    }
+
+    const lastSyncAt = getLastSnapshotAt(sucursalId);
+    const online = await SyncService.checkConnectivity();
+
+    return res.json({
+      online,
+      sucursalId,
+      lastSyncAt: lastSyncAt ? lastSyncAt.toISOString() : null,
+    });
+  },
+);
 
 syncRoutes.post(
   '/snapshot',
@@ -29,8 +50,13 @@ syncRoutes.post(
       const counts = full
         ? await bootstrapSnapshot(sucursalId)
         : await refreshSnapshot(sucursalId);
+      const lastSyncAt = getLastSnapshotAt(sucursalId);
 
-      return res.json({ ok: true, counts });
+      return res.json({
+        ok: true,
+        counts,
+        lastSyncAt: lastSyncAt ? lastSyncAt.toISOString() : null,
+      });
     } catch (err) {
       return next(err);
     }
