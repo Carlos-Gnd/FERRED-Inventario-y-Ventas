@@ -546,6 +546,7 @@
     ensureColumn(db, 'categorias', 'updated_at', 'TEXT');
     ensureColumn(db, 'productos', 'updated_at', 'TEXT');
     ensureColumn(db, 'stock_sucursal', 'updated_at', 'TEXT');
+    ensureColumn(db, 'usuarios', 'last_synced_at', 'TEXT'); // T-07F.3
 
     db.prepare(`
       UPDATE categorias

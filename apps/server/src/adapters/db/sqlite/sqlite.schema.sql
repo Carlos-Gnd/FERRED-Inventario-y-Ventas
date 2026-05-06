@@ -23,8 +23,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
   contrasena_hash TEXT NOT NULL,
   rol TEXT NOT NULL,
   activo INTEGER NOT NULL DEFAULT 1,
-  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+  creado_en TEXT NOT NULL DEFAULT (datetime('now')),
+  last_synced_at TEXT
 );
+
 
 CREATE TABLE IF NOT EXISTS productos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
