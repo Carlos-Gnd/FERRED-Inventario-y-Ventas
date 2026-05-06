@@ -109,7 +109,7 @@ export async function bootstrapSnapshot(sucursalId: number): Promise<SnapshotCou
     sucursal:   sucursal ? 1 : 0,
     categorias: categorias.length,
     productos:  productos.length,
-    stock:      productos.filter(p => p.stocks.length > 0).length,
+    stock:      productos.filter((p: any) => p.stocks.length > 0).length,
     usuarios:   usuarios.length,
   };
 }
@@ -195,7 +195,7 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
     sucursal:   0,
     categorias: categorias.length,
     productos:  productos.length,
-    stock:      productos.filter(p => p.stocks.length > 0).length,
+    stock:      productos.filter((p: any) => p.stocks.length > 0).length,
     usuarios:   usuarios.length,
   };
 }

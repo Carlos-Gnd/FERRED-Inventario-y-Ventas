@@ -260,7 +260,7 @@ inventarioRoutes.patch(
 
       if (!assertSameSucursal(req, res, sucursalId)) return;
 
-      const stock = await prisma.$transaction(async (tx) => {
+      const stock = await prisma.$transaction(async (tx: any) => {
         const s = await tx.stockSucursal.upsert({
           where:  { productoId_sucursalId: { productoId, sucursalId } },
           create: { productoId, sucursalId, cantidad: Math.max(0, cantidad), minimo },
@@ -310,7 +310,7 @@ inventarioRoutes.post(
         return res.status(400).json({ error: 'Origen y destino deben ser diferentes' });
       }
 
-      const [stockOrigen, stockDestino] = await prisma.$transaction(async (tx) => {
+      const [stockOrigen, stockDestino] = await prisma.$transaction(async (tx: any) => {
         const origen = await tx.stockSucursal.findUnique({
           where: { productoId_sucursalId: { productoId, sucursalId: origenId } },
         });
@@ -382,8 +382,8 @@ inventarioRoutes.get(
         orderBy: { nombre: 'asc' },
       });
 
-      const resultado = productos.map(p => {
-        const sucursales = p.stocks.map(s => ({
+      const resultado = productos.map((p: any) => {
+        const sucursales = p.stocks.map((s: any) => ({
           sucursalId:     s.sucursalId,
           sucursalNombre: s.sucursal.nombre,
           cantidad:       s.cantidad,
@@ -394,7 +394,7 @@ inventarioRoutes.get(
                                      'disponible',
         }));
 
-        const stockTotal = sucursales.reduce((acc, s) => acc + s.cantidad, 0);
+        const stockTotal = sucursales.reduce((acc: number, s: any) => acc + s.cantidad, 0);
 
         return {
           id:           p.id,
