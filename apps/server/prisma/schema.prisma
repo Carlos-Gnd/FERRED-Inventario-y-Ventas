@@ -130,6 +130,8 @@ model SyncLog {
   creadoEn  DateTime  @default(now()) @map("creado_en")
   sincEn    DateTime? @map("sinc_en")
   usuario   Usuario?  @relation(fields: [usuarioId], references: [id])
+  // DT-21: índice para el loop de drenaje (pushPendientes filtra por status)
+  @@index([tabla, status])
   @@map("sync_log")
 }
 
