@@ -174,3 +174,16 @@ html, body, #root {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+/* ── IMPRESIÓN DE TICKET ─────────────────────────────────── */
+@media print {
+  body * { visibility: hidden; }
+  #ticket-print,
+  #ticket-print * { visibility: visible; }
+  #ticket-print {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+  }
+}
