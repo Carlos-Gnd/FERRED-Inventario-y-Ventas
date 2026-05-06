@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
-import { sincronizarStockTotal } from './inventario.routes';
+import { sincronizarStockTotal } from '../services/stock-sync.service';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import {
   crearProductoSqlite,
@@ -30,9 +30,13 @@ const schema = z.object({
 });
 
 function calcularPrecios(data: any) {
-  if (data.precioCompra !== undefined && data.porcentajeGanancia !== undefined) {
-    const precioVenta = data.precioCompra * (1 + data.porcentajeGanancia / 100);
-    data.precioVenta = Math.round(precioVenta * 100) / 100;
+  const compra    = Number(data.precioCompra);
+  const ganancia  = Number(data.porcentajeGanancia);
+
+  if (data.precioCompra !== undefined && data.porcentajeGanancia !== undefined
+      && !isNaN(compra) && !isNaN(ganancia) && compra >= 0 && ganancia >= 0) {
+    const precioVenta = compra * (1 + ganancia / 100);
+    data.precioVenta  = Math.round(precioVenta * 100) / 100;
     data.precioConIva = data.tieneIva
       ? Math.round(precioVenta * 1.13 * 100) / 100
       : data.precioVenta;
@@ -48,10 +52,8 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
     const eliminadosPendientes = new Set(obtenerIdsProductosEliminacionPendienteSqlite());
 
     if (!online) {
-      const productosLocales = obtenerProductosSqlite()
-        .filter((producto: any) => !eliminadosPendientes.has(Number(producto.id)));
-
-      return res.json(filtrarProductosLocales(productosLocales, {
+      console.info('[productos] modo=offline origen=sqlite motivo=check_connectivity');
+      return res.json(obtenerProductosLocalesFiltrados(eliminadosPendientes, {
         buscar: String(buscar ?? ''),
         categoriaId: categoriaId ? Number(categoriaId) : undefined,
         criticos: criticos === 'true',
@@ -104,11 +106,19 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
     });
     const conPendientesLocales = mezclarProductosLocalesPendientes(resultado, pendientesLocales);
 
+    console.info('[productos] modo=online origen=prisma');
     OfflineCache.set(cacheKey, conPendientesLocales);
     return res.json(conPendientesLocales);
   } catch (err: any) {
     if (esErrorConexion(err)) {
-      return res.json(obtenerProductosSqlite());
+      const { buscar, categoriaId, criticos } = req.query;
+      const eliminadosPendientes = new Set(obtenerIdsProductosEliminacionPendienteSqlite());
+      console.info('[productos] modo=offline origen=sqlite motivo=prisma_caido');
+      return res.json(obtenerProductosLocalesFiltrados(eliminadosPendientes, {
+        buscar: String(buscar ?? ''),
+        categoriaId: categoriaId ? Number(categoriaId) : undefined,
+        criticos: criticos === 'true',
+      }));
     }
     return next(err);
   }
@@ -361,6 +371,16 @@ function filtrarProductosLocales(
   });
 }
 
+function obtenerProductosLocalesFiltrados(
+  eliminadosPendientes: Set<number>,
+  filtros: { buscar?: string; categoriaId?: number; criticos?: boolean }
+) {
+  const productosLocales = obtenerProductosSqlite()
+    .filter((producto: any) => !eliminadosPendientes.has(Number(producto.id)));
+
+  return filtrarProductosLocales(productosLocales, filtros);
+}
+
 function mezclarProductosLocalesPendientes(remotos: any[], localesPendientes: any[]) {
   if (!localesPendientes.length) return remotos;
 
@@ -392,11 +412,11 @@ function esErrorConexion(err: any) {
   const code = String(err?.code ?? '').toLowerCase();
 
   return (
-    code === 'p1001' ||
+    ['p1001', 'p1002', 'p1008', 'p1017'].includes(code) ||
     mensaje.includes("can't reach database server") ||
-    mensaje.includes('connect') ||
-    mensaje.includes('connection') ||
-    mensaje.includes('timeout') ||
+    mensaje.includes('timed out fetching a new connection') ||
+    mensaje.includes('connection refused') ||
+    mensaje.includes('server has closed the connection') ||
     mensaje.includes('econnrefused') ||
     mensaje.includes('enotfound')
   );

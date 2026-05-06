@@ -103,6 +103,19 @@ export interface AlertaStockDetalle {
 }
 
 // ─── API HELPERS ─────────────────────────────────────────────
+export interface VentaSemanalPunto {
+  date:   string;
+  label:  string;
+  total:  number;
+  ventas: number;
+}
+
+export interface VentaSemanalResumen {
+  dias:         VentaSemanalPunto[];
+  totalPeriodo: number;
+  totalVentas:  number;
+}
+
 export interface ApiError {
   error:   string;
   detalle?: string;

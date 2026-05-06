@@ -109,11 +109,12 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'stockMinimo',
     'activo',
     'creadoEn',
+    'updatedAt',
   ],
-  categoria: ['id', 'nombre', 'descripcion', 'activo'],
+  categoria: ['id', 'nombre', 'descripcion', 'activo', 'updatedAt'],
   // BUG-A03: eliminado 'passwordHash' — el campo correcto en Prisma es 'contrasenaHash'
   usuario: ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo'],
-  stockSucursal: ['id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'actualizadoEn'],
+  stockSucursal: ['id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'actualizadoEn', 'updatedAt'],
   facturaDte: [
     'id',
     'sucursalId',

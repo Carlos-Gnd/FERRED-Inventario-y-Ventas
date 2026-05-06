@@ -52,8 +52,9 @@ export function useNetworkStatus() {
     try {
       const { data } = await api.get('/inventario/sync-pendientes', { timeout: 4000 });
       setSyncState({ pendientes: data.pendientes, sincronizados: data.sincronizados ?? 0, errores: data.errores, lastSync: new Date() });
-    } catch {
-      // Si falla, no actualizar
+    } catch (err) {
+      console.error('[useNetworkStatus] Error al obtener estado de sincronizacion:', err);
+      // Si falla, conservamos el ultimo estado conocido.
     }
   }, [isAuthenticated]);
 
