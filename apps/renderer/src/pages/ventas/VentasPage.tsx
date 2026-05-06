@@ -19,6 +19,7 @@ import type { TipoUnidad } from '../../types';
 import { TIPO_UNIDAD_LABELS } from '../../types';
 import { CantidadInput } from './components/CantidadInput';
 import { TicketModal } from '../ticket-preview/TicketModal';
+import { TicketPrintModal } from '../ticket-preview/TicketPrintModal';
 import { api } from '../../services/api.client';
 import { useAuthStore } from '../../store/authStore';
 import { useElectron } from '../../hooks/useElectron';
@@ -105,13 +106,6 @@ const IcoCheck = () => (
     <polyline points="20 6 9 17 4 12"/>
   </svg>
 );
-const IcoPrint = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-    <polyline points="6 9 6 2 18 2 18 9"/>
-    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-    <rect x="6" y="14" width="12" height="8"/>
-  </svg>
-);
 
 // ── Componente principal ─────────────────────────────────────
 export default function VentasPage() {
@@ -132,12 +126,16 @@ export default function VentasPage() {
   const [carrito, setCarrito] = useState<LineaCarrito[]>([]);
 
   // UI state
-  const [modalTicket,  setModalTicket]  = useState(false);
   const [modalConfirm, setModalConfirm] = useState(false);
   const [confirming,   setConfirming]   = useState(false);
   const [nroFactura,   setNroFactura]   = useState<string | null>(null);
   const [facturaId,    setFacturaId]    = useState<number | null>(null);
   const [toast,        setToast]        = useState<ToastData | null>(null);
+  const [clienteNombreInput, setClienteNombreInput] = useState('');
+  const [clienteNombre,      setClienteNombre]      = useState('Consumidor Final');
+  const [modalCliente,       setModalCliente]       = useState(false);
+  const [modalTicketPrint,   setModalTicketPrint]   = useState(false);
+  const [ventaFecha,         setVentaFecha]         = useState<Date>(new Date());
 
   const showToast = (msg: string, type: ToastData['type']) => {
     setToast({ msg, type });
@@ -257,6 +255,8 @@ export default function VentasPage() {
     setProdSelec(null);
     setNroFactura(null);
     setFacturaId(null);
+    setClienteNombre('Consumidor Final');
+    setClienteNombreInput('');
     setTimeout(() => barcodeRef.current?.focus(), 50);
   }
 
@@ -281,16 +281,17 @@ export default function VentasPage() {
           cantidad:   l.cantidad,
           precioUnit: l.producto.precioVenta,
         })),
-        clienteNombre: 'Consumidor Final',
+        clienteNombre,
         tipoPago:      'efectivo',
       });
 
       const factura = data.factura;
       setNroFactura(`F-${factura.id}`);
       setFacturaId(factura.id);
+      setVentaFecha(new Date());
       setConfirming(false);
       setModalConfirm(false);
-      setModalTicket(true);
+      setModalTicketPrint(true);
     } catch (err: any) {
       setConfirming(false);
       const detalle = err.response?.data?.detalle;
@@ -562,7 +563,7 @@ export default function VentasPage() {
               </div>
             )}
             <Button
-              onClick={() => setModalConfirm(true)}
+              onClick={() => setModalCliente(true)}
               disabled={!hayCarrito || carrito.some(l => l.cantidad > l.producto.stockActual)}
               style={{ width: '100%', justifyContent: 'center', height: '44px' }}
               icon={<IcoCheck />}
@@ -586,24 +587,56 @@ export default function VentasPage() {
         fmt={fmt}
       />
 
-      {/* ── Modal: venta exitosa ─────────────────── */}
+      {/* ── Modal: nombre del cliente ─────────────────────── */}
       <Modal
-        open={modalTicket}
-        onClose={() => { setModalTicket(false); vaciarCarrito(); }}
-        title="Venta registrada!"
-        subtitle={`Factura ${nroFactura ?? ''}`}
-        maxWidth={400}
-        icon={<IcoCheck />}
+        open={modalCliente}
+        onClose={() => setModalCliente(false)}
+        title="¿A nombre de quién?"
+        maxWidth={360}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>✓</div>
-          <p style={{ fontWeight: 600 }}>Venta completada por {fmt(totalFinal)}</p>
-          <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-            <Button variant="ghost" onClick={() => { setModalTicket(false); vaciarCarrito(); }} style={{ flex: 1 }}>Nueva venta</Button>
-            <Button variant="secondary" onClick={handlePrintTicket} icon={<IcoPrint />} style={{ flex: 1 }}>Imprimir ticket</Button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Input
+            value={clienteNombreInput}
+            onChange={setClienteNombreInput}
+            placeholder="Consumidor Final"
+          />
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <Button variant="ghost" onClick={() => setModalCliente(false)} style={{ flex: 1 }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                setClienteNombre(clienteNombreInput.trim() || 'Consumidor Final');
+                setClienteNombreInput('');
+                setModalCliente(false);
+                setModalConfirm(true);
+              }}
+              style={{ flex: 1, justifyContent: 'center' }}
+              icon={<IcoCheck />}
+            >
+              Continuar
+            </Button>
           </div>
         </div>
       </Modal>
+
+      {/* ── Modal: comprobante imprimible ─────────────────── */}
+      {facturaId !== null && nroFactura !== null && (
+        <TicketPrintModal
+          open={modalTicketPrint}
+          onClose={() => { setModalTicketPrint(false); vaciarCarrito(); }}
+          nroFactura={nroFactura}
+          facturaId={facturaId}
+          fecha={ventaFecha}
+          clienteNombre={clienteNombre}
+          cajero={usuario?.nombre ?? 'Cajero'}
+          sucursal={sucursalId !== null ? `#${sucursalId}` : 'Principal'}
+          carrito={carrito}
+          subtotalSinIva={subtotalSinIva}
+          ivaTotal={ivaTotal}
+          totalFinal={totalFinal}
+        />
+      )}
 
       <Toast data={toast} />
     </div>
