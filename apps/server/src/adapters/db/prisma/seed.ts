@@ -57,12 +57,15 @@ async function main() {
   ];
 
   for (const u of seedUsers) {
+    const hash = await bcrypt.hash(u.pass, 12);
     await prisma.usuario.upsert({
-      where: { email: u.email }, update: {},
+      where: { email: u.email },
+      // Forzar actualización del hash para que pnpm db:seed siempre restablezca credenciales
+      update: { contrasenaHash: hash, activo: true },
       create: {
         nombre: u.nombre, email: u.email,
-        contrasenaHash: await bcrypt.hash(u.pass, 12),
-        rol: u.rol, sucursalId: s1.id,
+        contrasenaHash: hash,
+        rol: u.rol, sucursalId: s1.id, activo: true,
       },
     });
   }
