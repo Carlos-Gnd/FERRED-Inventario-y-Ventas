@@ -1,6 +1,7 @@
 'use strict';
 
 const { contextBridge, ipcRenderer } = require('electron');
+const { IPC } = require('./ipc/channels'); // DT-06: canales tipados
 
 // DT-20: wrapper para ipcRenderer.send (síncrono) — evita que un error
 // en el channel rompa silenciosamente el bridge completo.
@@ -29,26 +30,26 @@ function safeListener(channel, cb) {
 contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Info de la app ─────────────────────────────────────────
-  getBranchId:      ()       => ipcRenderer.invoke('get-branch-id'),
-  getAppVersion:    ()       => ipcRenderer.invoke('get-app-version'),
-  getUserDataPath:  ()       => ipcRenderer.invoke('get-user-data-path'),
+  getBranchId:      ()       => ipcRenderer.invoke(IPC.GET_BRANCH_ID),
+  getAppVersion:    ()       => ipcRenderer.invoke(IPC.GET_APP_VERSION),
+  getUserDataPath:  ()       => ipcRenderer.invoke(IPC.GET_USER_DATA_PATH),
 
   // ── Control de ventana (titlebar personalizado) ────────────
-  minimizeWindow:   ()       => safeSend('window-minimize'),
-  maximizeWindow:   ()       => safeSend('window-maximize'),
-  closeWindow:      ()       => safeSend('window-close'),
+  minimizeWindow:   ()       => safeSend(IPC.WINDOW_MINIMIZE),
+  maximizeWindow:   ()       => safeSend(IPC.WINDOW_MAXIMIZE),
+  closeWindow:      ()       => safeSend(IPC.WINDOW_CLOSE),
 
   // ── Impresora térmica POS ──────────────────────────────────
-  printTicket:      (data)   => ipcRenderer.invoke('print-ticket', data),
-  getPrinters:      ()       => ipcRenderer.invoke('get-printers'),
+  printTicket:      (data)   => ipcRenderer.invoke(IPC.PRINT_TICKET, data),
+  getPrinters:      ()       => ipcRenderer.invoke(IPC.GET_PRINTERS),
 
   // ── Estado del servidor embebido ───────────────────────────
-  getServerStatus:  ()       => ipcRenderer.invoke('get-server-status'),
+  getServerStatus:  ()       => ipcRenderer.invoke(IPC.GET_SERVER_STATUS),
 
   // ── Listeners desde main → renderer ───────────────────────
-  onServerReady:    (cb)     => safeListener('server-ready', cb),
-  onSyncStatus:     (cb)     => safeListener('sync-status', cb),
+  onServerReady:    (cb)     => safeListener(IPC.SERVER_READY, cb),
+  onSyncStatus:     (cb)     => safeListener(IPC.SYNC_STATUS, cb),
 
   // ── Estado de sincronizacion offline ──────────────────────
-  getSyncPendientes: () => ipcRenderer.invoke('get-sync-pendientes'),
+  getSyncPendientes: () => ipcRenderer.invoke(IPC.GET_SYNC_PENDIENTES),
 });

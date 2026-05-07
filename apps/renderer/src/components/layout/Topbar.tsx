@@ -200,14 +200,8 @@ export function Topbar() {
   };
 
   return (
-    <header style={{
-      height: '52px',
-      borderBottom: '1px solid var(--border)',
-      background: 'var(--bg-surface)',
-      display: 'flex', alignItems: 'center',
-      padding: '0 20px', gap: '12px',
-      flexShrink: 0,
-    }}>
+    // DT-14: layout estático del header en clase .topbar
+    <header className="topbar">
       {/* Nombre de sucursal */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-subtle)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -226,22 +220,12 @@ export function Topbar() {
           <NetIndicator />
           <LastSyncIndicator />
           {isOnline && (
+            // DT-14: estilos del botón en .topbar-sync-btn / .topbar-sync-btn--syncing
             <button
               onClick={handleSyncNow}
               disabled={isSyncing}
               title={syncError ?? 'Sincronizar ahora'}
-              style={{
-                minHeight: '28px',
-                padding: '0 10px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: isSyncing ? 'var(--bg-elevated)' : 'var(--accent)',
-                color: isSyncing ? 'var(--text-muted)' : '#fff',
-                cursor: isSyncing ? 'wait' : 'pointer',
-                fontSize: '11px',
-                fontWeight: 700,
-                whiteSpace: 'nowrap',
-              }}
+              className={`topbar-sync-btn${isSyncing ? ' topbar-sync-btn--syncing' : ''}`}
             >
               {isSyncing ? 'Sincronizando...' : 'Sincronizar ahora'}
             </button>
@@ -259,13 +243,8 @@ export function Topbar() {
         </div>
       </div>
 
-      {/* Theme toggle */}
-      <button onClick={toggleTheme} style={{
-        width: '32px', height: '32px', borderRadius: '6px',
-        background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px',
-      }} title={isDark ? 'Modo claro' : 'Modo oscuro'}>
+      {/* Theme toggle — DT-14: estilos en .topbar-theme-btn */}
+      <button onClick={toggleTheme} className="topbar-theme-btn" title={isDark ? 'Modo claro' : 'Modo oscuro'}>
         {isDark ? '☀️' : '🌙'}
       </button>
 

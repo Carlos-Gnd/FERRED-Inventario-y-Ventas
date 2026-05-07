@@ -14,6 +14,7 @@
     "db:migrate": "cd apps/server && DATABASE_URL=\"file:../../data/ferred_branch1.db\" pnpm prisma:migrate",
     "db:generate": "cd apps/server && DATABASE_URL=\"file:../../data/ferred_branch1.db\" pnpm prisma:generate",
     "db:seed": "pnpm --filter server db:seed",
+    "db:reseed": "pnpm --filter server db:seed",
     "db:setup": "mkdir -p data && pnpm db:migrate && pnpm db:seed"
   },
   "devDependencies": {

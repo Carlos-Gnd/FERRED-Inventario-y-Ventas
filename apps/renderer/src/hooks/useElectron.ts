@@ -3,7 +3,8 @@
 // Si la app corre en el navegador (sin Electron), todas las funciones
 // retornan valores por defecto o no-ops.
 
-const api = typeof window !== 'undefined' ? (window as any).electronAPI : null;
+// DT-06: window.electronAPI tiene tipo declarado en types/electron.d.ts
+const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
 const IS_ELECTRON = !!api;
 
 export function useElectron() {

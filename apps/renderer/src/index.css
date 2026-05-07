@@ -273,6 +273,23 @@ html, body, #root {
 }
 .quick-btn:hover { background: var(--bg-hover); border-color: var(--accent); }
 
+/* DT-14: clases de Topbar (layout + sync button + theme toggle) */
+.topbar {
+  height: 52px; border-bottom: 1px solid var(--border); background: var(--bg-surface);
+  display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0;
+}
+.topbar-theme-btn {
+  width: 32px; height: 32px; border-radius: 6px; background: var(--bg-elevated);
+  border: 1px solid var(--border); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 14px;
+}
+.topbar-sync-btn {
+  min-height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--accent); color: #fff; cursor: pointer;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.topbar-sync-btn--syncing { background: var(--bg-elevated); color: var(--text-muted); cursor: wait; }
+
 /* ── IMPRESIÓN DE TICKET ─────────────────────────────────── */
 @media print {
   body * { visibility: hidden; }

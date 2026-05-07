@@ -8,6 +8,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 // ── Importar handlers IPC ────────────────────────────────────
 require('./ipc/printer.ipc');
 const { waitForServer } = require('./ipc/server.ipc');
+const { IPC } = require('./ipc/channels');
 
 // ── Config ───────────────────────────────────────────────────
 const DEV_URL    = process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173';
@@ -161,19 +162,19 @@ function buildMenu() {
 }
 
 // ── IPC: básicos desde renderer ──────────────────────────────
-ipcMain.handle('get-branch-id', () => BRANCH_ID);
-ipcMain.handle('get-app-version', () => app.getVersion());
-ipcMain.handle('get-user-data-path', () => app.getPath('userData'));
+ipcMain.handle(IPC.GET_BRANCH_ID,      () => BRANCH_ID);
+ipcMain.handle(IPC.GET_APP_VERSION,    () => app.getVersion());
+ipcMain.handle(IPC.GET_USER_DATA_PATH, () => app.getPath('userData'));
 
-ipcMain.on('window-minimize', () => mainWindow?.minimize());
-ipcMain.on('window-maximize', () => {
+ipcMain.on(IPC.WINDOW_MINIMIZE, () => mainWindow?.minimize());
+ipcMain.on(IPC.WINDOW_MAXIMIZE, () => {
   if (mainWindow?.isMaximized()) mainWindow.unmaximize();
   else mainWindow?.maximize();
 });
-ipcMain.on('window-close', () => mainWindow?.close());
+ipcMain.on(IPC.WINDOW_CLOSE, () => mainWindow?.close());
 
 // ── Contar registros pendientes de sync en SQLite local ──────
-ipcMain.handle('get-sync-pendientes', async () => {
+ipcMain.handle(IPC.GET_SYNC_PENDIENTES, async () => {
   try {
     const port = process.env.PORT || '3001';
     const response = await fetch(`http://127.0.0.1:${port}/sync/pendientes-local`);
