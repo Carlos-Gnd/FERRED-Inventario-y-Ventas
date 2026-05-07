@@ -205,6 +205,21 @@ model DetalleRecepcion {
   @@map("detalles_recepcion")
 }
 
+// ── HU-17: Autenticación de cliente ecommerce ───────────────────
+
+model ClienteEcommerce {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  telefono      String?
+  direccion     String?
+  activo        Boolean  @default(true)
+  fechaRegistro DateTime @default(now()) @map("fecha_registro")
+  pedidos       PedidoOnline[]
+  @@map("clientes_ecommerce")
+}
+
 // ── HU-16: Ecommerce ────────────────────────────────────────────
 
 model ZonaEnvio {
@@ -235,8 +250,9 @@ model PedidoOnline {
   observaciones  String?
   creadoEn       DateTime @default(now()) @map("creado_en")
   actualizadoEn  DateTime @default(now()) @updatedAt @map("actualizado_en")
-  sucursal       Sucursal   @relation(fields: [sucursalId], references: [id])
-  zonaEnvio      ZonaEnvio? @relation(fields: [zonaEnvioId], references: [id])
+  sucursal       Sucursal?         @relation(fields: [sucursalId], references: [id])
+  zonaEnvio      ZonaEnvio?        @relation(fields: [zonaEnvioId], references: [id])
+  cliente        ClienteEcommerce? @relation(fields: [clienteId], references: [id])
   detalles       PedidoOnlineDetalle[]
   @@index([sucursalId, estado])
   @@index([clienteId])
