@@ -254,6 +254,7 @@ model PedidoOnline {
   zonaEnvio      ZonaEnvio?        @relation(fields: [zonaEnvioId], references: [id])
   cliente        ClienteEcommerce? @relation(fields: [clienteId], references: [id])
   detalles       PedidoOnlineDetalle[]
+  pagos          Pago[]
   @@index([sucursalId, estado])
   @@index([clienteId])
   @@map("pedidos_online")
@@ -269,4 +270,23 @@ model PedidoOnlineDetalle {
   pedido     PedidoOnline @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
   producto   Producto     @relation(fields: [productoId], references: [id])
   @@map("pedidos_online_detalle")
+}
+
+// ── HU-18: Pagos en línea ────────────────────────────────────────
+
+model Pago {
+  id              Int       @id @default(autoincrement())
+  pedidoId        Int       @map("pedido_id")
+  metodo          String
+  referencia      String?
+  comprobanteUrl  String?   @map("comprobante_url")
+  monto           Float
+  estado          String    @default("PENDIENTE")
+  motivoRechazo   String?   @map("motivo_rechazo")
+  creadoEn        DateTime  @default(now()) @map("creado_en")
+  validadoEn      DateTime? @map("validado_en")
+  pedido          PedidoOnline @relation(fields: [pedidoId], references: [id])
+  @@unique([pedidoId, estado], name: "pago_pedido_validado_unique", map: "pago_pedido_validado_unique")
+  @@index([pedidoId])
+  @@map("pagos")
 }
