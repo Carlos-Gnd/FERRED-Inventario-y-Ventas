@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { ROLES } from '../../../types/roles';
+import { logPendiente } from '../../sync/sync.service';
 
 export const usuarioRoutes = Router();
 
@@ -117,6 +118,9 @@ usuarioRoutes.post('/', roleMiddleware('ADMIN'), async (req: Request, res: Respo
       data: { nombre, email: emailNorm, contrasenaHash: hash, rol, sucursalId, activo },
       select: { id: true, nombre: true, email: true, rol: true, sucursalId: true, activo: true },
     });
+    await logPendiente('usuario', 'CREATE', {
+      id: nuevo.id, nombre, email: emailNorm, contrasenaHash: hash, rol, sucursalId, activo,
+    }, req.usuario?.id);
 
     return res.status(201).json({ mensaje: 'Usuario creado', usuario: nuevo });
   } catch (err) { return next(err); }
@@ -144,6 +148,9 @@ usuarioRoutes.put('/:id', roleMiddleware('ADMIN'), validarSucursalTarget, async 
       data,
       select: { id: true, nombre: true, email: true, rol: true, sucursalId: true, activo: true },
     });
+    await logPendiente('usuario', 'UPDATE', {
+      id, ...resto, ...(data.contrasenaHash ? { contrasenaHash: data.contrasenaHash } : {}),
+    }, req.usuario?.id);
 
     return res.json({ mensaje: 'Usuario actualizado', usuario: actualizado });
   } catch (err) { return next(err); }
@@ -158,6 +165,7 @@ usuarioRoutes.delete('/:id', roleMiddleware('ADMIN'), validarSucursalTarget, asy
       where: { id },
       data:  { activo: false },
     });
+    await logPendiente('usuario', 'UPDATE', { id, activo: false }, req.usuario?.id);
 
     return res.json({ mensaje: 'Usuario desactivado correctamente' });
   } catch (err) { return next(err); }

@@ -58,6 +58,7 @@ proveedorRoutes.post('/', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request
     }
 
     const nuevo = await prisma.proveedor.create({ data: parsed.data });
+    await logPendiente('proveedor', 'CREATE', { id: nuevo.id, ...parsed.data }, req.usuario?.id);
     return res.status(201).json({ mensaje: 'Proveedor creado', proveedor: nuevo });
   } catch (err) { return next(err); }
 });
@@ -70,6 +71,7 @@ proveedorRoutes.put('/:id', roleMiddleware('ADMIN', 'BODEGA'), async (req: Reque
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
 
     const actualizado = await prisma.proveedor.update({ where: { id }, data: parsed.data });
+    await logPendiente('proveedor', 'UPDATE', { id, ...parsed.data }, req.usuario?.id);
     return res.json({ mensaje: 'Proveedor actualizado', proveedor: actualizado });
   } catch (err) { return next(err); }
 });
@@ -80,6 +82,7 @@ proveedorRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res
   try {
     const id = Number(req.params.id);
     await prisma.proveedor.update({ where: { id }, data: { activo: false } });
+    await logPendiente('proveedor', 'UPDATE', { id, activo: false }, req.usuario?.id);
     return res.json({ mensaje: 'Proveedor desactivado' });
   } catch (err) { return next(err); }
 });
