@@ -256,8 +256,18 @@ inventarioRoutes.patch(
       const minimo     = Number(req.body.minimo ?? 0);
       const motivo     = req.body.motivo as string | undefined;
 
-      if (!Number.isFinite(cantidad)) return res.status(400).json({ error: 'cantidad inválida' });
-      if (!sucursalId)                return res.status(400).json({ error: 'sucursalId requerido' });
+      // BUG-NUEVO-C: validar productoId antes de usarlo
+      if (!Number.isFinite(productoId) || productoId < 1) {
+        return res.status(400).json({ error: 'productoId inválido' });
+      }
+      // BUG-NUEVO-A: el stock físico nunca puede ser negativo
+      if (!Number.isFinite(cantidad) || cantidad < 0) {
+        return res.status(400).json({ error: 'cantidad inválida — debe ser ≥ 0' });
+      }
+      if (!Number.isFinite(minimo) || minimo < 0) {
+        return res.status(400).json({ error: 'minimo inválido — debe ser ≥ 0' });
+      }
+      if (!sucursalId) return res.status(400).json({ error: 'sucursalId requerido' });
 
       if (!assertSameSucursal(req, res, sucursalId)) return;
 
@@ -296,15 +306,23 @@ inventarioRoutes.post(
   roleMiddleware('ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { productoId, origenId, destinoId, cantidad } = req.body as {
-        productoId: number;
-        origenId:   number;
-        destinoId:  number;
-        cantidad:   number;
-      };
+      // BUG-NUEVO-E: validar todos los parámetros antes de usarlos
+      const productoId = Number(req.body.productoId);
+      const origenId   = Number(req.body.origenId);
+      const destinoId  = Number(req.body.destinoId);
+      const cantidad   = Number(req.body.cantidad);
 
-      if (!productoId || !origenId || !destinoId || !cantidad || cantidad <= 0) {
-        return res.status(400).json({ error: 'Datos de transferencia inválidos' });
+      if (!Number.isFinite(productoId) || productoId < 1) {
+        return res.status(400).json({ error: 'productoId inválido' });
+      }
+      if (!Number.isFinite(origenId) || origenId < 1) {
+        return res.status(400).json({ error: 'origenId inválido' });
+      }
+      if (!Number.isFinite(destinoId) || destinoId < 1) {
+        return res.status(400).json({ error: 'destinoId inválido' });
+      }
+      if (!Number.isFinite(cantidad) || cantidad <= 0) {
+        return res.status(400).json({ error: 'cantidad inválida — debe ser > 0' });
       }
 
       if (origenId === destinoId) {

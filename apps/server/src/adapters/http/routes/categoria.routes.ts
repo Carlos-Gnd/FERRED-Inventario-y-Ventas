@@ -54,6 +54,8 @@ categoriaRoutes.post('/', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request
 categoriaRoutes.put('/:id', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
+    // BUG-NUEVO-G: validar id antes de usarlo
+    if (isNaN(id) || id < 1) return res.status(400).json({ error: 'id inválido' });
     const parsed = schema.partial().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
 

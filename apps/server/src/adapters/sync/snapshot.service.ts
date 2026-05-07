@@ -244,7 +244,10 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
 
   const now   = new Date();
 
-  const [categorias, productos, usuarios, proveedores, facturas, recepciones] =
+  // BUG-NUEVO-D: usuarios no tiene updatedAt → siempre re-sincronizar TODOS los
+  // usuarios de la sucursal para que desactivaciones propaguen en ≤5 min.
+  // Las tablas con updatedAt siguen el camino delta normal.
+  const [categorias, productos, proveedores, facturas, recepciones, usuarios] =
     await Promise.all([
       // updatedAt cubre CREATE y UPDATE en categorias y productos
       prisma.categoria.findMany({ where: { updatedAt: { gte: since } } }),
@@ -252,8 +255,6 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
         where:   { updatedAt: { gte: since } },
         include: { stocks: { where: { sucursalId } } },
       }),
-      // usuarios no tiene updatedAt → filtrar por creadoEn (solo nuevos)
-      prisma.usuario.findMany({ where: { sucursalId, creadoEn: { gte: since } } }),
       // proveedores no tiene updatedAt → filtrar por creadoEn (solo nuevos)
       prisma.proveedor.findMany({ where: { creadoEn: { gte: since } } }),
       prisma.facturaDte.findMany({
@@ -264,6 +265,8 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
         where:   { sucursalId, creadoEn: { gte: since } },
         include: { detalles: true },
       }),
+      // Siempre todos los usuarios de la sucursal (sin filtro por fecha)
+      prisma.usuario.findMany({ where: { sucursalId } }),
     ]);
 
   const hayDelta = categorias.length > 0 || productos.length > 0 || usuarios.length > 0
@@ -311,7 +314,7 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
       }
     }
 
-    // ── Usuarios ──────────────────────────────────────────────────────────
+    // ── Usuarios: re-sync completo + GAP-4 para propagar desactivaciones ──
     const stmtUser = db.prepare(`
       INSERT OR REPLACE INTO usuarios
         (id, sucursal_id, nombre, email, contrasena_hash, rol, activo, last_synced_at)
@@ -323,6 +326,13 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
         u.contrasenaHash, u.rol, u.activo ? 1 : 0,
         now.toISOString(),
       );
+    }
+    // GAP-4 para usuarios: desactivar en SQLite los que ya no existen/están activos en nube
+    if (usuarios.length > 0) {
+      const ph  = usuarios.map(() => '?').join(',');
+      const ids = usuarios.map(u => u.id);
+      db.prepare(`UPDATE usuarios SET activo = 0 WHERE sucursal_id = ? AND id NOT IN (${ph}) AND activo = 1`)
+        .run(sucursalId, ...ids);
     }
 
     // ── GAP-2: Proveedores nuevos ─────────────────────────────────────────
@@ -406,7 +416,8 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
 }
 
 export function getLastSnapshotAt(sucursalId: number): Date | null {
-  return lastRefresh.get(sucursalId) ?? null;
+  const db = getSqliteDb();
+  return getLastRefresh(db, sucursalId);
 }
 
 export const SnapshotService = {

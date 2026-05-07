@@ -60,6 +60,142 @@
     logPendienteSqlite(tabla, operacion, payload);
   }
 
+  // ── DT-09: SQL queries como constantes nombradas ─────────────────────────────
+
+  const SQL_OBTENER_PRODUCTOS = `
+    SELECT
+      p.id,
+      p.categoria_id AS categoriaId,
+      c.nombre AS categoriaNombre,
+      p.nombre,
+      p.codigo_barras AS codigoBarras,
+      p.tipo_unidad AS tipoUnidad,
+      p.precio_compra AS precioCompra,
+      p.porcentaje_ganancia AS porcentajeGanancia,
+      p.precio_venta AS precioVenta,
+      p.precio_con_iva AS precioConIva,
+      p.tiene_iva AS tieneIva,
+      p.stock_actual AS stockActual,
+      p.stock_minimo AS stockMinimo,
+      p.activo
+    FROM productos p
+    LEFT JOIN categorias c ON c.id = p.categoria_id
+    WHERE p.activo = ?
+    ORDER BY p.nombre ASC
+  `;
+
+  const SQL_OBTENER_CATEGORIAS = `
+    SELECT
+      c.id,
+      c.nombre,
+      c.descripcion,
+      COUNT(p.id) AS nProductos
+    FROM categorias c
+    LEFT JOIN productos p ON p.categoria_id = c.id
+    WHERE c.activo = ?
+    GROUP BY c.id, c.nombre, c.descripcion
+    ORDER BY c.nombre ASC
+  `;
+
+  const SQL_OBTENER_STOCK_SUCURSAL = `
+    SELECT
+      ss.id,
+      ss.producto_id AS productoId,
+      ss.sucursal_id AS sucursalId,
+      ss.cantidad,
+      ss.minimo,
+      ss.actualizado_en AS actualizadoEn,
+      p.nombre AS productoNombre,
+      p.codigo_barras AS codigoBarras,
+      p.precio_venta AS precioVenta,
+      p.precio_con_iva AS precioConIva,
+      p.tiene_iva AS tieneIva,
+      p.tipo_unidad AS tipoUnidad,
+      p.activo AS productoActivo,
+      c.nombre AS categoriaNombre
+    FROM stock_sucursal ss
+    INNER JOIN productos p ON p.id = ss.producto_id
+    LEFT JOIN categorias c ON c.id = p.categoria_id
+    WHERE ss.sucursal_id = ?
+    ORDER BY p.nombre ASC
+  `;
+
+  const SQL_OBTENER_RECEPCIONES = `
+    SELECT
+      r.id,
+      r.total,
+      r.numero_factura AS numeroFactura,
+      r.observaciones,
+      r.creado_en AS creadoEn,
+      p.id AS proveedorId,
+      p.nombre AS proveedorNombre,
+      p.nit AS proveedorNit,
+      p.telefono AS proveedorTelefono,
+      p.email AS proveedorEmail,
+      p.direccion AS proveedorDireccion,
+      s.id AS sucursalId,
+      s.nombre AS sucursalNombre,
+      u.id AS usuarioId,
+      u.nombre AS usuarioNombre,
+      COUNT(d.id) AS detallesCount
+    FROM recepciones_mercancia r
+    LEFT JOIN proveedores p ON p.id = r.proveedor_id
+    LEFT JOIN sucursales s ON s.id = r.sucursal_id
+    LEFT JOIN usuarios u ON u.id = r.usuario_id
+    LEFT JOIN detalles_recepcion d ON d.recepcion_id = r.id
+    WHERE (? IS NULL OR r.sucursal_id = ?)
+    GROUP BY
+      r.id, r.total, r.numero_factura, r.observaciones, r.creado_en,
+      p.id, p.nombre, p.nit, p.telefono, p.email, p.direccion,
+      s.id, s.nombre,
+      u.id, u.nombre
+    ORDER BY r.creado_en DESC
+    LIMIT 100
+  `;
+
+  const SQL_OBTENER_RECEPCION_HEADER = `
+    SELECT
+      r.id,
+      r.total,
+      r.numero_factura AS numeroFactura,
+      r.observaciones,
+      r.creado_en AS creadoEn,
+      r.sucursal_id AS sucursalId,
+      p.id AS proveedorId,
+      p.nombre AS proveedorNombre,
+      p.nit AS proveedorNit,
+      p.telefono AS proveedorTelefono,
+      p.email AS proveedorEmail,
+      p.direccion AS proveedorDireccion,
+      s.id AS sucursalRefId,
+      s.nombre AS sucursalNombre,
+      u.id AS usuarioId,
+      u.nombre AS usuarioNombre
+    FROM recepciones_mercancia r
+    LEFT JOIN proveedores p ON p.id = r.proveedor_id
+    LEFT JOIN sucursales s ON s.id = r.sucursal_id
+    LEFT JOIN usuarios u ON u.id = r.usuario_id
+    WHERE r.id = ?
+  `;
+
+  const SQL_OBTENER_DETALLES_RECEPCION = `
+    SELECT
+      d.id,
+      d.cantidad,
+      d.costo_unit AS costoUnit,
+      d.subtotal,
+      pr.id AS productoId,
+      pr.nombre AS productoNombre,
+      pr.tipo_unidad AS tipoUnidad,
+      pr.codigo_barras AS codigoBarras
+    FROM detalles_recepcion d
+    LEFT JOIN productos pr ON pr.id = d.producto_id
+    WHERE d.recepcion_id = ?
+    ORDER BY d.id ASC
+  `;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
   export function crearProductoSqlite(data: any, sucursalId?: number) {
     const db = getSqliteDb();
 
@@ -122,27 +258,7 @@
   export function obtenerProductosSqlite() {
     const db = getSqliteDb();
 
-    const productos = db.prepare(`
-      SELECT
-        p.id,
-        p.categoria_id AS categoriaId,
-        c.nombre AS categoriaNombre,
-        p.nombre,
-        p.codigo_barras AS codigoBarras,
-        p.tipo_unidad AS tipoUnidad,
-        p.precio_compra AS precioCompra,
-        p.porcentaje_ganancia AS porcentajeGanancia,
-        p.precio_venta AS precioVenta,
-        p.precio_con_iva AS precioConIva,
-        p.tiene_iva AS tieneIva,
-        p.stock_actual AS stockActual,
-        p.stock_minimo AS stockMinimo,
-        p.activo
-      FROM productos p
-      LEFT JOIN categorias c ON c.id = p.categoria_id
-      WHERE p.activo = ?
-      ORDER BY p.nombre ASC
-    `).all(1);
+    const productos = db.prepare(SQL_OBTENER_PRODUCTOS).all(1);
 
     return productos.map(productoLocalResponse);
   }
@@ -150,18 +266,7 @@
   export function obtenerCategoriasSqlite() {
     const db = getSqliteDb();
 
-    const categorias = db.prepare(`
-      SELECT
-        c.id,
-        c.nombre,
-        c.descripcion,
-        COUNT(p.id) AS nProductos
-      FROM categorias c
-      LEFT JOIN productos p ON p.categoria_id = c.id
-      WHERE c.activo = ?
-      GROUP BY c.id, c.nombre, c.descripcion
-      ORDER BY c.nombre ASC
-    `).all(1) as any[];
+    const categorias = db.prepare(SQL_OBTENER_CATEGORIAS).all(1) as any[];
 
     return categorias.map((row) => ({
       id: Number(row.id),
@@ -174,28 +279,7 @@
   export function obtenerStockSucursalSqlite(sucursalId: number) {
     const db = getSqliteDb();
 
-    const stocks = db.prepare(`
-      SELECT
-        ss.id,
-        ss.producto_id AS productoId,
-        ss.sucursal_id AS sucursalId,
-        ss.cantidad,
-        ss.minimo,
-        ss.actualizado_en AS actualizadoEn,
-        p.nombre AS productoNombre,
-        p.codigo_barras AS codigoBarras,
-        p.precio_venta AS precioVenta,
-        p.precio_con_iva AS precioConIva,
-        p.tiene_iva AS tieneIva,
-        p.tipo_unidad AS tipoUnidad,
-        p.activo AS productoActivo,
-        c.nombre AS categoriaNombre
-      FROM stock_sucursal ss
-      INNER JOIN productos p ON p.id = ss.producto_id
-      LEFT JOIN categorias c ON c.id = p.categoria_id
-      WHERE ss.sucursal_id = ?
-      ORDER BY p.nombre ASC
-    `).all(sucursalId) as any[];
+    const stocks = db.prepare(SQL_OBTENER_STOCK_SUCURSAL).all(sucursalId) as any[];
 
     return stocks.map((row) => ({
       id: Number(row.id),
@@ -374,38 +458,7 @@
   export function obtenerRecepcionesSqlite(sucursalId?: number) {
     const db = getSqliteDb();
 
-    const rows = db.prepare(`
-      SELECT
-        r.id,
-        r.total,
-        r.numero_factura AS numeroFactura,
-        r.observaciones,
-        r.creado_en AS creadoEn,
-        p.id AS proveedorId,
-        p.nombre AS proveedorNombre,
-        p.nit AS proveedorNit,
-        p.telefono AS proveedorTelefono,
-        p.email AS proveedorEmail,
-        p.direccion AS proveedorDireccion,
-        s.id AS sucursalId,
-        s.nombre AS sucursalNombre,
-        u.id AS usuarioId,
-        u.nombre AS usuarioNombre,
-        COUNT(d.id) AS detallesCount
-      FROM recepciones_mercancia r
-      LEFT JOIN proveedores p ON p.id = r.proveedor_id
-      LEFT JOIN sucursales s ON s.id = r.sucursal_id
-      LEFT JOIN usuarios u ON u.id = r.usuario_id
-      LEFT JOIN detalles_recepcion d ON d.recepcion_id = r.id
-      WHERE (? IS NULL OR r.sucursal_id = ?)
-      GROUP BY
-        r.id, r.total, r.numero_factura, r.observaciones, r.creado_en,
-        p.id, p.nombre, p.nit, p.telefono, p.email, p.direccion,
-        s.id, s.nombre,
-        u.id, u.nombre
-      ORDER BY r.creado_en DESC
-      LIMIT 100
-    `).all(sucursalId ?? null, sucursalId ?? null) as any[];
+    const rows = db.prepare(SQL_OBTENER_RECEPCIONES).all(sucursalId ?? null, sucursalId ?? null) as any[];
 
     return rows.map((row) => ({
       id: Number(row.id),
@@ -429,48 +482,11 @@
   export function obtenerRecepcionDetalleSqlite(id: number) {
     const db = getSqliteDb();
 
-    const recepcion = db.prepare(`
-      SELECT
-        r.id,
-        r.total,
-        r.numero_factura AS numeroFactura,
-        r.observaciones,
-        r.creado_en AS creadoEn,
-        r.sucursal_id AS sucursalId,
-        p.id AS proveedorId,
-        p.nombre AS proveedorNombre,
-        p.nit AS proveedorNit,
-        p.telefono AS proveedorTelefono,
-        p.email AS proveedorEmail,
-        p.direccion AS proveedorDireccion,
-        s.id AS sucursalRefId,
-        s.nombre AS sucursalNombre,
-        u.id AS usuarioId,
-        u.nombre AS usuarioNombre
-      FROM recepciones_mercancia r
-      LEFT JOIN proveedores p ON p.id = r.proveedor_id
-      LEFT JOIN sucursales s ON s.id = r.sucursal_id
-      LEFT JOIN usuarios u ON u.id = r.usuario_id
-      WHERE r.id = ?
-    `).get(id) as any;
+    const recepcion = db.prepare(SQL_OBTENER_RECEPCION_HEADER).get(id) as any;
 
     if (!recepcion) return null;
 
-    const detalles = db.prepare(`
-      SELECT
-        d.id,
-        d.cantidad,
-        d.costo_unit AS costoUnit,
-        d.subtotal,
-        pr.id AS productoId,
-        pr.nombre AS productoNombre,
-        pr.tipo_unidad AS tipoUnidad,
-        pr.codigo_barras AS codigoBarras
-      FROM detalles_recepcion d
-      LEFT JOIN productos pr ON pr.id = d.producto_id
-      WHERE d.recepcion_id = ?
-      ORDER BY d.id ASC
-    `).all(id) as any[];
+    const detalles = db.prepare(SQL_OBTENER_DETALLES_RECEPCION).all(id) as any[];
 
     return {
       id: Number(recepcion.id),
