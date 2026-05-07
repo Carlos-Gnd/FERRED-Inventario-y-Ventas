@@ -51,4 +51,9 @@ export const env = {
     // BUG-A09: fallback unificado con ferred_branch{BRANCH_ID}.db igual que Electron
     path: process.env.SQLITE_PATH ?? sqliteFallback,
   },
+
+  offline: {
+    // T-07F.3: días máximos sin sincronizar antes de rechazar login offline
+    authMaxDays: Number(process.env.OFFLINE_AUTH_MAX_DAYS ?? 30),
+  },
 } as const;
