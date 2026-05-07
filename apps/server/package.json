@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && cp src/adapters/db/sqlite/sqlite.schema.sql dist/adapters/db/sqlite/sqlite.schema.sql",
+    "build": "tsc && node -e \"const fs=require('fs'); fs.mkdirSync('dist/adapters/db/sqlite',{recursive:true}); fs.copyFileSync('src/adapters/db/sqlite/sqlite.schema.sql','dist/adapters/db/sqlite/sqlite.schema.sql');\"",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate",
