@@ -15,10 +15,12 @@ model Sucursal {
   nombre      String
   direccion   String?
   telefono    String?
-  usuarios    Usuario[]
-  facturas    FacturaDte[]
-  stocks      StockSucursal[]
-  recepciones RecepcionMercancia[]
+  usuarios       Usuario[]
+  facturas       FacturaDte[]
+  stocks         StockSucursal[]
+  recepciones    RecepcionMercancia[]
+  zonasEnvio     ZonaEnvio[]
+  pedidosOnline  PedidoOnline[]
   @@map("sucursales")
 }
 
@@ -65,9 +67,10 @@ model Producto {
   creadoEn           DateTime @default(now()) @map("creado_en")
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
   categoria          Categoria?    @relation(fields: [categoriaId], references: [id])
-  detallesVenta      DetalleVenta[]
-  stocks             StockSucursal[]
-  detallesRecepcion  DetalleRecepcion[]
+  detallesVenta         DetalleVenta[]
+  stocks                StockSucursal[]
+  detallesRecepcion     DetalleRecepcion[]
+  detallesPedidoOnline  PedidoOnlineDetalle[]
   @@map("productos")
 }
 
@@ -75,9 +78,10 @@ model StockSucursal {
   id            Int      @id @default(autoincrement())
   productoId    Int      @map("producto_id")
   sucursalId    Int      @map("sucursal_id")
-  cantidad      Int      @default(0)
-  minimo        Int      @default(0)
-  actualizadoEn DateTime @default(now()) @updatedAt @map("actualizado_en")
+  cantidad        Int      @default(0)
+  minimo          Int      @default(0)
+  stockReservado  Int      @default(0) @map("stock_reservado")
+  actualizadoEn   DateTime @default(now()) @updatedAt @map("actualizado_en")
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
   producto      Producto  @relation(fields: [productoId], references: [id])
   sucursal      Sucursal  @relation(fields: [sucursalId], references: [id])
@@ -175,4 +179,90 @@ model DetalleRecepcion {
   recepcion   RecepcionMercancia @relation(fields: [recepcionId], references: [id], onDelete: Cascade)
   producto    Producto           @relation(fields: [productoId], references: [id])
   @@map("detalles_recepcion")
+}
+
+// ── HU-17: Autenticación de cliente ecommerce ───────────────────
+
+model ClienteEcommerce {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  telefono      String?
+  direccion     String?
+  activo        Boolean  @default(true)
+  fechaRegistro DateTime @default(now()) @map("fecha_registro")
+  pedidos       PedidoOnline[]
+  @@map("clientes_ecommerce")
+}
+
+// ── HU-16: Ecommerce ────────────────────────────────────────────
+
+model ZonaEnvio {
+  id                 Int       @id @default(autoincrement())
+  nombre             String
+  descripcion        String?
+  sucursalPreferente Int?      @map("sucursal_id_preferente")
+  costoEnvio         Float     @default(0) @map("costo_envio")
+  activo             Boolean   @default(true)
+  sucursal           Sucursal? @relation(fields: [sucursalPreferente], references: [id])
+  pedidos            PedidoOnline[]
+  @@map("zonas_envio")
+}
+
+model PedidoOnline {
+  id             Int      @id @default(autoincrement())
+  clienteId      Int?     @map("cliente_id")
+  sucursalId     Int      @map("sucursal_id")
+  zonaEnvioId    Int?     @map("zona_envio_id")
+  tipoEntrega    String   @default("RETIRO") @map("tipo_entrega")
+  estado         String   @default("RECIBIDO")
+  clienteNombre  String?  @map("cliente_nombre")
+  clienteTel     String?  @map("cliente_tel")
+  direccionEnvio String?  @map("direccion_envio")
+  subtotal       Float    @default(0)
+  costoEnvio     Float    @default(0) @map("costo_envio")
+  total          Float    @default(0)
+  observaciones  String?
+  creadoEn       DateTime @default(now()) @map("creado_en")
+  actualizadoEn  DateTime @default(now()) @updatedAt @map("actualizado_en")
+  sucursal       Sucursal?         @relation(fields: [sucursalId], references: [id])
+  zonaEnvio      ZonaEnvio?        @relation(fields: [zonaEnvioId], references: [id])
+  cliente        ClienteEcommerce? @relation(fields: [clienteId], references: [id])
+  detalles       PedidoOnlineDetalle[]
+  pagos          Pago[]
+  @@index([sucursalId, estado])
+  @@index([clienteId])
+  @@map("pedidos_online")
+}
+
+model PedidoOnlineDetalle {
+  id         Int    @id @default(autoincrement())
+  pedidoId   Int    @map("pedido_id")
+  productoId Int    @map("producto_id")
+  cantidad   Float
+  precioUnit Float  @map("precio_unit")
+  subtotal   Float
+  pedido     PedidoOnline @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  producto   Producto     @relation(fields: [productoId], references: [id])
+  @@map("pedidos_online_detalle")
+}
+
+// ── HU-18: Pagos en línea ────────────────────────────────────────
+
+model Pago {
+  id              Int       @id @default(autoincrement())
+  pedidoId        Int       @map("pedido_id")
+  metodo          String
+  referencia      String?
+  comprobanteUrl  String?   @map("comprobante_url")
+  monto           Float
+  estado          String    @default("PENDIENTE")
+  motivoRechazo   String?   @map("motivo_rechazo")
+  creadoEn        DateTime  @default(now()) @map("creado_en")
+  validadoEn      DateTime? @map("validado_en")
+  pedido          PedidoOnline @relation(fields: [pedidoId], references: [id])
+  @@unique([pedidoId, estado], name: "pago_pedido_validado_unique", map: "pago_pedido_validado_unique")
+  @@index([pedidoId])
+  @@map("pagos")
 }
