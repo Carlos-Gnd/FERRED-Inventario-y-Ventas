@@ -82,16 +82,8 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     const { sucursalId, items, clienteNombre, tipoPago } = parsed.data;
     const usuarioId = req.usuario?.id;
 
-    // BUG-21 FIX: fail-closed cross-sucursal. Un no-ADMIN sin sucursal asignada
-    // no puede vender; si la tiene, debe coincidir con la sucursalId del body.
-    if (req.usuario?.rol !== 'ADMIN') {
-      if (!req.usuario?.sucursalId) {
-        return res.status(403).json({ error: 'Tu usuario no tiene sucursal asignada' });
-      }
-      if (req.usuario.sucursalId !== sucursalId) {
-        return res.status(403).json({ error: 'No podés registrar ventas en otra sucursal' });
-      }
-    }
+    // DT-08: usa assertSameSucursal (fail-closed) en vez de checks inline
+    if (!assertSameSucursal(req, res, sucursalId)) return;
 
     // Validación previa: existencia de productos
     const productosIds = items.map(i => i.productoId);
