@@ -13,6 +13,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import type { AlertaStockDetalle, UserRole, VentaSemanalPunto, VentaSemanalResumen } from '../../types';
 import { CriticalStockModalContent } from './CriticalStockModalContent';
+import { StockCard, SkeletonCard } from './StockCard';
 
 interface Stats { productos: number; usuarios: number; categorias: number; }
 
@@ -253,11 +254,7 @@ export default function DashboardPage() {
       >
         {/* Tarjetas genéricas */}
         {STATS.map(s => (
-          <div key={s.label} style={{
-            background: 'var(--bg-surface)', border: '1px solid var(--border)',
-            borderRadius: '10px', padding: '20px',
-            display: 'flex', flexDirection: 'column', gap: '10px',
-          }}>
+          <div key={s.label} className="stat-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <span style={{ fontSize: '20px' }}>{s.icon}</span>
               <span style={{ fontSize: '11px', fontWeight: 600, color: s.color }}>{s.trend}</span>
@@ -325,35 +322,17 @@ export default function DashboardPage() {
           <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Accesos Rápidos</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {rol !== 'CAJERO' && (
-              <button onClick={() => navigate('/productos')} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '12px', borderRadius: '8px', textDecoration: 'none',
-                background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600,
-                cursor: 'pointer', width: '100%', textAlign: 'left',
-              }}>
+              <button className="quick-btn" onClick={() => navigate('/productos')}>
                 <span style={{ fontSize: '18px' }}>📦</span> Inventario
               </button>
             )}
             {(rol === 'ADMIN' || rol === 'CAJERO') && (
-              <button onClick={() => navigate('/ventas')} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '12px', borderRadius: '8px', textDecoration: 'none',
-                background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600,
-                cursor: 'pointer', width: '100%', textAlign: 'left',
-              }}>
+              <button className="quick-btn" onClick={() => navigate('/ventas')}>
                 <span style={{ fontSize: '18px' }}>🛒</span> Ventas
               </button>
             )}
             {rol === 'ADMIN' && (
-              <button onClick={() => navigate('/usuarios')} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '12px', borderRadius: '8px', textDecoration: 'none',
-                background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600,
-                cursor: 'pointer', width: '100%', textAlign: 'left',
-              }}>
+              <button className="quick-btn" onClick={() => navigate('/usuarios')}>
                 <span style={{ fontSize: '18px' }}>👥</span> Usuarios
               </button>
             )}
@@ -386,154 +365,5 @@ export default function DashboardPage() {
   );
 }
 
-// ── Componente: tarjeta de stock crítico por sucursal (diseño Figma) ─────────
-interface StockCardProps {
-  sucursalNombre: string;
-  criticos:       number;
-  onClick:        () => void;
-  loading?:       boolean;
-}
 
-function StockCard({ sucursalNombre, criticos, onClick, loading = false }: StockCardProps) {
-  const tieneCriticos = criticos > 0;
-
-  const dangerColor  = '#ef4444';
-  const successColor = '#10b981';
-  const estadoColor  = tieneCriticos ? dangerColor : successColor;
-  const estadoLabel  = tieneCriticos ? 'Crítico' : 'OK';
-
-  return (
-    <div
-      onClick={onClick}
-      title="Ver página de Stock"
-      style={{
-        background:    'var(--bg-surface)',
-        border:        `1px solid ${tieneCriticos ? 'rgba(239,68,68,0.30)' : 'var(--border)'}`,
-        borderRadius:  '12px',
-        padding:       '20px',
-        display:       'flex',
-        flexDirection: 'column',
-        gap:           '14px',
-        cursor:        'pointer',
-        transition:    'border-color 0.2s, box-shadow 0.2s',
-        boxShadow:     tieneCriticos
-          ? '0 0 0 1px rgba(239,68,68,0.08), 0 2px 8px rgba(0,0,0,0.2)'
-          : '0 2px 8px rgba(0,0,0,0.15)',
-        opacity:       loading ? 0.5 : 1,
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = tieneCriticos
-          ? 'rgba(239,68,68,0.6)' : 'var(--accent)';
-        (e.currentTarget as HTMLDivElement).style.boxShadow = tieneCriticos
-          ? '0 0 0 2px rgba(239,68,68,0.15), 0 4px 12px rgba(0,0,0,0.25)'
-          : '0 0 0 2px rgba(59,130,246,0.15), 0 4px 12px rgba(0,0,0,0.2)';
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = tieneCriticos
-          ? 'rgba(239,68,68,0.30)' : 'var(--border)';
-        (e.currentTarget as HTMLDivElement).style.boxShadow = tieneCriticos
-          ? '0 0 0 1px rgba(239,68,68,0.08), 0 2px 8px rgba(0,0,0,0.2)'
-          : '0 2px 8px rgba(0,0,0,0.15)';
-      }}
-    >
-      {/* Fila superior: icono + nombre de sucursal | badge estado */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-        {/* Icono + nombre */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width:          '36px',
-            height:         '36px',
-            borderRadius:   '8px',
-            background:     tieneCriticos ? 'rgba(239,68,68,0.18)' : 'rgba(16,185,129,0.15)',
-            display:        'flex',
-            alignItems:     'center',
-            justifyContent: 'center',
-            flexShrink:     0,
-          }}>
-            {tieneCriticos ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-                  stroke={dangerColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="12" y1="9" x2="12" y2="13" stroke={dangerColor} strokeWidth="2" strokeLinecap="round"/>
-                <line x1="12" y1="17" x2="12.01" y2="17" stroke={dangerColor} strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M20 6L9 17l-5-5" stroke={successColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            )}
-          </div>
-
-          <span style={{
-            fontSize:   '14px',
-            fontWeight: 600,
-            color:      'var(--text-primary)',
-            lineHeight: '1.2',
-          }}>
-            {sucursalNombre}
-          </span>
-        </div>
-
-        {/* Badge estado */}
-        <span style={{
-          fontSize:      '11px',
-          fontWeight:    700,
-          color:         estadoColor,
-          background:    tieneCriticos ? 'rgba(239,68,68,0.1)'  : 'rgba(16,185,129,0.1)',
-          border:        `1px solid ${tieneCriticos ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
-          borderRadius:  '20px',
-          padding:       '3px 10px',
-          letterSpacing: '0.02em',
-        }}>
-          {estadoLabel}
-        </span>
-      </div>
-
-      {/* Subtítulo */}
-      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '-4px' }}>
-        Stock bajo
-      </div>
-
-      {/* Conteo principal */}
-      <div style={{
-        fontSize:   '26px',
-        fontWeight: 700,
-        color:      'var(--text-primary)',
-        fontFamily: 'JetBrains Mono, monospace',
-        lineHeight: '1',
-      }}>
-        {loading ? '—' : `${criticos} items`}
-      </div>
-    </div>
-  );
-}
-
-// ── Skeleton de tarjeta mientras carga ──────────────────────────────────────
-function SkeletonCard() {
-  return (
-    <div style={{
-      background:    'var(--bg-surface)',
-      border:        '1px solid var(--border)',
-      borderRadius:  '12px',
-      padding:       '20px',
-      display:       'flex',
-      flexDirection: 'column',
-      gap:           '14px',
-    }}>
-      {/* Fila superior */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-          <div style={{ width: '100px', height: '14px', borderRadius: '6px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-        </div>
-        <div style={{ width: '52px', height: '22px', borderRadius: '20px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-      </div>
-      {/* Subtítulo */}
-      <div style={{ width: '60px', height: '12px', borderRadius: '6px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-      {/* Conteo */}
-      <div style={{ width: '90px', height: '26px', borderRadius: '6px', background: 'var(--border)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-    </div>
-  );
-}
 

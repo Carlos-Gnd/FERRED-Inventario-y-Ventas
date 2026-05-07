@@ -291,15 +291,8 @@ export default function ProductsPage() {
               const isCrit = p.stockActual === 0;
               return (
                 <tr key={p.id}
+                  className={`tbl-row${selected === p.id ? ' tbl-row--sel' : ''}${isCrit ? ' tbl-row--crit' : ''}`}
                   onClick={() => setSelected(s => s === p.id ? null : p.id)}
-                  style={{
-                    borderTop: '1px solid var(--border)',
-                    background: selected === p.id ? 'var(--accent-glow)' : isCrit ? 'rgba(239,68,68,0.04)' : 'transparent',
-                    cursor: 'pointer', transition: 'background 0.12s ease',
-                    borderLeft: isCrit ? '2px solid var(--danger)' : '2px solid transparent',
-                  }}
-                  onMouseEnter={e => { if (selected !== p.id) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = selected === p.id ? 'var(--accent-glow)' : isCrit ? 'rgba(239,68,68,0.04)' : 'transparent'; }}
                 >
                   <td style={{ padding: '12px 16px' }}><input type="checkbox" checked={selected === p.id} onChange={() => {}} style={{ accentColor: 'var(--accent)' }} /></td>
                   <td style={{ padding: '12px 16px' }}>

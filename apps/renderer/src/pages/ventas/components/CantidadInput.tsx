@@ -178,12 +178,7 @@ export function CantidadInput({
             ...btnStyle,
             borderRight: '1px solid var(--border)',
           }}
-          onMouseEnter={e => {
-            if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-          }}
+          className="qty-btn"
         >
           −
         </button>
@@ -221,12 +216,7 @@ export function CantidadInput({
             ...btnStyle,
             borderLeft: '1px solid var(--border)',
           }}
-          onMouseEnter={e => {
-            if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-          }}
+          className="qty-btn"
         >
           +
         </button>

@@ -68,10 +68,7 @@ export function Button({
         ...SIZES[size],
         ...style,
       }}
-      onMouseEnter={e => {
-        if (!disabled && !loading) e.currentTarget.style.filter = 'brightness(1.1)';
-      }}
-      onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+      className="ferred-btn"
     >
       {loading ? (
         <span style={{

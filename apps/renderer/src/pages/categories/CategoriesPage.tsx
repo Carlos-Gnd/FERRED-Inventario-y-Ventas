@@ -140,14 +140,8 @@ export default function CategoriesPage() {
             ) : categorias.map(c => (
               <tr
                 key={c.id}
+                className={`tbl-row${selected === c.id ? ' tbl-row--sel' : ''}`}
                 onClick={() => setSelected(s => s === c.id ? null : c.id)}
-                style={{
-                  borderTop: '1px solid var(--border)',
-                  background: selected === c.id ? 'var(--accent-glow)' : 'transparent',
-                  cursor: 'pointer', transition: 'background 0.12s ease',
-                }}
-                onMouseEnter={e => { if (selected !== c.id) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = selected === c.id ? 'var(--accent-glow)' : 'transparent'; }}
               >
                 <td style={{ padding: '12px 16px' }}>
                   <input type="checkbox" checked={selected === c.id} onChange={() => {}} style={{ accentColor: 'var(--accent)' }} />
