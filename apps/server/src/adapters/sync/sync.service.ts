@@ -76,8 +76,8 @@ export async function logPendiente(
         status: 'PENDIENTE',
       },
     });
-  } catch (err: any) {
-    console.error('[SyncService] Error al crear syncLog remoto:', err.message);
+  } catch (err: unknown) {
+    console.error('[SyncService] Error al crear syncLog remoto:', (err as Error).message);
   }
 }
 
@@ -146,7 +146,20 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
   detalleRecepcion: ['id', 'recepcionId', 'productoId', 'cantidad', 'costoUnit', 'subtotal'],
 };
 
-function limpiarPayload(tabla: string, payload: any) {
+// DT-11: tipo mínimo para acceder a los modelos de Prisma de forma dinámica
+type PrismaDelegate = {
+  create(args: { data: Record<string, unknown> }): Promise<{ id: number }>;
+  update(args: { where: { id: number }; data: Record<string, unknown> }): Promise<unknown>;
+  upsert(args: { where: { id: number }; update: Record<string, unknown>; create: Record<string, unknown> }): Promise<unknown>;
+};
+
+function getModel(tabla: string): PrismaDelegate {
+  const model = (prisma as unknown as Record<string, PrismaDelegate | undefined>)[tabla];
+  if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
+  return model;
+}
+
+function limpiarPayload(tabla: string, payload: Record<string, unknown>) {
   const campos = CAMPOS_ESCALARES[tabla];
   if (!campos) {
     throw new Error(`Tabla no soportada: ${tabla}`);
@@ -199,16 +212,17 @@ export const SyncService = {
         await this.aplicarOperacion(log.tabla, log.operacion, payload);
         marcarSincronizado(log.id);
         ok++;
-      } catch (err: any) {
-        console.error(`Error sync SQLite ${log.id}:`, err.message);
-        marcarError(log.id, err.message, MAX_INTENTOS);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`Error sync SQLite ${log.id}:`, msg);
+        marcarError(log.id, msg, MAX_INTENTOS);
       }
     }
 
     if (ok > 0) cache.clear();
   },
 
-  async aplicarOperacion(tabla: string, op: string, payload: any) {
+  async aplicarOperacion(tabla: string, op: string, payload: Record<string, unknown>) {
     if (!TABLAS_PERMITIDAS.has(tabla)) {
       throw new Error(`Tabla no permitida: ${tabla}`);
     }
@@ -227,13 +241,12 @@ export const SyncService = {
         return;
       }
 
-      const model = (prisma as any)[tabla];
-      if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
+      const model = getModel(tabla);
       const data = limpiarPayload(tabla, payload);
 
       if (data.id) {
         await model.upsert({
-          where: { id: data.id },
+          where: { id: Number(data.id) },
           update: data,
           create: data,
         });
@@ -243,8 +256,7 @@ export const SyncService = {
       return;
     }
 
-    const model = (prisma as any)[tabla];
-    if (!model) throw new Error(`Modelo no encontrado: ${tabla}`);
+    const model = getModel(tabla);
     const data = limpiarPayload(tabla, payload);
 
     if (!data.id) {
@@ -252,12 +264,12 @@ export const SyncService = {
     }
 
     if (op === 'UPDATE') {
-      await model.update({ where: { id: data.id }, data });
+      await model.update({ where: { id: Number(data.id) }, data });
       return;
     }
 
     if (op === 'DELETE') {
-      await model.update({ where: { id: data.id }, data: { activo: false } });
+      await model.update({ where: { id: Number(data.id) }, data: { activo: false } });
       return;
     }
 
@@ -265,19 +277,22 @@ export const SyncService = {
   },
 };
 
-async function crearProductoDesdePendiente(payload: any) {
-  const { id: _id, localId: _localId, sucursalId, creadoEn: _creadoEn, ...data } = payload;
-  const productoData = limpiarPayload('producto', data) as any;
+async function crearProductoDesdePendiente(payload: Record<string, unknown>) {
+  const { id: _id, localId: _localId, sucursalId, creadoEn: _creadoEn, ...rest } = payload;
+  const productoData: Record<string, unknown> = limpiarPayload('producto', rest);
   delete productoData.id;
   delete productoData.creadoEn;
 
+  // limpiarPayload garantiza solo campos válidos de Prisma; cast necesario para API dinámica
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = productoData as any;
   const producto = productoData.codigoBarras
     ? await prisma.producto.upsert({
       where: { codigoBarras: String(productoData.codigoBarras) },
-      update: productoData,
-      create: productoData,
+      update: d,
+      create: d,
     })
-    : await prisma.producto.create({ data: productoData });
+    : await prisma.producto.create({ data: d });
 
   if (sucursalId) {
     await prisma.stockSucursal.upsert({

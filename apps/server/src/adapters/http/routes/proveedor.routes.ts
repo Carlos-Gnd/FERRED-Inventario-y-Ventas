@@ -67,6 +67,8 @@ proveedorRoutes.post('/', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request
 proveedorRoutes.put('/:id', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
+    // BUG-NUEVO-F: validar id antes de usarlo
+    if (isNaN(id) || id < 1) return res.status(400).json({ error: 'id inválido' });
     const parsed = ProveedorSchema.partial().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
 
@@ -81,6 +83,8 @@ proveedorRoutes.put('/:id', roleMiddleware('ADMIN', 'BODEGA'), async (req: Reque
 proveedorRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
+    // BUG-NUEVO-F: validar id antes de usarlo
+    if (isNaN(id) || id < 1) return res.status(400).json({ error: 'id inválido' });
     await prisma.proveedor.update({ where: { id }, data: { activo: false } });
     await logPendiente('proveedor', 'UPDATE', { id, activo: false }, req.usuario?.id);
     return res.json({ mensaje: 'Proveedor desactivado' });
@@ -198,11 +202,6 @@ proveedorRoutes.post(
 // ── GET /api/proveedores/recepciones ──────────────────────────
 proveedorRoutes.get('/recepciones', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!tienePrismaRecepciones()) {
-      const sucursalId = req.usuario?.rol !== 'ADMIN' ? req.usuario?.sucursalId : undefined;
-      return res.json(obtenerRecepcionesSqlite(sucursalId));
-    }
-
     // Un no-ADMIN solo ve recepciones de su sucursal
     const where = req.usuario?.rol !== 'ADMIN' && req.usuario?.sucursalId
       ? { sucursalId: req.usuario.sucursalId }
@@ -233,17 +232,6 @@ proveedorRoutes.get('/recepciones', async (req: Request, res: Response, next: Ne
 // ── GET /api/proveedores/recepciones/:id ──────────────────────
 proveedorRoutes.get('/recepciones/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!tienePrismaRecepciones()) {
-      const recepcion = obtenerRecepcionDetalleSqlite(Number(req.params.id));
-      if (!recepcion) return res.status(404).json({ error: 'Recepción no encontrada' });
-
-      if (req.usuario?.rol !== 'ADMIN' && recepcion.sucursalId !== req.usuario?.sucursalId) {
-        return res.status(403).json({ error: 'No podés ver recepciones de otra sucursal' });
-      }
-
-      return res.json(recepcion);
-    }
-
     const id = Number(req.params.id);
     const recepcion = await prisma.recepcionMercancia.findUnique({
       where:   { id },
@@ -278,29 +266,20 @@ proveedorRoutes.get('/recepciones/:id', async (req: Request, res: Response, next
   }
 });
 
-function tienePrismaRecepciones() {
-  const client = prisma as any;
-  return Boolean(client?.recepcionMercancia);
-}
-
-function debeUsarSqlite(err: any) {
-  const mensaje = String(err?.message ?? '').toLowerCase();
-  const code = String(err?.code ?? '').toLowerCase();
+// BUG-NUEVO-H: solo coincidencias de error de conexión de red/BD,
+// no strings genéricos que podrían enmascarar errores de lógica
+function debeUsarSqlite(err: unknown) {
+  const e = err as { message?: unknown; code?: unknown };
+  const mensaje = String(e?.message ?? '').toLowerCase();
+  const code    = String(e?.code    ?? '').toLowerCase();
 
   return (
-    code === 'p1001' ||
-    code === 'p2021' ||
-    code === 'p2022' ||
-    mensaje.includes("can't reach database server") ||
-    mensaje.includes('connection') ||
-    mensaje.includes('connect') ||
-    mensaje.includes('timeout') ||
-    mensaje.includes('cannot read properties of undefined') ||
-    mensaje.includes('does not exist') ||
-    mensaje.includes('relation') ||
-    mensaje.includes('column') ||
-    mensaje.includes('table') ||
-    mensaje.includes('econnrefused') ||
+    ['p1001', 'p1002', 'p1008', 'p1017'].includes(code) ||
+    mensaje.includes("can't reach database server")      ||
+    mensaje.includes('timed out fetching a new connection') ||
+    mensaje.includes('server has closed the connection') ||
+    mensaje.includes('connection refused')               ||
+    mensaje.includes('econnrefused')                     ||
     mensaje.includes('enotfound')
   );
 }

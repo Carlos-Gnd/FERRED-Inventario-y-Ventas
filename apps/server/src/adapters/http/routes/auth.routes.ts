@@ -52,13 +52,14 @@ interface ErrorConCode extends Error {
  * throws Error con code 'INVALID_CREDENTIALS' si las credenciales son malas.
  */
 
+// BUG-NUEVO-J: better-sqlite3 es síncrono — eliminado await espurio
 async function loginOffline(
   email: string,
   password: string
 ): Promise<{token: string, usuario: UsuarioPayload}> {
   const db = getSqliteDb();
 
-  const row = await db.prepare(
+  const row = db.prepare(
     `SELECT id,
             nombre,
             email,

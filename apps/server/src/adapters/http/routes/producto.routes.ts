@@ -29,7 +29,16 @@ const schema = z.object({
   stockMinimo: z.number().int().min(0).optional().default(0),
 });
 
-function calcularPrecios(data: any) {
+// DT-11: interface en lugar de any para el parámetro de precios
+interface DatosPrecio {
+  precioCompra?: number;
+  porcentajeGanancia?: number;
+  precioVenta?: number;
+  precioConIva?: number;
+  tieneIva?: boolean;
+}
+
+function calcularPrecios<T extends DatosPrecio>(data: T): T {
   const compra    = Number(data.precioCompra);
   const ganancia  = Number(data.porcentajeGanancia);
 
@@ -47,6 +56,8 @@ function calcularPrecios(data: any) {
 productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { buscar, categoriaId, criticos, sucursalId } = req.query;
+    // DT-23: cap para evitar lecturas sin límite (offline no se pagina, retorna todo local)
+    const limit = Math.min(1000, Math.max(1, Number(req.query.limit ?? 500)));
     const cacheKey = `productos:${JSON.stringify(req.query)}`;
     const online = await SyncService.checkConnectivity();
     const eliminadosPendientes = new Set(obtenerIdsProductosEliminacionPendienteSqlite());
@@ -87,6 +98,7 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
         } : {}),
       },
       orderBy: { nombre: 'asc' },
+      take: limit,
     });
 
     let resultado = productos.filter((producto: any) => !eliminadosPendientes.has(producto.id));
@@ -109,7 +121,7 @@ productoRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
     console.info('[productos] modo=online origen=prisma');
     OfflineCache.set(cacheKey, conPendientesLocales);
     return res.json(conPendientesLocales);
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (esErrorConexion(err)) {
       const { buscar, categoriaId, criticos } = req.query;
       const eliminadosPendientes = new Set(obtenerIdsProductosEliminacionPendienteSqlite());
@@ -141,7 +153,7 @@ productoRoutes.get('/barcode/:codigo', async (req: Request, res: Response, next:
 
     if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
     return res.json(producto);
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (esErrorConexion(err)) {
       const producto = obtenerProductosSqlite().find(
         (p: any) => p.codigoBarras === req.params.codigo
@@ -209,7 +221,7 @@ productoRoutes.post('/', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request,
     OfflineCache.invalidate('productos:');
 
     return res.status(201).json({ mensaje: 'Producto creado', producto: nuevo });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (esErrorConexion(err)) {
       return res.status(201).json(guardarProductoOffline(data, req.usuario?.sucursalId));
     }
@@ -331,20 +343,21 @@ productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), a
 
     OfflineCache.invalidate(`stock:${sucursalId}`);
     return res.json({ mensaje: 'Stock descontado', stockRestante: stockActualizado.cantidad });
-  } catch (err: any) {
-    if (err?.statusCode === 409) {
+  } catch (err: unknown) {
+    const e = err as { statusCode?: number; message?: string; disponible?: number; solicitado?: number; sucursalId?: number };
+    if (e?.statusCode === 409) {
       return res.status(409).json({
-        error: err.message,
-        disponible: err.disponible,
-        solicitado: err.solicitado,
-        sucursalId: err.sucursalId,
+        error: e.message,
+        disponible: e.disponible,
+        solicitado: e.solicitado,
+        sucursalId: e.sucursalId,
       });
     }
     return next(err);
   }
 });
 
-function guardarProductoOffline(data: any, sucursalId?: number) {
+function guardarProductoOffline<T extends DatosPrecio>(data: T, sucursalId?: number) {
   const producto = crearProductoSqlite(data, sucursalId);
   OfflineCache.invalidate('productos:');
 
@@ -407,9 +420,10 @@ function normalizarNombre(nombre: unknown) {
   return String(nombre ?? '').trim().toLowerCase();
 }
 
-function esErrorConexion(err: any) {
-  const mensaje = String(err?.message ?? '').toLowerCase();
-  const code = String(err?.code ?? '').toLowerCase();
+function esErrorConexion(err: unknown) {
+  const e = err as { message?: unknown; code?: unknown };
+  const mensaje = String(e?.message ?? '').toLowerCase();
+  const code = String(e?.code ?? '').toLowerCase();
 
   return (
     ['p1001', 'p1002', 'p1008', 'p1017'].includes(code) ||

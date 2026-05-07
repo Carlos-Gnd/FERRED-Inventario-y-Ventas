@@ -48,30 +48,45 @@ async function validarSucursalTarget(req: Request, res: Response, next: NextFunc
 }
 
 // GET /api/usuarios — Solo ADMIN
+// DT-23: paginacion opcional via ?page=1&limit=50 (max 200). Sin params devuelve array plano (compat)
 usuarioRoutes.get('/', roleMiddleware('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sucursalId = req.usuario!.sucursalId;
     const { buscar, rol, activo } = req.query;
 
-    const usuarios = await prisma.usuario.findMany({
-      where: {
-        sucursalId,
-        ...(rol    ? { rol: String(rol) } : {}),
-        ...(activo !== undefined ? { activo: activo === 'true' } : {}),
-        ...(buscar ? {
-          OR: [
-            { nombre: { contains: String(buscar), mode: 'insensitive' as const } },
-            { email:  { contains: String(buscar), mode: 'insensitive' as const } },
-          ],
-        } : {}),
-      },
-      select: {
-        id: true, nombre: true, email: true,
-        rol: true, sucursalId: true, activo: true, creadoEn: true,
-      },
-      orderBy: { id: 'desc' },
-    });
+    const limit  = Math.min(200, Math.max(1, Number(req.query.limit ?? 100)));
+    const page   = Math.max(1, Number(req.query.page ?? 1));
+    const skip   = (page - 1) * limit;
 
+    const where = {
+      sucursalId,
+      ...(rol    ? { rol: String(rol) } : {}),
+      ...(activo !== undefined ? { activo: activo === 'true' } : {}),
+      ...(buscar ? {
+        OR: [
+          { nombre: { contains: String(buscar), mode: 'insensitive' as const } },
+          { email:  { contains: String(buscar), mode: 'insensitive' as const } },
+        ],
+      } : {}),
+    };
+
+    const [usuarios, total] = await Promise.all([
+      prisma.usuario.findMany({
+        where,
+        select: {
+          id: true, nombre: true, email: true,
+          rol: true, sucursalId: true, activo: true, creadoEn: true,
+        },
+        orderBy: { id: 'desc' },
+        take: limit,
+        skip,
+      }),
+      prisma.usuario.count({ where }),
+    ]);
+
+    if (req.query.page !== undefined || req.query.limit !== undefined) {
+      return res.json({ data: usuarios, total, page, totalPages: Math.ceil(total / limit) });
+    }
     return res.json(usuarios);
   } catch (err) { return next(err); }
 });
