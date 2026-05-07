@@ -21,6 +21,7 @@ import { jwtMiddleware }    from './adapters/http/middleware/jwt.middleware';
 import { SyncService }      from './adapters/sync/sync.service';
 import { SnapshotService }  from './adapters/sync/snapshot.service';
 import { syncRoutes }       from './adapters/http/routes/sync.routes';
+import { reportesRoutes }   from './adapters/http/routes/reportes.routes';
 import { initSqlite }       from './adapters/db/sqlite/sqlite.client';
 import { contarPendientes } from './adapters/sync/sync.local';
 
@@ -83,6 +84,7 @@ app.use('/api/ventas',     ventasRoutes);
 app.use('/api/dte',        dteRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/sync',       syncRoutes);
+app.use('/api/reportes',   reportesRoutes);
 
 app.use(errorMiddleware);
 
