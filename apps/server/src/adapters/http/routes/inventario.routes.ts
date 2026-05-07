@@ -13,6 +13,7 @@ import { roleMiddleware } from '../middleware/role.middleware';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
 import { obtenerStockSucursalSqlite } from '../../db/sqlite/sqlite.client';
+import { contarPendientes } from '../../sync/sync.local';
 
 export const inventarioRoutes = Router();
 
@@ -441,20 +442,19 @@ inventarioRoutes.get('/sync-pendientes', async (req: Request, res: Response, nex
     const usuarioId  = req.usuario?.id    ?? null;
     const sucursalId = req.usuario?.sucursalId ?? null;
     const esAdmin    = req.usuario?.rol === 'ADMIN';
+    const locales    = contarPendientes();
 
     // BUG-M10: filtrar por usuarioId directamente en vez de string matching sobre payload JSON
     const whereBase = (!esAdmin && usuarioId) ? { usuarioId } : {};
 
-    const [pendientes, sincronizados, errores] = await Promise.all([
-      prisma.syncLog.count({ where: { ...whereBase, status: 'PENDIENTE' } }),
+    const [sincronizados] = await Promise.all([
       prisma.syncLog.count({ where: { ...whereBase, status: 'SINCRONIZADO' } }),
-      prisma.syncLog.count({ where: { ...whereBase, status: 'ERROR' } }),
     ]);
 
     return res.json({
-      pendientes,
+      pendientes: locales.pendientes,
       sincronizados,
-      errores,
+      errores:    locales.errores,
       online:     SyncService.isOnline(),
       sucursalId,
     });
