@@ -175,6 +175,104 @@ html, body, #root {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ── TABLA: filas interactivas (DT-15) ─────────────────── */
+.tbl-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+  border-top: 1px solid var(--border);
+}
+.tbl-row:not(.tbl-row--crit) { border-left: 2px solid transparent; }
+.tbl-row.tbl-row--crit        { border-left: 2px solid var(--danger); }
+.tbl-row.tbl-row--crit:not(.tbl-row--sel) { background: rgba(239,68,68,0.04); }
+.tbl-row.tbl-row--sel         { background: var(--accent-glow) !important; }
+.tbl-row:hover:not(.tbl-row--sel) { background: var(--bg-hover); }
+
+/* ── MENÚ POPUP: items hover (DT-15) ───────────────────── */
+.menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+.menu-item:hover               { background: var(--bg-hover); }
+.menu-item--danger             { color: var(--danger); }
+.menu-item--danger:hover       { background: rgba(239,68,68,0.08); }
+
+/* ── BOTÓN LOGOUT sidebar/topbar: hover de color (DT-15) ── */
+.btn-logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-subtle);
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+}
+.btn-logout:hover { color: var(--danger); }
+
+/* ── BOTONES ± DE CANTIDAD (DT-15) ─────────────────────── */
+.qty-btn:not(:disabled):hover { background: var(--bg-hover) !important; }
+
+/* ── TARJETA DE STOCK CRÍTICO (DT-15) ──────────────────── */
+.stock-card { cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; }
+.stock-card:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-glow), 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+.stock-card--crit:hover {
+  border-color: rgba(239,68,68,0.6) !important;
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.15), 0 4px 12px rgba(0,0,0,0.25) !important;
+}
+
+/* ── BOTÓN GENÉRICO FERRED: hover brightness (DT-15) ────── */
+.ferred-btn:not(:disabled):hover { filter: brightness(1.1); }
+
+/* ── DASHBOARD: contenedores reutilizables (DT-14) ─────── */
+.dash-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quick-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.quick-btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+
 /* ── IMPRESIÓN DE TICKET ─────────────────────────────────── */
 @media print {
   body * { visibility: hidden; }

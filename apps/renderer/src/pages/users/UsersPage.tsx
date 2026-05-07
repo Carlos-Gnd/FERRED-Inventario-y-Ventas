@@ -112,6 +112,15 @@ export default function UsersPage() {
     finally { setSaving(false); }
   }
 
+  // DT-16: helper field() unifica el patrón de formularios (igual que CategoriesPage)
+  function field(key: keyof typeof form) {
+    return {
+      value: String(form[key]),
+      onChange: (v: string) => { setForm(f => ({ ...f, [key]: v })); setFormErr(e => ({ ...e, [key]: '' })); },
+      error: formErr[key],
+    };
+  }
+
   function sucursalNombre(id: number | null) {
     return SUCURSAL_OPTIONS.find(s => s.value === String(id))?.label ?? '—';
   }
@@ -163,10 +172,8 @@ export default function UsersPage() {
               <tr><td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>No se encontraron usuarios</td></tr>
             ) : usuarios.map(u => (
               <tr key={u.id}
+                className={`tbl-row${selected === u.id ? ' tbl-row--sel' : ''}`}
                 onClick={() => setSelected(s => s === u.id ? null : u.id)}
-                style={{ borderTop: '1px solid var(--border)', background: selected === u.id ? 'var(--accent-glow)' : 'transparent', cursor: 'pointer', transition: 'background 0.12s ease' }}
-                onMouseEnter={e => { if (selected !== u.id) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = selected === u.id ? 'var(--accent-glow)' : 'transparent'; }}
               >
                 <td style={{ padding: '12px 16px' }}><input type="checkbox" checked={selected === u.id} onChange={() => {}} style={{ accentColor: 'var(--accent)' }} /></td>
                 <td style={{ padding: '12px 16px' }}>
@@ -196,16 +203,10 @@ export default function UsersPage() {
       <Modal open={modalNew} onClose={() => setModalNew(false)} title="Agregar Usuario" subtitle="Registro de nuevo usuario FERRED" maxWidth={460}
         icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <Input label="Nombre Completo" placeholder="Ej: Roberto Peña"
-            value={form.nombre} onChange={v => { setForm(f => ({ ...f, nombre: v })); setFormErr(e => ({ ...e, nombre: '' })); }}
-            error={formErr.nombre} />
-          <Input label="Correo Electrónico" type="email" placeholder="usuario@ferred.com"
-            value={form.email} onChange={v => { setForm(f => ({ ...f, email: v })); setFormErr(e => ({ ...e, email: '' })); }}
-            error={formErr.email} />
+          <Input label="Nombre Completo" placeholder="Ej: Roberto Peña" {...field('nombre')} />
+          <Input label="Correo Electrónico" type="email" placeholder="usuario@ferred.com" {...field('email')} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <Input label="Contraseña" type="password" placeholder="••••••••"
-              value={form.contrasena} onChange={v => { setForm(f => ({ ...f, contrasena: v })); setFormErr(e => ({ ...e, contrasena: '' })); }}
-              error={formErr.contrasena} />
+            <Input label="Contraseña" type="password" placeholder="••••••••" {...field('contrasena')} />
             <Select label="Rol" options={ROL_FORM_OPTIONS} value={form.rol}
               onChange={v => setForm(f => ({ ...f, rol: v as UserRole }))} />
           </div>
@@ -222,12 +223,8 @@ export default function UsersPage() {
       <Modal open={modalEdit} onClose={() => setModalEdit(false)} title="Modificar Usuario" subtitle="Edición de datos de cuenta" maxWidth={460}
         icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <Input label="Nombre Completo"
-            value={form.nombre} onChange={v => { setForm(f => ({ ...f, nombre: v })); setFormErr(e => ({ ...e, nombre: '' })); }}
-            error={formErr.nombre} />
-          <Input label="Correo Electrónico" type="email"
-            value={form.email} onChange={v => { setForm(f => ({ ...f, email: v })); setFormErr(e => ({ ...e, email: '' })); }}
-            error={formErr.email} />
+          <Input label="Nombre Completo" {...field('nombre')} />
+          <Input label="Correo Electrónico" type="email" {...field('email')} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <Input label="Nueva Contraseña (opcional)" type="password" placeholder="Dejar vacío para no cambiar"
               value={form.contrasena} onChange={v => setForm(f => ({ ...f, contrasena: v }))} />

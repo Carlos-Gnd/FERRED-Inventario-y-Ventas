@@ -5,7 +5,7 @@
 
 [[redirects]]
   from   = "/api/*"
-  to     = "https://server-production-3252.up.railway.app/api/:splat"
+  to     = "https://ferred.onrender.com/api/:splat"
   status = 200
   force  = true
 
