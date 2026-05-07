@@ -461,6 +461,48 @@ inventarioRoutes.get('/sync-pendientes', async (req: Request, res: Response, nex
   } catch (err) { return next(err); }
 });
 
+// ── GET /api/inventario/recepciones-historial ──────────────────────────────
+// BUG-N01: endpoint que ReportsPage necesita para cargar historial de recepciones
+inventarioRoutes.get('/recepciones-historial', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const esAdmin    = req.usuario?.rol === 'ADMIN';
+    const sucursalId = req.usuario?.sucursalId;
+    const where      = (!esAdmin && sucursalId) ? { sucursalId } : {};
+
+    const recepciones = await prisma.recepcionMercancia.findMany({
+      where,
+      include: {
+        usuario:  { select: { nombre: true } },
+        sucursal: { select: { nombre: true } },
+        detalles: {
+          include: { producto: { select: { nombre: true } } },
+          orderBy: { id: 'asc' },
+        },
+      },
+      orderBy: { creadoEn: 'desc' },
+      take: 200,
+    });
+
+    const resultado = recepciones.map(r => {
+      const prods   = r.detalles.map(d => d.producto.nombre);
+      const primero = prods[0] ?? 'Sin productos';
+      const resumen = prods.length > 1 ? `${primero} (+${prods.length - 1} más)` : primero;
+      const total   = r.detalles.reduce((acc, d) => acc + d.cantidad, 0);
+
+      return {
+        id:                r.id,
+        creadoEn:          r.creadoEn.toISOString(),
+        usuarioNombre:     r.usuario?.nombre ?? 'Sin responsable',
+        productoNombre:    resumen,
+        sucursalNombre:    r.sucursal.nombre,
+        cantidadIngresada: total,
+      };
+    });
+
+    return res.json(resultado);
+  } catch (err) { return next(err); }
+});
+
 function esErrorConexionPrisma(err: unknown) {
   const error = err as { code?: unknown; message?: unknown };
   const mensaje = String(error?.message ?? '').toLowerCase();

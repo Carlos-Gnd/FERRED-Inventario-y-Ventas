@@ -47,7 +47,9 @@
       "preload.js",
       "ipc/**/*.js",
       "resources/**/*",
-      "!node_modules/**"
+      "!node_modules/**",
+      "!.env",
+      "!**/.env"
     ],
     "win": {
       "target": [
