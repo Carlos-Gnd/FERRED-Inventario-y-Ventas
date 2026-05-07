@@ -9,3 +9,7 @@ release/
 apps/renderer/vite.config.js
 apps/renderer/vite.config.d.ts
 .claude/
+*.db-shm
+*.db-wal
+supabase/.temp/
+*.sql

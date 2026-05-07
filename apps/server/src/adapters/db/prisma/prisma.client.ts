@@ -1,4 +1,11 @@
 import { PrismaClient } from '@prisma/client';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Cargar variables de entorno antes de crear el cliente
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+// También intentar cargar el .env raíz como fallback
+dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 
 // Singleton para evitar múltiples conexiones durante hot-reload en dev
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };

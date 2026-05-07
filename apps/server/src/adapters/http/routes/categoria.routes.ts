@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { obtenerCategoriasSqlite } from '../../db/sqlite/sqlite.client';
+import { logPendiente } from '../../sync/sync.service';
 
 export const categoriaRoutes = Router();
 
@@ -44,6 +45,7 @@ categoriaRoutes.post('/', roleMiddleware('ADMIN', 'BODEGA'), async (req: Request
     if (existe) return res.status(400).json({ error: 'Ya existe una categoría con ese nombre' });
 
     const nueva = await prisma.categoria.create({ data: parsed.data });
+    await logPendiente('categoria', 'CREATE', { id: nueva.id, ...parsed.data }, req.usuario?.id);
     return res.status(201).json({ mensaje: 'Categoría creada', categoria: nueva });
   } catch (err) { return next(err); }
 });
@@ -56,6 +58,7 @@ categoriaRoutes.put('/:id', roleMiddleware('ADMIN', 'BODEGA'), async (req: Reque
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
 
     const actualizada = await prisma.categoria.update({ where: { id }, data: parsed.data });
+    await logPendiente('categoria', 'UPDATE', { id, ...parsed.data }, req.usuario?.id);
     return res.json({ mensaje: 'Categoría actualizada', categoria: actualizada });
   } catch (err) { return next(err); }
 });
@@ -71,6 +74,7 @@ categoriaRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res
       where: { id },
       data:  { activo: false },
     });
+    await logPendiente('categoria', 'UPDATE', { id, activo: false }, req.usuario?.id);
     return res.json({ mensaje: 'Categoría desactivada' });
   } catch (err) { return next(err); }
 });

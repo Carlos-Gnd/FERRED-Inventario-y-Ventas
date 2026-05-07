@@ -126,3 +126,9 @@ CREATE TABLE IF NOT EXISTS sync_log (
   creado_en TEXT NOT NULL DEFAULT (datetime('now')),
   sinc_en TEXT
 );
+
+-- GAP-3: persiste el último refresh por sucursal para sobrevivir reinicios del server
+CREATE TABLE IF NOT EXISTS snapshot_meta (
+  sucursal_id INTEGER PRIMARY KEY,
+  last_refresh TEXT NOT NULL
+);
