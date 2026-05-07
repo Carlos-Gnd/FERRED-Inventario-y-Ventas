@@ -19,6 +19,7 @@ model Sucursal {
   facturas    FacturaDte[]
   stocks      StockSucursal[]
   recepciones RecepcionMercancia[]
+  cortesCaja  CorteCaja[]
   @@map("sucursales")
 }
 
@@ -45,6 +46,7 @@ model Usuario {
   facturas       FacturaDte[]
   syncLogs       SyncLog[]
   recepciones    RecepcionMercancia[]
+  cortesCaja     CorteCaja[]
   @@map("usuarios")
 }
 
@@ -133,6 +135,28 @@ model SyncLog {
   // DT-21: índice para el loop de drenaje (pushPendientes filtra por status)
   @@index([tabla, status])
   @@map("sync_log")
+}
+
+// ── HU-10: Corte de caja (X, Y, Z) ─────────────────────────────
+
+model CorteCaja {
+  id                 Int       @id @default(autoincrement())
+  sucursalId         Int       @map("sucursal_id")
+  cajeroId           Int?      @map("cajero_id")
+  tipo               String
+  fechaInicio        DateTime  @map("fecha_inicio")
+  fechaFin           DateTime  @map("fecha_fin")
+  totalEfectivo      Float     @default(0) @map("total_efectivo")
+  totalTarjeta       Float     @default(0) @map("total_tarjeta")
+  totalTransferencia Float     @default(0) @map("total_transferencia")
+  totalGeneral       Float     @default(0) @map("total_general")
+  cantidadVentas     Int       @default(0) @map("cantidad_ventas")
+  observaciones      String?
+  creadoEn           DateTime  @default(now()) @map("creado_en")
+  sucursal           Sucursal  @relation(fields: [sucursalId], references: [id])
+  cajero             Usuario?  @relation(fields: [cajeroId], references: [id])
+  @@index([sucursalId, tipo, fechaFin])
+  @@map("cortes_caja")
 }
 
 // HU-14: Recepción de mercancía de proveedores
