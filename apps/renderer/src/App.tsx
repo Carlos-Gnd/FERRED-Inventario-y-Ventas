@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useThemeStore }    from './store/themeStore';
 import { AppRouter }        from './router/AppRouter';
+import { ErrorBoundary }    from './components/ErrorBoundary';
 
 export default function App() {
   const { status }               = useNetworkStatus();
@@ -32,24 +33,26 @@ export default function App() {
   }, [bannerStatus]);
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
-      {bannerStatus && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-          padding: '10px 16px',
-          background:  bannerStatus === 'online' ? 'var(--success)' : 'var(--warning)',
-          color: '#fff',
-          fontSize: '13px',
-          fontWeight: 600,
-          textAlign: 'center',
-          transition: 'transform 0.3s ease, opacity 0.3s ease',
-          transform: visible ? 'translateY(0)' : 'translateY(-100%)',
-          opacity:   visible ? 1 : 0,
-        }}>
-          {bannerLabel}
-        </div>
-      )}
-      <AppRouter />
-    </div>
+    <ErrorBoundary>
+      <div style={{ width: '100%', height: '100%' }}>
+        {bannerStatus && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+            padding: '10px 16px',
+            background:  bannerStatus === 'online' ? 'var(--success)' : 'var(--warning)',
+            color: '#fff',
+            fontSize: '13px',
+            fontWeight: 600,
+            textAlign: 'center',
+            transition: 'transform 0.3s ease, opacity 0.3s ease',
+            transform: visible ? 'translateY(0)' : 'translateY(-100%)',
+            opacity:   visible ? 1 : 0,
+          }}>
+            {bannerLabel}
+          </div>
+        )}
+        <AppRouter />
+      </div>
+    </ErrorBoundary>
   );
 }

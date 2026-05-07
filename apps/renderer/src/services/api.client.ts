@@ -8,9 +8,17 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
+// DT-22: constantes de timeout reutilizables; pasar como { timeout: TIMEOUTS.long }
+// en requests que pueden tardar más (exports, snapshot, reportes)
+export const TIMEOUTS = {
+  quick:   5_000,   // ping / health
+  default: 10_000,  // operaciones normales
+  long:    60_000,  // exports, reportes, snapshot manual
+} as const;
+
 export const api = axios.create({
   baseURL: '/api',
-  timeout: 10_000,
+  timeout: TIMEOUTS.default,
 });
 
 // Inyecta el token JWT en cada request
