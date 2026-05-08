@@ -18,6 +18,7 @@ import StockPage           from '../pages/stock/StockPage';
 import VentasPage          from '../pages/ventas/VentasPage';
 import ReportsPage         from '../pages/reports/ReportsPage';
 import PedidosOnlinePage   from '../pages/pedidos-online/PedidosOnlinePage';
+import ReceptionHistoryPage from '../pages/reception-history/ReceptionHistoryPage';
 
 function LoginRoute() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
