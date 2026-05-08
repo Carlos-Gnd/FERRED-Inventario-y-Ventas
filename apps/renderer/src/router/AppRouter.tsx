@@ -17,6 +17,7 @@ import TransfersPage       from '../pages/transfers/TransfersPage';
 import StockPage           from '../pages/stock/StockPage';
 import VentasPage          from '../pages/ventas/VentasPage';
 import ReportsPage         from '../pages/reports/ReportsPage';
+import PedidosOnlinePage   from '../pages/pedidos-online/PedidosOnlinePage';
 
 function LoginRoute() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
@@ -62,6 +63,9 @@ export function AppRouter() {
 
           {/* Rutas para ADMIN y CAJERO */}
           <Route path="ventas"        element={<RoleGuard roles={['ADMIN','CAJERO']}><VentasPage /></RoleGuard>} />
+
+          {/* Pedidos online: ADMIN ve todas las sucursales, BODEGA solo la suya */}
+          <Route path="pedidos-online" element={<RoleGuard roles={['ADMIN','BODEGA']}><PedidosOnlinePage /></RoleGuard>} />
         </Route>
 
         {/* Cualquier ruta desconocida redirige al login */}
