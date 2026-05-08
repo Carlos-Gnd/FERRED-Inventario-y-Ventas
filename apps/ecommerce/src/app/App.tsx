@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router';
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from 'react-router';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
@@ -11,6 +11,23 @@ import { PanelCliente } from './pages/PanelCliente';
 import { ComoComprar } from './pages/ComoComprar';
 import { Sucursales } from './pages/Sucursales';
 import { AcercaDeNosotros } from './pages/AcercaDeNosotros';
+import { AuthPage } from './pages/AuthPage';
+import { useAuth } from './context/AuthContext';
+
+function RequireCliente({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { isAuthenticated, loadingAuth } = useAuth();
+
+  if (loadingAuth) {
+    return <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center text-[#5F6368]">Cargando...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  return children;
+}
 
 export default function App() {
   return (
@@ -25,7 +42,9 @@ export default function App() {
             <Route path="/carrito" element={<Carrito />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/pedido/:id/exito" element={<PedidoExito />} />
-            <Route path="/cliente" element={<PanelCliente />} />
+            <Route path="/login" element={<AuthPage mode="login" />} />
+            <Route path="/registro" element={<AuthPage mode="registro" />} />
+            <Route path="/cliente" element={<RequireCliente><PanelCliente /></RequireCliente>} />
             <Route path="/como-comprar" element={<ComoComprar />} />
             <Route path="/sucursales" element={<Sucursales />} />
             <Route path="/acerca-de-nosotros" element={<AcercaDeNosotros />} />

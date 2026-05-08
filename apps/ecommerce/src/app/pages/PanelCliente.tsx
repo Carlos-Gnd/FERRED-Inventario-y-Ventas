@@ -1,76 +1,60 @@
-import { useState } from 'react';
-import { Package, User, MapPin, ShoppingBag, Clock } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Package, User, MapPin, ShoppingBag, Clock, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { useAuth } from '../context/AuthContext';
+import { getMisPedidos } from '../services/ecommerceApi';
+import type { PedidoOnline } from '../types';
 
 export function PanelCliente() {
+  const navigate = useNavigate();
+  const { cliente, token, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'pedidos' | 'perfil' | 'direcciones'>('pedidos');
+  const [orders, setOrders] = useState<PedidoOnline[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
 
-  const orders = [
-    {
-      id: 'FERRED-A8KL9M2P',
-      date: '2026-05-03',
-      status: 'En camino',
-      total: 379.96,
-      items: 3,
-      statusColor: 'bg-blue-500'
-    },
-    {
-      id: 'FERRED-B3FG7H1K',
-      date: '2026-04-28',
-      status: 'Entregado',
-      total: 124.99,
-      items: 2,
-      statusColor: 'bg-green-500'
-    },
-    {
-      id: 'FERRED-C9XT5N4R',
-      date: '2026-04-15',
-      status: 'Entregado',
-      total: 89.99,
-      items: 1,
-      statusColor: 'bg-green-500'
-    }
-  ];
+  useEffect(() => {
+    if (!token) return;
+    setLoadingOrders(true);
+    setOrdersError(null);
+    getMisPedidos(token)
+      .then((response) => setOrders(response.pedidos))
+      .catch((error) => setOrdersError(error instanceof Error ? error.message : 'No se pudieron cargar tus pedidos'))
+      .finally(() => setLoadingOrders(false));
+  }, [token]);
 
-  const addresses = [
-    {
-      id: 1,
-      name: 'Casa',
-      street: 'Av. Principal 123',
-      city: 'Ciudad de México',
-      zip: '06100',
-      isDefault: true
-    },
-    {
-      id: 2,
-      name: 'Oficina',
-      street: 'Calle Reforma 456',
-      city: 'Ciudad de México',
-      zip: '06700',
-      isDefault: false
-    }
-  ];
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const initials = cliente?.nombre
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'CL';
 
   return (
     <div className="min-h-screen bg-[#F5F2EB]">
       <div className="bg-[#2B2D31] text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold">Mi Cuenta</h1>
-          <p className="text-[#E5E2DA] mt-2">Gestiona tus pedidos y configuración</p>
+          <p className="text-[#E5E2DA] mt-2">Gestiona tus pedidos y datos de cliente</p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
           <aside className="lg:col-span-1">
             <div className="bg-white rounded-xl p-6 shadow-md">
               <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#E5E2DA]">
                 <div className="w-16 h-16 bg-[#D97706] rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                  JD
+                  {initials}
                 </div>
-                <div>
-                  <p className="font-bold text-[#2B2D31]">Juan Pérez</p>
-                  <p className="text-sm text-[#5F6368]">juan@email.com</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-[#2B2D31] truncate">{cliente?.nombre}</p>
+                  <p className="text-sm text-[#5F6368] truncate">{cliente?.email}</p>
                 </div>
               </div>
 
@@ -106,17 +90,30 @@ export function PanelCliente() {
                   }`}
                 >
                   <MapPin size={20} />
-                  Direcciones
+                  Direccion
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-[#5F6368] hover:bg-[#F5F2EB]"
+                >
+                  <LogOut size={20} />
+                  Cerrar sesion
                 </button>
               </nav>
             </div>
           </aside>
 
-          {/* Contenido Principal */}
           <div className="lg:col-span-3">
             {activeTab === 'pedidos' && (
               <div>
                 <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Historial de Pedidos</h2>
+                {loadingOrders && <p className="text-[#5F6368]">Cargando pedidos...</p>}
+                {ordersError && <p className="text-red-600">{ordersError}</p>}
+                {!loadingOrders && !ordersError && orders.length === 0 && (
+                  <div className="bg-white rounded-xl p-8 shadow-md text-[#5F6368]">
+                    Todavia no tienes pedidos registrados.
+                  </div>
+                )}
                 <div className="space-y-4">
                   {orders.map((order) => (
                     <div key={order.id} className="bg-white rounded-xl p-6 shadow-md">
@@ -126,17 +123,17 @@ export function PanelCliente() {
                             <Package className="text-[#D97706]" size={24} />
                           </div>
                           <div>
-                            <p className="font-bold text-[#2B2D31]">{order.id}</p>
+                            <p className="font-bold text-[#2B2D31]">Pedido #{order.id}</p>
                             <p className="text-sm text-[#5F6368] flex items-center gap-1 mt-1">
                               <Clock size={14} />
-                              {new Date(order.date).toLocaleDateString('es-ES', {
+                              {new Date(order.creadoEn).toLocaleDateString('es-SV', {
                                 day: 'numeric',
                                 month: 'long',
-                                year: 'numeric'
+                                year: 'numeric',
                               })}
                             </p>
                             <p className="text-sm text-[#5F6368] mt-1">
-                              {order.items} producto{order.items > 1 ? 's' : ''}
+                              {order.detalles?.length ?? 0} producto{(order.detalles?.length ?? 0) === 1 ? '' : 's'}
                             </p>
                           </div>
                         </div>
@@ -145,16 +142,12 @@ export function PanelCliente() {
                           <div className="text-right">
                             <p className="text-sm text-[#5F6368]">Total</p>
                             <p className="text-xl font-bold text-[#D97706]">
-                              ${order.total.toFixed(2)}
+                              ${Number(order.total).toFixed(2)}
                             </p>
                           </div>
-                          <div>
-                            <span
-                              className={`${order.statusColor} text-white px-4 py-2 rounded-lg text-sm font-semibold`}
-                            >
-                              {order.status}
-                            </span>
-                          </div>
+                          <span className="bg-[#2B2D31] text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                            {order.estado}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -166,106 +159,36 @@ export function PanelCliente() {
             {activeTab === 'perfil' && (
               <div>
                 <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Mi Perfil</h2>
-                <div className="bg-white rounded-xl p-8 shadow-md">
-                  <form className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-semibold text-[#2B2D31] mb-2">
-                          Nombre
-                        </label>
-                        <input
-                          type="text"
-                          defaultValue="Juan"
-                          className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl focus:ring-2 focus:ring-[#D97706] outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-[#2B2D31] mb-2">
-                          Apellido
-                        </label>
-                        <input
-                          type="text"
-                          defaultValue="Pérez"
-                          className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl focus:ring-2 focus:ring-[#D97706] outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-[#2B2D31] mb-2">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        defaultValue="juan@email.com"
-                        className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl focus:ring-2 focus:ring-[#D97706] outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-[#2B2D31] mb-2">
-                        Teléfono
-                      </label>
-                      <input
-                        type="tel"
-                        defaultValue="+52 55 1234 5678"
-                        className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl focus:ring-2 focus:ring-[#D97706] outline-none"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="bg-[#D97706] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#B45309] transition-colors"
-                    >
-                      Guardar Cambios
-                    </button>
-                  </form>
+                <div className="bg-white rounded-xl p-8 shadow-md space-y-5">
+                  <div>
+                    <p className="text-sm font-semibold text-[#5F6368]">Nombre</p>
+                    <p className="text-lg text-[#2B2D31]">{cliente?.nombre}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#5F6368]">Email</p>
+                    <p className="text-lg text-[#2B2D31]">{cliente?.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#5F6368]">Telefono</p>
+                    <p className="text-lg text-[#2B2D31]">{cliente?.telefono || 'No registrado'}</p>
+                  </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'direcciones' && (
               <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-[#2B2D31]">Mis Direcciones</h2>
-                  <button className="bg-[#D97706] text-white px-6 py-2 rounded-xl font-semibold hover:bg-[#B45309] transition-colors">
-                    + Agregar Nueva
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {addresses.map((address) => (
-                    <div
-                      key={address.id}
-                      className="bg-white rounded-xl p-6 shadow-md relative"
-                    >
-                      {address.isDefault && (
-                        <span className="absolute top-4 right-4 bg-[#D97706] text-white px-3 py-1 rounded-lg text-xs font-semibold">
-                          Por defecto
-                        </span>
-                      )}
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center">
-                          <MapPin className="text-[#D97706]" size={24} />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-bold text-[#2B2D31] mb-2">{address.name}</p>
-                          <p className="text-[#5F6368]">{address.street}</p>
-                          <p className="text-[#5F6368]">
-                            {address.city}, CP {address.zip}
-                          </p>
-                          <div className="flex gap-3 mt-4">
-                            <button className="text-[#D97706] hover:text-[#B45309] font-semibold text-sm">
-                              Editar
-                            </button>
-                            <button className="text-red-500 hover:text-red-700 font-semibold text-sm">
-                              Eliminar
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Direccion</h2>
+                <div className="bg-white rounded-xl p-6 shadow-md">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center">
+                      <MapPin className="text-[#D97706]" size={24} />
                     </div>
-                  ))}
+                    <div>
+                      <p className="font-bold text-[#2B2D31] mb-2">Direccion registrada</p>
+                      <p className="text-[#5F6368]">{cliente?.direccion || 'No hay direccion registrada.'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

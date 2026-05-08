@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useEcommerce } from '../context/EcommerceContext';
+import { useAuth } from '../context/AuthContext';
 
 export function Checkout() {
   const navigate = useNavigate();
   const { cartItems, subtotal, zonasEnvio, createOrder, clearCart, selectedSucursalId } = useEcommerce();
-  const [nombre, setNombre] = useState('');
-  const [telefono, setTelefono] = useState('');
-  const [direccion, setDireccion] = useState('');
+  const { cliente, isAuthenticated, loadingAuth } = useAuth();
+  const [nombre, setNombre] = useState(cliente?.nombre ?? '');
+  const [telefono, setTelefono] = useState(cliente?.telefono ?? '');
+  const [direccion, setDireccion] = useState(cliente?.direccion ?? '');
   const [tipoEntrega, setTipoEntrega] = useState<'RETIRO' | 'ENVIO'>('RETIRO');
   const [zonaEnvioId, setZonaEnvioId] = useState<number | null>(zonasEnvio[0]?.id ?? null);
   const [loading, setLoading] = useState(false);
@@ -19,6 +21,19 @@ export function Checkout() {
   }, [tipoEntrega, zonaEnvioId, zonasEnvio]);
 
   const total = subtotal + costoEnvio;
+
+  useEffect(() => {
+    if (!loadingAuth && !isAuthenticated) {
+      navigate('/login', { replace: true, state: { from: '/checkout' } });
+    }
+  }, [isAuthenticated, loadingAuth, navigate]);
+
+  useEffect(() => {
+    if (!cliente) return;
+    setNombre((current) => current || cliente.nombre);
+    setTelefono((current) => current || cliente.telefono || '');
+    setDireccion((current) => current || cliente.direccion || '');
+  }, [cliente]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
