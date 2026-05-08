@@ -4,6 +4,7 @@ import type { UserRole } from '../../types';
 import {
   IcoDashboard, IcoInventory, IcoSales, IcoUsers, IcoCategories,
   IcoReports, IcoSettings, IcoTransfer, IcoStock, IcoClose, IcoLogout,
+  IcoOrders,
 } from '../icons';
 
 interface NavItem {
@@ -24,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Ventas',        to: '/ventas',        icon: <IcoSales />,       roles: ['ADMIN', 'CAJERO'] },
   { label: 'Categorias',    to: '/categorias',    icon: <IcoCategories />,  roles: ['ADMIN'] },
   { label: 'Usuarios',      to: '/usuarios',      icon: <IcoUsers />,       roles: ['ADMIN'] },
+  { label: 'Pedidos Online', to: '/pedidos-online', icon: <IcoOrders />,     roles: ['ADMIN', 'BODEGA'] },
   { label: 'Reportes',      to: '/reportes',      icon: <IcoReports />,     roles: ['ADMIN', 'BODEGA'] },
   { label: 'Ajustes',       to: '/ajustes',       icon: <IcoSettings />,    roles: ['ADMIN'], badge: 'Pronto' },
 ];

@@ -1,0 +1,484 @@
+.po-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg-base);
+}
+
+/* ── Header ── */
+.po-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.po-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.po-subtitle {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin: 4px 0 0;
+}
+
+.po-poll-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-subtle);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 10px;
+}
+
+.po-poll-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: po-pulse 2s infinite;
+}
+
+@keyframes po-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Alert ── */
+.po-alert {
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* ── Filtros ── */
+.po-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.po-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+}
+
+.po-field label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.po-input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.po-input:focus {
+  border-color: var(--accent);
+}
+
+.po-select-wrap {
+  position: relative;
+}
+
+.po-select {
+  height: 34px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 13px;
+  appearance: none;
+  outline: none;
+  width: 100%;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.po-select:focus {
+  border-color: var(--accent);
+}
+
+.po-caret {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-subtle);
+  pointer-events: none;
+}
+
+.po-btn-filter {
+  height: 34px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.po-btn-filter:hover {
+  background: var(--accent-hover);
+}
+
+/* ── Búsqueda rápida ── */
+.po-search-wrap {
+  display: flex;
+}
+
+.po-search {
+  width: 260px;
+}
+
+/* ── Tabla ── */
+.po-table-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.po-table-wrap {
+  overflow-x: auto;
+}
+
+.po-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.po-table thead th {
+  background: var(--bg-base);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.po-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.po-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.po-table tbody tr:hover {
+  background: var(--bg-base);
+}
+
+.po-table td {
+  padding: 10px 12px;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.po-empty {
+  text-align: center;
+  padding: 32px !important;
+  color: var(--text-subtle);
+}
+
+/* ── Celdas específicas ── */
+.po-cell-id {
+  font-weight: 700;
+  color: var(--accent) !important;
+  white-space: nowrap;
+}
+
+.po-cell-fecha {
+  font-size: 12px;
+  color: var(--text-subtle) !important;
+  white-space: nowrap;
+}
+
+.po-cliente-nombre {
+  font-weight: 600;
+}
+
+.po-cliente-tel {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+
+.po-cell-sucursal {
+  font-size: 12px;
+  color: var(--text-subtle) !important;
+}
+
+.po-cell-total {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── Badges ── */
+.po-estado-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.po-entregado-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.po-tipo-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.po-tipo-retiro {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563EB;
+}
+
+.po-tipo-envio {
+  background: rgba(217, 119, 6, 0.1);
+  color: #D97706;
+}
+
+/* ── Botón detalle ── */
+.po-btn-detalle {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.po-btn-detalle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Modal body ── */
+.po-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.po-modal-section {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.po-modal-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  margin: 0 0 6px;
+}
+
+.po-modal-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.po-modal-sub {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin: 2px 0 0;
+}
+
+/* ── Items ── */
+.po-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.po-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 6px 8px;
+  background: var(--bg-base);
+  border-radius: 6px;
+}
+
+.po-item-nombre {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.po-item-cant {
+  color: var(--text-subtle);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.po-item-subtotal {
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ── Totales ── */
+.po-modal-totales {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-base);
+  border-radius: 8px;
+}
+
+.po-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.po-total-final {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+/* ── Indicador entrega ── */
+.po-entrega-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.po-entrega-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.po-entregado-check {
+  margin-left: 4px;
+  font-size: 12px;
+  color: #16A34A;
+  font-weight: 700;
+}
+
+.po-listo-notice {
+  margin-left: 4px;
+  font-size: 12px;
+  color: #2563EB;
+  font-weight: 600;
+  background: rgba(37, 99, 235, 0.1);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+/* ── Cambio de estado ── */
+.po-cambio-estado {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.po-cambio-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.po-btn-cambiar {
+  height: 34px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.po-btn-cambiar:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.po-btn-cambiar:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.po-cambio-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin: 0;
+}
