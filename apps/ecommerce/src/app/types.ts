@@ -18,6 +18,21 @@ export interface ZonaEnvio {
   sucursalPreferente: number | null;
 }
 
+export interface ClienteEcommerce {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: 'CLIENTE';
+  telefono: string | null;
+  direccion: string | null;
+  fechaRegistro: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  cliente: ClienteEcommerce;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;
@@ -34,4 +49,27 @@ export interface PedidoPayload {
   direccionEnvio?: string;
   observaciones?: string;
   items: Array<{ productoId: number; cantidad: number }>;
+}
+
+export interface PedidoOnline {
+  id: number;
+  clienteId: number | null;
+  sucursalId: number;
+  tipoEntrega: TipoEntrega;
+  estado: string;
+  clienteNombre: string | null;
+  clienteTel: string | null;
+  direccionEnvio: string | null;
+  subtotal: number;
+  costoEnvio: number;
+  total: number;
+  creadoEn: string;
+  detalles?: Array<{
+    id: number;
+    productoId: number;
+    cantidad: number;
+    precioUnit: number;
+    subtotal: number;
+    producto?: Product;
+  }>;
 }

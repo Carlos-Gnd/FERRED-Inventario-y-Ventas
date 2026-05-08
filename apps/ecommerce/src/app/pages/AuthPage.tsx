@@ -1,0 +1,126 @@
+import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { useAuth } from '../context/AuthContext';
+
+type AuthMode = 'login' | 'registro';
+
+export function AuthPage({ mode }: { mode: AuthMode }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, register } = useAuth();
+  const [nombre, setNombre] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isRegistro = mode === 'registro';
+  const redirectTo = (location.state as { from?: string } | null)?.from ?? '/cliente';
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      if (isRegistro) {
+        await register({
+          nombre,
+          email,
+          password,
+          telefono: telefono || undefined,
+          direccion: direccion || undefined,
+        });
+      } else {
+        await login({ email, password });
+      }
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo completar la autenticacion');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F5F2EB]">
+      <div className="bg-[#2B2D31] text-white py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-4xl font-bold">{isRegistro ? 'Crear cuenta' : 'Iniciar sesion'}</h1>
+          <p className="text-[#E5E2DA] mt-2">
+            {isRegistro ? 'Registra tu cuenta para guardar tu historial de pedidos.' : 'Accede para comprar y revisar tus pedidos.'}
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl p-8 shadow-md space-y-5">
+          {isRegistro && (
+            <input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              required
+              minLength={2}
+              placeholder="Nombre completo"
+              className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
+            />
+          )}
+
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            required
+            placeholder="Correo electronico"
+            className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
+          />
+
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            required
+            minLength={isRegistro ? 8 : 1}
+            placeholder="Contrasena"
+            className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
+          />
+
+          {isRegistro && (
+            <>
+              <input
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                placeholder="Telefono"
+                className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
+              />
+              <textarea
+                value={direccion}
+                onChange={(e) => setDireccion(e.target.value)}
+                rows={3}
+                placeholder="Direccion"
+                className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
+              />
+            </>
+          )}
+
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+
+          <button
+            disabled={loading}
+            className="w-full bg-[#D97706] text-white py-3 rounded-xl font-semibold disabled:bg-[#E5E2DA] disabled:text-[#5F6368]"
+          >
+            {loading ? 'Procesando...' : isRegistro ? 'Crear cuenta' : 'Entrar'}
+          </button>
+
+          <p className="text-sm text-[#5F6368] text-center">
+            {isRegistro ? 'Ya tienes cuenta?' : 'Aun no tienes cuenta?'}{' '}
+            <Link className="text-[#D97706] font-semibold" to={isRegistro ? '/login' : '/registro'} state={{ from: redirectTo }}>
+              {isRegistro ? 'Inicia sesion' : 'Registrate'}
+            </Link>
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}

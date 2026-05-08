@@ -1,38 +1,47 @@
 import { ShoppingCart } from 'lucide-react';
 import { Link } from 'react-router';
+import type { Product } from '../types';
 
-interface ProductCardProps {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  stock: number;
-  category: string;
-  brand: string;
-  description: string;
-  onAddToCart?: (product: ProductCardProps) => void;
-}
+type ProductCardProps = {
+  product?: Product;
+  id?: string;
+  name?: string;
+  price?: number;
+  image?: string;
+  stock?: number;
+  category?: string;
+  brand?: string;
+  description?: string;
+  onAddToCart?: (product: Product) => void;
+};
 
-export function ProductCard({ id, name, price, image, stock, category, onAddToCart }: ProductCardProps) {
+export function ProductCard(props: ProductCardProps) {
+  const { product, onAddToCart } = props;
+  const id = product?.id ?? Number(props.id ?? 0);
+  const nombre = product?.nombre ?? props.name ?? 'Producto';
+  const price = product?.precioConIva ?? props.price ?? 0;
+  const stock = product?.stockDisponible ?? props.stock ?? 0;
+  const category = product?.categoria?.nombre ?? props.category ?? 'Sin categoria';
+
   return (
     <div className="bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-[#E5E2DA] flex flex-col h-full">
       <Link to={`/producto/${id}`} className="flex-shrink-0">
         <div className="aspect-square bg-[#F5F2EB] flex items-center justify-center overflow-hidden">
-          <img
-            src={image}
-            alt={name}
-            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-          />
+          {props.image ? (
+            <img src={props.image} alt={nombre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-[#5F6368] text-sm px-4 text-center">
+              {nombre}
+            </div>
+          )}
         </div>
       </Link>
 
       <div className="p-2 sm:p-3 md:p-4 flex flex-col flex-grow">
-        {category && (
-          <span className="text-xs text-[#5F6368] uppercase tracking-wide font-medium">{category}</span>
-        )}
+        <span className="text-xs text-[#5F6368] uppercase tracking-wide font-medium">{category}</span>
         <Link to={`/producto/${id}`}>
           <h3 className="font-semibold text-[#2B2D31] mt-1 sm:mt-2 hover:text-[#D97706] transition-colors line-clamp-2 text-xs sm:text-sm md:text-base">
-            {name}
+            {nombre}
           </h3>
         </Link>
 
@@ -45,8 +54,8 @@ export function ProductCard({ id, name, price, image, stock, category, onAddToCa
           </div>
 
           <button
-            onClick={() => onAddToCart?.({ id, name, price, image, stock, category, brand: '', description: '', onAddToCart })}
-            disabled={stock === 0}
+            onClick={() => product && onAddToCart?.(product)}
+            disabled={stock === 0 || !product}
             className="bg-[#D97706] text-white p-1.5 sm:p-2 md:p-3 rounded-lg sm:rounded-xl hover:bg-[#B45309] transition-colors disabled:bg-[#E5E2DA] disabled:cursor-not-allowed flex-shrink-0"
             title={stock === 0 ? 'Sin stock' : 'Agregar al carrito'}
           >

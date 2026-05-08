@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { crearPedidoOnline, getProductosPublicos, getZonasEnvio } from '../services/ecommerceApi';
+import { useAuth } from './AuthContext';
 import type { CartItem, PedidoPayload, Product, ZonaEnvio } from '../types';
 
 type EcommerceContextType = {
@@ -25,6 +26,7 @@ const EcommerceContext = createContext<EcommerceContextType | null>(null);
 const CART_STORAGE_KEY = 'ferred-ecommerce-cart';
 
 export function EcommerceProvider({ children }: { children: React.ReactNode }) {
+  const { token } = useAuth();
   const [selectedSucursalId, setSelectedSucursalId] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -132,7 +134,10 @@ export function EcommerceProvider({ children }: { children: React.ReactNode }) {
     subtotal,
     zonasEnvio,
     loadingZonas,
-    createOrder: crearPedidoOnline,
+    createOrder: async (payload) => {
+      if (!token) throw new Error('Inicia sesion para confirmar tu pedido');
+      return crearPedidoOnline(payload, token);
+    },
   };
 
   return <EcommerceContext.Provider value={value}>{children}</EcommerceContext.Provider>;
