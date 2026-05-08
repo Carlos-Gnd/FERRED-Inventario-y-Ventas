@@ -1,0 +1,117 @@
+/* ── StockCard ── DT-03/DT-15: CSS classes, design tokens, sin inline styles */
+
+.stock-card {
+  background:    var(--bg-surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding:       20px;
+  display:       flex;
+  flex-direction: column;
+  gap:           14px;
+  cursor:        pointer;
+  transition:    border-color 0.2s, box-shadow 0.2s;
+  box-shadow:    0 2px 8px rgba(0,0,0,0.15);
+}
+
+.stock-card:hover {
+  border-color: var(--accent);
+  box-shadow:   0 0 0 2px var(--accent-glow), 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.stock-card--danger {
+  border-color: rgba(239,68,68,0.30);
+  box-shadow:   0 0 0 1px rgba(239,68,68,0.08), 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.stock-card--danger:hover {
+  border-color: rgba(239,68,68,0.6);
+  box-shadow:   0 0 0 2px rgba(239,68,68,0.15), 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.stock-card--loading {
+  opacity: 0.5;
+}
+
+/* ── skeleton ── */
+.stock-card--skeleton {
+  cursor: default;
+}
+
+.skeleton-block {
+  background: var(--border);
+  border-radius: var(--radius-sm);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-icon     { width: 36px; height: 36px; border-radius: var(--radius-md); flex-shrink: 0; }
+.skeleton-text     { width: 100px; height: 14px; border-radius: var(--radius-sm); }
+.skeleton-badge    { width: 52px; height: 22px; border-radius: 20px; }
+.skeleton-subtitle { width: 60px; height: 12px; }
+.skeleton-count    { width: 90px; height: 26px; }
+
+/* ── internals ── */
+.stock-card__header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+}
+
+.stock-card__icon-row {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+}
+
+.stock-card__icon {
+  width:           36px;
+  height:          36px;
+  border-radius:   var(--radius-md);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  flex-shrink:     0;
+}
+
+.stock-card__icon--danger { background: rgba(239,68,68,0.18); }
+.stock-card__icon--ok     { background: rgba(16,185,129,0.15); }
+
+.stock-card__branch {
+  font-size:   14px;
+  font-weight: 600;
+  color:       var(--text-primary);
+  line-height: 1.2;
+}
+
+.stock-card__badge {
+  font-size:      11px;
+  font-weight:    700;
+  border-radius:  20px;
+  padding:        3px 10px;
+  letter-spacing: 0.02em;
+}
+
+.stock-card__badge--danger {
+  color:      var(--danger);
+  background: rgba(239,68,68,0.1);
+  border:     1px solid rgba(239,68,68,0.25);
+}
+
+.stock-card__badge--ok {
+  color:      var(--success);
+  background: rgba(16,185,129,0.1);
+  border:     1px solid rgba(16,185,129,0.25);
+}
+
+.stock-card__subtitle {
+  font-size:  12px;
+  color:      var(--text-muted);
+  margin-top: -4px;
+}
+
+.stock-card__count {
+  font-size:   26px;
+  font-weight: 700;
+  color:       var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+}

@@ -4,6 +4,7 @@ import type { UserRole } from '../../types';
 import {
   IcoDashboard, IcoInventory, IcoSales, IcoUsers, IcoCategories,
   IcoReports, IcoSettings, IcoTransfer, IcoStock, IcoClose, IcoLogout,
+  IcoOrders,
 } from '../icons';
 
 interface NavItem {
@@ -19,10 +20,12 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Productos',     to: '/productos',     icon: <IcoInventory />,   roles: ['ADMIN', 'BODEGA'] },
   { label: 'Stock',         to: '/stock',         icon: <IcoStock />,       roles: ['ADMIN', 'BODEGA'] },
   { label: 'Recepcion',     to: '/recepcion',     icon: <IcoInventory />,   roles: ['ADMIN', 'BODEGA'] },
+  { label: 'Historial recepciones', to: '/historial-recepciones', icon: <IcoReports />, roles: ['ADMIN', 'BODEGA'] },
   { label: 'Transferencias',to: '/transferencias',icon: <IcoTransfer />,    roles: ['ADMIN'] },
   { label: 'Ventas',        to: '/ventas',        icon: <IcoSales />,       roles: ['ADMIN', 'CAJERO'] },
   { label: 'Categorias',    to: '/categorias',    icon: <IcoCategories />,  roles: ['ADMIN'] },
   { label: 'Usuarios',      to: '/usuarios',      icon: <IcoUsers />,       roles: ['ADMIN'] },
+  { label: 'Pedidos Online', to: '/pedidos-online', icon: <IcoOrders />,     roles: ['ADMIN', 'BODEGA'] },
   { label: 'Reportes',      to: '/reportes',      icon: <IcoReports />,     roles: ['ADMIN', 'BODEGA'] },
   { label: 'Ajustes',       to: '/ajustes',       icon: <IcoSettings />,    roles: ['ADMIN'], badge: 'Pronto' },
 ];
@@ -37,7 +40,7 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
   const navigate = useNavigate();
   const { usuario, logout } = useAuthStore();
   const rol = (usuario?.rol ?? 'CAJERO') as UserRole;
-  const isReportsRoute = location.pathname === '/reportes';
+  const isReceptionHistoryRoute = location.pathname === '/historial-recepciones';
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(rol));
 
   function getInitials(name: string) {
@@ -52,27 +55,27 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
   return (
     <aside
       style={{
-        width: isReportsRoute ? '194px' : '210px',
+        width: isReceptionHistoryRoute ? '194px' : '210px',
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
-        background: isReportsRoute
+        background: isReceptionHistoryRoute
           ? 'color-mix(in srgb, var(--bg-surface) 92%, var(--bg-base) 8%)'
           : 'var(--bg-surface)',
-        borderRight: isReportsRoute ? 'none' : '1px solid var(--border)',
+        borderRight: isReceptionHistoryRoute ? 'none' : '1px solid var(--border)',
         height: '100%',
       }}
     >
       <div
         style={{
-          padding: isReportsRoute ? '28px 28px 24px' : '20px 16px 16px',
-          borderBottom: isReportsRoute ? 'none' : '1px solid var(--border)',
+          padding: isReceptionHistoryRoute ? '28px 28px 24px' : '20px 16px 16px',
+          borderBottom: isReceptionHistoryRoute ? 'none' : '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
         }}
       >
-        {!isReportsRoute && (
+        {!isReceptionHistoryRoute && (
           <div
             style={{
               width: '36px',
@@ -93,8 +96,8 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
           <div
             style={{
               fontWeight: 800,
-              fontSize: isReportsRoute ? '15px' : '13px',
-              letterSpacing: isReportsRoute ? '0.02em' : '0.12em',
+              fontSize: isReceptionHistoryRoute ? '15px' : '13px',
+              letterSpacing: isReceptionHistoryRoute ? '0.02em' : '0.12em',
               color: 'var(--accent)',
             }}
           >
@@ -104,12 +107,12 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
             style={{
               fontSize: '10px',
               color: 'var(--text-subtle)',
-              marginTop: isReportsRoute ? '3px' : '1px',
-              letterSpacing: isReportsRoute ? '0.18em' : 'normal',
-              textTransform: isReportsRoute ? 'uppercase' : 'none',
+              marginTop: isReceptionHistoryRoute ? '3px' : '1px',
+              letterSpacing: isReceptionHistoryRoute ? '0.18em' : 'normal',
+              textTransform: isReceptionHistoryRoute ? 'uppercase' : 'none',
             }}
           >
-            {isReportsRoute ? 'Industrial Atelier' : 'Panel de Control'}
+            {isReceptionHistoryRoute ? 'Industrial Atelier' : 'Panel de Control'}
           </div>
         </div>
 
@@ -131,7 +134,7 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
         )}
       </div>
 
-      {!isReportsRoute && (
+      {!isReceptionHistoryRoute && (
         <div style={{ padding: '10px 16px 6px' }}>
           <span
             style={{
@@ -152,7 +155,7 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
       <nav
         style={{
           flex: 1,
-          padding: isReportsRoute ? '8px 8px 20px 20px' : '8px 8px',
+          padding: isReceptionHistoryRoute ? '8px 8px 20px 20px' : '8px 8px',
           overflowY: 'auto',
         }}
       >
@@ -166,26 +169,26 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              padding: isReportsRoute ? '11px 14px' : '9px 12px',
-              borderRadius: isReportsRoute ? '0 8px 8px 0' : '7px',
-              marginBottom: isReportsRoute ? '4px' : '2px',
+              padding: isReceptionHistoryRoute ? '11px 14px' : '9px 12px',
+              borderRadius: isReceptionHistoryRoute ? '0 8px 8px 0' : '7px',
+              marginBottom: isReceptionHistoryRoute ? '4px' : '2px',
               textDecoration: 'none',
               fontSize: '13px',
               fontWeight: isActive ? 700 : 500,
               color: isActive ? 'var(--accent)' : 'var(--text-muted)',
               background: isActive
-                ? isReportsRoute
+                ? isReceptionHistoryRoute
                   ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
                   : 'var(--accent-glow)'
                 : 'transparent',
-              borderLeft: isReportsRoute ? 'none' : `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
-              borderRight: isReportsRoute ? `3px solid ${isActive ? 'var(--accent)' : 'transparent'}` : 'none',
+              borderLeft: isReceptionHistoryRoute ? 'none' : `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
+              borderRight: isReceptionHistoryRoute ? `3px solid ${isActive ? 'var(--accent)' : 'transparent'}` : 'none',
               transition: 'all 0.15s ease',
             })}
           >
             {item.icon}
             <span style={{ flex: 1 }}>{item.label}</span>
-            {item.to === '/dashboard' && hasActiveAlerts && !isReportsRoute && (
+            {item.to === '/dashboard' && hasActiveAlerts && !isReceptionHistoryRoute && (
               <span
                 title="Hay alertas activas"
                 style={{
@@ -199,7 +202,7 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
                 }}
               />
             )}
-            {item.badge && !isReportsRoute && (
+            {item.badge && !isReceptionHistoryRoute && (
               <span
                 style={{
                   fontSize: '9px',
@@ -218,7 +221,7 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
         ))}
       </nav>
 
-      {isReportsRoute ? (
+      {isReceptionHistoryRoute ? (
         <div style={{ padding: '16px 24px 24px', marginTop: 'auto' }}>
           <button
             onClick={handleLogout}

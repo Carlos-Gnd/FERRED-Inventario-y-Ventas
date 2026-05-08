@@ -21,6 +21,7 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Usuarios',   to: '/usuarios',   icon: <IcoUsers      size={22} />, roles: ['ADMIN'] },
   { label: 'Categorias', to: '/categorias', icon: <IcoCategories size={22} />, roles: ['ADMIN'] },
   { label: 'Reportes',   to: '/reportes',   icon: <IcoReports    size={22} />, roles: ['ADMIN', 'BODEGA'] },
+  { label: 'Historial',   to: '/historial-recepciones', icon: <IcoReports size={22} />, roles: ['ADMIN', 'BODEGA'] },
 ];
 
 interface BottomNavProps {

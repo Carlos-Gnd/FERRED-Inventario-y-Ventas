@@ -1,11 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '../../db/prisma/prisma.client';
 import { env } from '../../../config/env';
 import type { UserRole } from '../../../types/roles';
 import { getSqliteDb } from '../../db/sqlite.client';
+import { issueJwt as signJwt } from '../services/jwt.service';
 
 export const authRoutes = Router();
 
@@ -28,7 +28,7 @@ interface UsuarioPayload {
  */
 
 function issueJwt(usuario: UsuarioPayload): string {
-  return jwt.sign(
+  return signJwt(
     {
       id:         usuario.id,
       rol:        usuario.rol,
@@ -36,7 +36,7 @@ function issueJwt(usuario: UsuarioPayload): string {
       email:      usuario.email,
     },
     env.jwt.secret,
-    { expiresIn: env.jwt.expiresIn } as jwt.SignOptions,
+    env.jwt.expiresIn,
   );
 }
 
@@ -66,7 +66,8 @@ async function loginOffline(
             contrasena_hash,
             rol,
             sucursal_id,
-            activo
+            activo,
+            last_synced_at
      FROM usuarios
      WHERE email = ?
      LIMIT 1`
@@ -78,12 +79,27 @@ async function loginOffline(
     rol: UserRole;
     sucursal_id: number | null;
     activo: number;
+    last_synced_at: string | null;
   } | undefined;
 
   if (!row || !row.activo) {
     const err = new Error('Credenciales incorrectas');
     (err as ErrorConCode).code = 'INVALID_CREDENTIALS';
     throw err;
+  }
+
+  // T-07F.3: rechazar login offline si la cuenta lleva más de OFFLINE_AUTH_MAX_DAYS sin sincronizar
+  if (row.last_synced_at) {
+    const lastSync = new Date(row.last_synced_at);
+    const maxMs    = env.offline.authMaxDays * 24 * 60 * 60 * 1000;
+    if (Date.now() - lastSync.getTime() > maxMs) {
+      const err = new Error(
+        `Cuenta expirada en modo offline (última sincronización: ${lastSync.toLocaleDateString('es-SV')}). ` +
+        `Conectate a internet para renovar la sesión.`
+      );
+      (err as ErrorConCode).code = 'OFFLINE_EXPIRED';
+      throw err;
+    }
   }
 
   const esValida = await bcrypt.compare(password, row.contrasena_hash);
@@ -195,8 +211,12 @@ authRoutes.post('/login', async (req: Request, res: Response, next: NextFunction
           },
         });
       } catch (offlineErr: unknown) {
-        if ((offlineErr as ErrorConCode | undefined)?.code === 'INVALID_CREDENTIALS') {
+        const offlineCode = (offlineErr as ErrorConCode | undefined)?.code;
+        if (offlineCode === 'INVALID_CREDENTIALS') {
           return res.status(401).json({ error: 'Credenciales incorrectas' });
+        }
+        if (offlineCode === 'OFFLINE_EXPIRED') {
+          return res.status(401).json({ error: (offlineErr as Error).message });
         }
         console.error('[auth] Error en login offline:', offlineErr);
         return res.status(503).json({

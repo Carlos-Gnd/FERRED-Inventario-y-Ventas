@@ -213,13 +213,20 @@ proveedorRoutes.get('/recepciones', async (req: Request, res: Response, next: Ne
         proveedor: { select: { nombre: true } },
         sucursal:  { select: { nombre: true } },
         usuario:   { select: { nombre: true } },
+        detalles:  { select: { cantidad: true } },
         _count:    { select: { detalles: true } },
       },
       orderBy: { creadoEn: 'desc' },
       take:    100,
     });
 
-    return res.json(recepciones);
+    return res.json(recepciones.map(({ detalles, ...recepcion }: any) => ({
+      ...recepcion,
+      cantidadItems: detalles.reduce(
+        (sum: number, detalle: { cantidad: number }) => sum + Number(detalle.cantidad ?? 0),
+        0,
+      ),
+    })));
   } catch (err: any) {
     if (debeUsarSqlite(err)) {
       const sucursalId = req.usuario?.rol !== 'ADMIN' ? req.usuario?.sucursalId : undefined;
