@@ -137,7 +137,8 @@
       s.nombre AS sucursalNombre,
       u.id AS usuarioId,
       u.nombre AS usuarioNombre,
-      COUNT(d.id) AS detallesCount
+      COUNT(d.id) AS detallesCount,
+      COALESCE(SUM(d.cantidad), 0) AS cantidadItems
     FROM recepciones_mercancia r
     LEFT JOIN proveedores p ON p.id = r.proveedor_id
     LEFT JOIN sucursales s ON s.id = r.sucursal_id
@@ -473,6 +474,7 @@
         nombre: row.sucursalNombre ?? 'Sucursal',
       },
       usuario: row.usuarioId ? { nombre: row.usuarioNombre ?? 'Sin responsable' } : null,
+      cantidadItems: Number(row.cantidadItems ?? 0),
       _count: {
         detalles: Number(row.detallesCount ?? 0),
       },
