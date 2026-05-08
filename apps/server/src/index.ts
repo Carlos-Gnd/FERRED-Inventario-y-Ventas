@@ -17,6 +17,7 @@ import { inventarioRoutes } from './adapters/http/routes/inventario.routes';
 import { ventasRoutes }     from './adapters/http/routes/ventas.routes';
 import { dteRoutes }        from './adapters/http/routes/dte.routes';
 import { proveedorRoutes }  from './adapters/http/routes/proveedor.routes';
+import { pagosOnlineRoutes } from './adapters/http/routes/pagos-online.routes';
 import {
   pedidosOnlinePublicRoutes,
   pedidosOnlineRoutes,
@@ -85,6 +86,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/zonas-envio', zonasEnvioPublicRoutes);
 app.use('/api/productos', productosPublicosRoutes);
 app.use('/api/pedidos-online', pedidosOnlinePublicRoutes);
+app.use('/api/pedidos-online', pagosOnlineRoutes);
 
 app.use(jwtMiddleware);
 app.use(apiLimiter);
