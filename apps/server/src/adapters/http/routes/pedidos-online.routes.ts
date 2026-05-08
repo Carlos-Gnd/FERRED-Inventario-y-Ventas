@@ -11,6 +11,7 @@ import {
 import { sincronizarStockTotal } from '../services/stock-sync.service';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
+import { authenticateCliente } from '../middleware/cliente-auth.middleware';
 import { OfflineCache } from '../../sync/sync.service';
 
 export const pedidosOnlinePublicRoutes = Router();
@@ -232,7 +233,7 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
   }
 });
 
-pedidosOnlinePublicRoutes.post('/', async (req: Request, res: Response, next: NextFunction) => {
+pedidosOnlinePublicRoutes.post('/', authenticateCliente, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = CrearPedidoOnlineSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -242,7 +243,13 @@ pedidosOnlinePublicRoutes.post('/', async (req: Request, res: Response, next: Ne
       });
     }
 
-    const pedido = await crearPedidoOnline(parsed.data);
+    const clienteId = req.cliente?.id;
+    if (!clienteId) return res.status(401).json({ error: 'Token de cliente requerido' });
+
+    const pedido = await crearPedidoOnline({
+      ...parsed.data,
+      clienteId,
+    });
     OfflineCache.invalidate(`stock:${pedido.sucursalId}`);
     OfflineCache.invalidate('productos:');
 
@@ -252,6 +259,24 @@ pedidosOnlinePublicRoutes.post('/', async (req: Request, res: Response, next: Ne
       return jsonErrorPedido(res, error);
     }
 
+    return next(error);
+  }
+});
+
+pedidosOnlinePublicRoutes.get('/mis', authenticateCliente, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const clienteId = req.cliente?.id;
+    if (!clienteId) return res.status(401).json({ error: 'Token de cliente requerido' });
+
+    const pedidos = await prisma.pedidoOnline.findMany({
+      where: { clienteId },
+      include: pedidoCompletoInclude,
+      orderBy: { creadoEn: 'desc' },
+      take: 100,
+    });
+
+    return res.json({ total: pedidos.length, pedidos });
+  } catch (error) {
     return next(error);
   }
 });

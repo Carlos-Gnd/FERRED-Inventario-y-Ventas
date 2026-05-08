@@ -16,7 +16,6 @@ const ItemPedidoOnlineSchema = z.object({
 });
 
 export const CrearPedidoOnlineSchema = z.object({
-  clienteId: z.number().int().positive().optional(),
   clienteNombre: z.string().trim().min(2).optional(),
   clienteTel: z.string().trim().min(7).optional(),
   tipoEntrega: z.enum([TipoEntregaPedidoOnline.RETIRO, TipoEntregaPedidoOnline.ENVIO]),
@@ -52,7 +51,9 @@ export const CrearPedidoOnlineSchema = z.object({
   }
 });
 
-export type CrearPedidoOnlineInput = z.infer<typeof CrearPedidoOnlineSchema>;
+export type CrearPedidoOnlineInput = z.infer<typeof CrearPedidoOnlineSchema> & {
+  clienteId: number;
+};
 
 export type StockInsuficienteDetalle = {
   productoId: number;
@@ -256,7 +257,7 @@ export async function crearPedidoOnline(input: CrearPedidoOnlineInput): Promise<
     throw new PedidoOnlineServiceError(parsed.error.issues[0]?.message ?? 'Pedido invalido', 400);
   }
 
-  const data = parsed.data;
+  const data = { ...parsed.data, clienteId: input.clienteId };
   const items = normalizarItems(data.items);
 
   return prisma.$transaction(async (tx) => {

@@ -9,6 +9,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 import { AlertasService } from './adapters/alertas/alertas.service';
 import { authRoutes }       from './adapters/http/routes/auth.routes';
+import { ecommerceAuthRoutes } from './adapters/http/routes/ecommerce-auth.routes';
 import { usuarioRoutes }    from './adapters/http/routes/usuario.routes';
 import { categoriaRoutes }  from './adapters/http/routes/categoria.routes';
 import { productoRoutes }   from './adapters/http/routes/producto.routes';
@@ -79,6 +80,7 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api/auth', loginLimiter, authRoutes);
+app.use('/api/ecommerce/auth', loginLimiter, ecommerceAuthRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/zonas-envio', zonasEnvioPublicRoutes);
 app.use('/api/productos', productosPublicosRoutes);

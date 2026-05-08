@@ -1,11 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '../../db/prisma/prisma.client';
 import { env } from '../../../config/env';
 import type { UserRole } from '../../../types/roles';
 import { getSqliteDb } from '../../db/sqlite.client';
+import { issueJwt as signJwt } from '../services/jwt.service';
 
 export const authRoutes = Router();
 
@@ -28,7 +28,7 @@ interface UsuarioPayload {
  */
 
 function issueJwt(usuario: UsuarioPayload): string {
-  return jwt.sign(
+  return signJwt(
     {
       id:         usuario.id,
       rol:        usuario.rol,
@@ -36,7 +36,7 @@ function issueJwt(usuario: UsuarioPayload): string {
       email:      usuario.email,
     },
     env.jwt.secret,
-    { expiresIn: env.jwt.expiresIn } as jwt.SignOptions,
+    env.jwt.expiresIn,
   );
 }
 
