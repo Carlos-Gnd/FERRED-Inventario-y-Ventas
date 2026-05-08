@@ -15,6 +15,35 @@ type ProductCardProps = {
   onAddToCart?: (product: Product) => void;
 };
 
+const PRODUCT_IMAGES = {
+  drill: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=700&auto=format&fit=crop',
+  handTools: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?w=700&auto=format&fit=crop',
+  electrical: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=700&auto=format&fit=crop',
+  hardware: 'https://images.unsplash.com/photo-1530124566582-a618bc2615dc?w=700&auto=format&fit=crop',
+  paint: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=700&auto=format&fit=crop',
+  construction: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?w=700&auto=format&fit=crop',
+};
+
+const FALLBACK_IMAGES = [
+  PRODUCT_IMAGES.handTools,
+  PRODUCT_IMAGES.hardware,
+  PRODUCT_IMAGES.electrical,
+  PRODUCT_IMAGES.construction,
+];
+
+export function getProductImage(nombre: string, category: string, id: number) {
+  const text = `${nombre} ${category}`.toLowerCase();
+
+  if (text.includes('taladro') || text.includes('drill')) return PRODUCT_IMAGES.drill;
+  if (text.includes('martillo') || text.includes('hammer')) return PRODUCT_IMAGES.handTools;
+  if (text.includes('gancho') || text.includes('tornillo') || text.includes('clavo')) return PRODUCT_IMAGES.hardware;
+  if (text.includes('electr') || text.includes('cable') || text.includes('volt')) return PRODUCT_IMAGES.electrical;
+  if (text.includes('pint') || text.includes('brocha')) return PRODUCT_IMAGES.paint;
+  if (text.includes('cement') || text.includes('constru')) return PRODUCT_IMAGES.construction;
+
+  return FALLBACK_IMAGES[Math.abs(id) % FALLBACK_IMAGES.length];
+}
+
 export function ProductCard(props: ProductCardProps) {
   const { product, onAddToCart } = props;
   const id = product?.id ?? Number(props.id ?? 0);
@@ -22,18 +51,13 @@ export function ProductCard(props: ProductCardProps) {
   const price = product?.precioConIva ?? props.price ?? 0;
   const stock = product?.stockDisponible ?? props.stock ?? 0;
   const category = product?.categoria?.nombre ?? props.category ?? 'Sin categoria';
+  const image = props.image ?? getProductImage(nombre, category, id);
 
   return (
     <div className="bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-[#E5E2DA] flex flex-col h-full">
       <Link to={`/producto/${id}`} className="flex-shrink-0">
-        <div className="aspect-square bg-[#F5F2EB] flex items-center justify-center overflow-hidden">
-          {props.image ? (
-            <img src={props.image} alt={nombre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-[#5F6368] text-sm px-4 text-center">
-              {nombre}
-            </div>
-          )}
+        <div className="aspect-square bg-[#F5F2EB] overflow-hidden">
+          <img src={image} alt={nombre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
         </div>
       </Link>
 
