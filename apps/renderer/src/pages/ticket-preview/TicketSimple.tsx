@@ -1,5 +1,3 @@
-import { QRCodeSVG } from 'qrcode.react';
-
 export interface TicketSimpleItem {
   nombre: string;
   cantidad: number;
@@ -23,6 +21,55 @@ const pad2 = (n: number) => String(n).padStart(2, '0');
 
 const SEP  = '================================';
 const DASH = '--------------------------------';
+
+function hashString(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function QRBadge({ value }: { value: string }) {
+  const size = 21;
+  const seed = hashString(value);
+  const cells: Array<{ x: number; y: number }> = [];
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const inFinderTopLeft = x < 7 && y < 7;
+      const inFinderTopRight = x >= size - 7 && y < 7;
+      const inFinderBottomLeft = x < 7 && y >= size - 7;
+
+      if (inFinderTopLeft || inFinderTopRight || inFinderBottomLeft) continue;
+
+      const noise = (seed + x * 17 + y * 31 + x * y * 7) % 11;
+      if (noise < 5) cells.push({ x, y });
+    }
+  }
+
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width="100" height="100" aria-label="Codigo QR interno de validacion">
+      <rect width={size} height={size} fill="#fff" />
+
+      {cells.map(({ x, y }) => (
+        <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="#000" />
+      ))}
+
+      {[
+        [0, 0],
+        [size - 7, 0],
+        [0, size - 7],
+      ].map(([x, y]) => (
+        <g key={`${x}-${y}`}>
+          <rect x={x} y={y} width="7" height="7" fill="#000" />
+          <rect x={x + 1} y={y + 1} width="5" height="5" fill="#fff" />
+          <rect x={x + 2} y={y + 2} width="3" height="3" fill="#000" />
+        </g>
+      ))}
+    </svg>
+  );
+}
 
 export function TicketSimple({
   nroFactura, facturaId, fecha, clienteNombre, cajero, sucursal,
@@ -104,7 +151,7 @@ export function TicketSimple({
       <div style={{ textAlign: 'center' }}>{SEP}</div>
 
       <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0 6px' }}>
-        <QRCodeSVG value={qrData} size={100} />
+        <QRBadge value={qrData} />
       </div>
       <div style={{ textAlign: 'center' }}>VALIDACIÓN INTERNA FERRED</div>
       <div style={{ textAlign: 'center' }}>No. {nroFactura}</div>
