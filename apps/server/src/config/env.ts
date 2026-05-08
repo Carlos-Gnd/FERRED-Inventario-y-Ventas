@@ -16,6 +16,14 @@ function required(name: string): string {
   return val;
 }
 
+function requiredAny(...names: string[]): string {
+  for (const name of names) {
+    const val = process.env[name];
+    if (val) return val;
+  }
+  throw new Error(`Variable de entorno requerida: ${names.join(' o ')}`);
+}
+
 // BUG-A09: usar el mismo patrón de nombre que Electron (ferred_branch{BRANCH_ID}.db)
 const branchId = Number(process.env.BRANCH_ID ?? 1);
 const sqliteFallback = path.resolve(process.cwd(), `data/ferred_branch${branchId}.db`);
@@ -28,6 +36,11 @@ export const env = {
   jwt: {
     secret:    required('JWT_SECRET'),
     expiresIn: process.env.JWT_EXPIRES_IN ?? '2h',
+  },
+
+  ecommerceJwt: {
+    secret:    requiredAny('JWT_ECOMMERCE_SECRET', 'ECOMMERCE_SECRET'),
+    expiresIn: process.env.ECOMMERCE_JWT_EXPIRES_IN ?? '7d',
   },
 
   crypto: {
