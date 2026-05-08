@@ -12,7 +12,7 @@
 - [Descripción](#-descripción)
 - [Stack Tecnológico](#-stack-tecnológico)
 - [Arquitectura](#-arquitectura)
-- [Aplicaciones del Monorepo](#-aplicaciones-del-monorepo)
+- [Aplicaciones](#-aplicaciones-del-proyecto)
 - [Módulo Ecommerce](#-módulo-ecommerce)
 - [Roles y Permisos](#-roles-y-permisos)
 - [Deploy y Entornos](#-deploy-y-entornos)
@@ -98,7 +98,7 @@ El sistema sigue una **Arquitectura Hexagonal (Ports & Adapters)** en el backend
 
 ---
 
-## 📦 Aplicaciones del Monorepo
+## 📦 Aplicaciones del Proyecto
 
 | App | Directorio | Puerto | Descripción |
 |-----|-----------|--------|-------------|
