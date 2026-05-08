@@ -16,6 +16,7 @@ import { inventarioRoutes } from './adapters/http/routes/inventario.routes';
 import { ventasRoutes }     from './adapters/http/routes/ventas.routes';
 import { dteRoutes }        from './adapters/http/routes/dte.routes';
 import { proveedorRoutes }  from './adapters/http/routes/proveedor.routes';
+import { pagosOnlineRoutes } from './adapters/http/routes/pagos-online.routes';
 import { errorMiddleware }  from './adapters/http/middleware/error.middleware';
 import { jwtMiddleware }    from './adapters/http/middleware/jwt.middleware';
 import { SyncService }      from './adapters/sync/sync.service';
@@ -72,6 +73,7 @@ const apiLimiter = rateLimit({
 
 app.use('/api/auth', loginLimiter, authRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.use('/api/pedidos-online', pagosOnlineRoutes);
 
 app.use(jwtMiddleware);
 app.use(apiLimiter);
