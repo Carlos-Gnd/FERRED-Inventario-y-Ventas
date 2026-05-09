@@ -92,7 +92,7 @@ export function CorteDetalleModal({ open, corte, isDark, onClose }: CorteDetalle
         animation: 'ferred-fade-in 0.2s ease forwards',
       }}
     >
-      <div style={{
+      <div id="corte-print" style={{
         background: bg, borderRadius: '12px', overflow: 'hidden',
         width: '100%', maxWidth: '520px',
         boxShadow: '0 24px 64px rgba(0,0,0,0.35)',
@@ -175,7 +175,7 @@ export function CorteDetalleModal({ open, corte, isDark, onClose }: CorteDetalle
         </div>
 
         {/* Footer */}
-        <div style={{
+        <div className="no-print" style={{
           padding: '16px 24px', borderTop: `1px solid ${borderColor}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>

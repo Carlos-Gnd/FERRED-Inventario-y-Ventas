@@ -17,7 +17,7 @@ type ProductCardProps = {
 
 const PRODUCT_IMAGES = {
   drill: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=700&auto=format&fit=crop',
-  handTools: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?w=700&auto=format&fit=crop',
+  handTools: 'https://sv.epaenlinea.com/media/catalog/product/cache/5de4529773a62b1ec261a5eaed8abd55/f/1/f1e18d22-e3c1-46fd-ba95-07654787229d.jpg',
   electrical: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=700&auto=format&fit=crop',
   hardware: 'https://images.unsplash.com/photo-1530124566582-a618bc2615dc?w=700&auto=format&fit=crop',
   paint: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=700&auto=format&fit=crop',
