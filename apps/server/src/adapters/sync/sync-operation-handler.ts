@@ -12,6 +12,7 @@ const TABLAS_PERMITIDAS = new Set([
   'proveedor',
   'recepcionMercancia',
   'detalleRecepcion',
+  'corteCaja',
 ]);
 
 const CAMPOS_ESCALARES: Record<string, string[]> = {
@@ -34,6 +35,12 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'id', 'proveedorId', 'sucursalId', 'usuarioId', 'numeroFactura', 'total', 'observaciones', 'creadoEn',
   ],
   detalleRecepcion: ['id', 'recepcionId', 'productoId', 'cantidad', 'costoUnit', 'subtotal'],
+  corteCaja: [
+    'id', 'sucursalId', 'cajeroId', 'tipo',
+    'fechaInicio', 'fechaFin',
+    'totalEfectivo', 'totalTarjeta', 'totalTransferencia', 'totalGeneral',
+    'cantidadVentas', 'observaciones', 'creadoEn',
+  ],
 };
 
 // DT-11: tipo mínimo para acceder a los modelos de Prisma de forma dinámica

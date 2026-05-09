@@ -17,6 +17,8 @@ import TransfersPage       from '../pages/transfers/TransfersPage';
 import StockPage           from '../pages/stock/StockPage';
 import VentasPage          from '../pages/ventas/VentasPage';
 import ReportsPage         from '../pages/reports/ReportsPage';
+import CajaPage from '../pages/caja/CajaPage';
+import CajaHistorialPage from '../pages/caja/historial/CajaHistorialPage';
 
 function LoginRoute() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
@@ -62,6 +64,10 @@ export function AppRouter() {
 
           {/* Rutas para ADMIN y CAJERO */}
           <Route path="ventas"        element={<RoleGuard roles={['ADMIN','CAJERO']}><VentasPage /></RoleGuard>} />
+          <Route path="caja"   element={<RoleGuard roles={['ADMIN','CAJERO']}><CajaPage /></RoleGuard>} />
+          <Route path="caja/historial" element={<RoleGuard roles={['ADMIN','CAJERO']}><CajaHistorialPage /></RoleGuard>} />
+
+          
         </Route>
 
         {/* Cualquier ruta desconocida redirige al login */}
