@@ -9,6 +9,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 import { AlertasService } from './adapters/alertas/alertas.service';
 import { authRoutes }       from './adapters/http/routes/auth.routes';
+import { ecommerceAuthRoutes } from './adapters/http/routes/ecommerce-auth.routes';
 import { usuarioRoutes }    from './adapters/http/routes/usuario.routes';
 import { categoriaRoutes }  from './adapters/http/routes/categoria.routes';
 import { productoRoutes }   from './adapters/http/routes/producto.routes';
@@ -16,11 +17,21 @@ import { inventarioRoutes } from './adapters/http/routes/inventario.routes';
 import { ventasRoutes }     from './adapters/http/routes/ventas.routes';
 import { dteRoutes }        from './adapters/http/routes/dte.routes';
 import { proveedorRoutes }  from './adapters/http/routes/proveedor.routes';
+import { cajaRoutes } from './adapters/http/routes/caja.routes';
+import { pagosRoutes }      from './adapters/http/routes/pagos.routes';
+import { pagosOnlineRoutes } from './adapters/http/routes/pagos-online.routes';
+import {
+  pedidosOnlinePublicRoutes,
+  pedidosOnlineRoutes,
+  productosPublicosRoutes,
+  zonasEnvioPublicRoutes,
+} from './adapters/http/routes/pedidos-online.routes';
 import { errorMiddleware }  from './adapters/http/middleware/error.middleware';
 import { jwtMiddleware }    from './adapters/http/middleware/jwt.middleware';
 import { SyncService }      from './adapters/sync/sync.service';
 import { SnapshotService }  from './adapters/sync/snapshot.service';
 import { syncRoutes }       from './adapters/http/routes/sync.routes';
+import { reportesRoutes }   from './adapters/http/routes/reportes.routes';
 import { initSqlite }       from './adapters/db/sqlite/sqlite.client';
 import { contarPendientes } from './adapters/sync/sync.local';
 import { cajaRoutes }      from './adapters/http/routes/caja.routes';
@@ -36,9 +47,11 @@ const ALLOWED_ORIGINS = [
   'https://ferred.netlify.app',
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:4173',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175',
   'http://127.0.0.1:4173',
   'null', // Electron renderer en producción (file:// origin)
 ];
@@ -71,7 +84,12 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api/auth', loginLimiter, authRoutes);
+app.use('/api/ecommerce/auth', loginLimiter, ecommerceAuthRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.use('/api/zonas-envio', zonasEnvioPublicRoutes);
+app.use('/api/productos', productosPublicosRoutes);
+app.use('/api/pedidos-online', pedidosOnlinePublicRoutes);
+app.use('/api/pedidos-online', pagosOnlineRoutes);
 
 app.use(jwtMiddleware);
 app.use(apiLimiter);
@@ -84,7 +102,11 @@ app.use('/api/ventas',     ventasRoutes);
 app.use('/api/caja',        cajaRoutes);
 app.use('/api/dte',        dteRoutes);
 app.use('/api/proveedores', proveedorRoutes);
+app.use('/api/caja', cajaRoutes);
+app.use('/api/pagos',      pagosRoutes);
 app.use('/api/sync',       syncRoutes);
+app.use('/api/reportes',   reportesRoutes);
+app.use('/api/pedidos-online', pedidosOnlineRoutes);
 
 app.use(errorMiddleware);
 

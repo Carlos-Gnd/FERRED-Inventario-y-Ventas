@@ -42,19 +42,9 @@ export function TicketPrintModal({
   open, onClose, nroFactura, facturaId, fecha, clienteNombre,
   cajero, sucursal, carrito, subtotalSinIva, ivaTotal, totalFinal,
 }: TicketPrintModalProps) {
-  async function handleDownloadPdf() {
-    const html2pdf = (await import('html2pdf.js')).default;
-    const el = document.getElementById('ticket-print');
-    if (!el) return;
-    await (html2pdf() as any)
-      .set({
-        margin: 0,
-        filename: `ticket-F-${facturaId}.pdf`,
-        html2canvas: { scale: 2, backgroundColor: '#ffffff' },
-        jsPDF: { unit: 'mm', format: [85, 210], orientation: 'portrait' },
-      })
-      .from(el)
-      .save();
+  function handleDownloadPdf() {
+    // El navegador abre el diálogo de impresión y permite guardar como PDF.
+    window.print();
   }
 
   const items = carrito.map(l => ({

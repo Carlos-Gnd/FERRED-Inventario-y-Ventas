@@ -10,6 +10,11 @@ declare global {
         sucursalId: number;
         email: string;
       };
+      cliente?: {
+        id: number;
+        rol: 'CLIENTE';
+        email: string;
+      };
     }
   }
 }

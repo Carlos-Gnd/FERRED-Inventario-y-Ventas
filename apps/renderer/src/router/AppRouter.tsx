@@ -19,6 +19,8 @@ import VentasPage          from '../pages/ventas/VentasPage';
 import ReportsPage         from '../pages/reports/ReportsPage';
 import CajaPage from '../pages/caja/CajaPage';
 import CajaHistorialPage from '../pages/caja/historial/CajaHistorialPage';
+import PedidosOnlinePage   from '../pages/pedidos-online/PedidosOnlinePage';
+import ReceptionHistoryPage from '../pages/reception-history/ReceptionHistoryPage';
 
 function LoginRoute() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
@@ -54,6 +56,7 @@ export function AppRouter() {
           <Route path="usuarios"      element={<RoleGuard roles={['ADMIN']}><UsersPage /></RoleGuard>} />
           <Route path="categorias"    element={<RoleGuard roles={['ADMIN']}><CategoriesPage /></RoleGuard>} />
           <Route path="reportes"      element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ReportsPage /></RoleGuard>} />
+          <Route path="historial-recepciones" element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ReceptionHistoryPage /></RoleGuard>} />
           <Route path="ajustes"       element={<RoleGuard roles={['ADMIN']}><ComingSoonPage titulo="Ajustes" /></RoleGuard>} />
           <Route path="transferencias" element={<RoleGuard roles={['ADMIN']}><TransfersPage /></RoleGuard>} />
 
@@ -68,6 +71,9 @@ export function AppRouter() {
           <Route path="caja/historial" element={<RoleGuard roles={['ADMIN','CAJERO']}><CajaHistorialPage /></RoleGuard>} />
 
           
+
+          {/* Pedidos online: ADMIN ve todas las sucursales, BODEGA solo la suya */}
+          <Route path="pedidos-online" element={<RoleGuard roles={['ADMIN','BODEGA']}><PedidosOnlinePage /></RoleGuard>} />
         </Route>
 
         {/* Cualquier ruta desconocida redirige al login */}

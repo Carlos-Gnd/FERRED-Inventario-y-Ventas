@@ -15,3 +15,4 @@ apps/renderer/vite.config.d.ts
 *.db-wal
 supabase/.temp/
 supabase/
+apps/server/uploads/

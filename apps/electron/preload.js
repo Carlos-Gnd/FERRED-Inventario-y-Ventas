@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Impresora térmica POS ──────────────────────────────────
   printTicket:      (data)   => ipcRenderer.invoke(IPC.PRINT_TICKET, data),
+  printCorte:       (corte)  => ipcRenderer.invoke(IPC.PRINT_CORTE, corte),
   getPrinters:      ()       => ipcRenderer.invoke(IPC.GET_PRINTERS),
 
   // ── Estado del servidor embebido ───────────────────────────
