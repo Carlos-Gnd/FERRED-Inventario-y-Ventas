@@ -1,35 +1,50 @@
-// DT-18: Tests del componente StockCard (ruta crítica: alertas de stock).
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi } from 'vitest';
 import { StockCard, SkeletonCard } from '../pages/dashboard/StockCard';
 
 describe('StockCard', () => {
-  test('muestra estado OK cuando no hay items críticos', () => {
+  it('muestra el nombre de la sucursal', () => {
     render(<StockCard sucursalNombre="Sucursal Central" criticos={0} onClick={() => {}} />);
-    expect(screen.getByText('OK')).toBeInTheDocument();
     expect(screen.getByText('Sucursal Central')).toBeInTheDocument();
-    expect(screen.getByText('0 items')).toBeInTheDocument();
   });
 
-  test('muestra estado Crítico cuando hay items bajo mínimo', () => {
-    render(<StockCard sucursalNombre="Sucursal Norte" criticos={7} onClick={() => {}} />);
+  it('muestra badge OK cuando no hay críticos', () => {
+    render(<StockCard sucursalNombre="S1" criticos={0} onClick={() => {}} />);
+    expect(screen.getByText('OK')).toBeInTheDocument();
+  });
+
+  it('muestra badge Crítico cuando hay productos críticos', () => {
+    render(<StockCard sucursalNombre="S1" criticos={5} onClick={() => {}} />);
     expect(screen.getByText('Crítico')).toBeInTheDocument();
-    expect(screen.getByText('7 items')).toBeInTheDocument();
   });
 
-  test('llama onClick al hacer clic', () => {
-    const handler = vi.fn();
-    render(<StockCard sucursalNombre="Test" criticos={3} onClick={handler} />);
-    fireEvent.click(screen.getByTitle('Ver página de Stock'));
-    expect(handler).toHaveBeenCalledTimes(1);
+  it('muestra conteo correcto de ítems', () => {
+    render(<StockCard sucursalNombre="S1" criticos={3} onClick={() => {}} />);
+    expect(screen.getByText('3 items')).toBeInTheDocument();
   });
 
-  test('muestra "—" mientras carga', () => {
-    render(<StockCard sucursalNombre="Cargando" criticos={0} onClick={() => {}} loading />);
+  it('muestra guión cuando loading=true', () => {
+    render(<StockCard sucursalNombre="S1" criticos={3} onClick={() => {}} loading />);
     expect(screen.getByText('—')).toBeInTheDocument();
   });
 
-  test('SkeletonCard renderiza sin errores', () => {
+  it('aplica clase danger cuando hay críticos', () => {
+    const { container } = render(<StockCard sucursalNombre="S1" criticos={2} onClick={() => {}} />);
+    expect(container.firstChild).toHaveClass('stock-card--danger');
+  });
+
+  it('llama a onClick al hacer click', async () => {
+    const onClickMock = vi.fn();
+    render(<StockCard sucursalNombre="S1" criticos={0} onClick={onClickMock} />);
+    await userEvent.click(screen.getByTitle('Ver página de Stock'));
+    expect(onClickMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe('SkeletonCard', () => {
+  it('renderiza sin errores', () => {
     const { container } = render(<SkeletonCard />);
-    expect(container.firstChild).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass('stock-card--skeleton');
   });
 });

@@ -4,6 +4,7 @@
 // y confirmar el ajuste de stock mediante el endpoint del servidor.
 
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, isOfflineError } from '../../services/api.client';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -17,6 +18,8 @@ interface SucursalOption {
 }
 
 export default function InventoryReceptionPage() {
+  const navigate = useNavigate();
+
   // Estado local de la página
   const [productos, setProductos] = useState<ProductoComparativo[]>([]); // Lista de productos cargados
   const [busqueda, setBusqueda] = useState(''); // Texto de búsqueda por nombre/código
@@ -162,9 +165,28 @@ export default function InventoryReceptionPage() {
             Registra la cantidad recibida, elige la bodega destino y confirma el ingreso.
           </p>
         </div>
-        <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--accent)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          Admin / Bodega
-        </span>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/historial-recepciones')}
+            style={{
+              minHeight: '30px',
+              padding: '0 12px',
+              borderRadius: '7px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface)',
+              color: 'var(--accent)',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Ver historial
+          </button>
+          <span style={{ padding: '6px 10px', borderRadius: '999px', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--accent)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            Admin / Bodega
+          </span>
+        </div>
       </div>
 
       {/* Mensaje de error de carga si falla la petición inicial */}

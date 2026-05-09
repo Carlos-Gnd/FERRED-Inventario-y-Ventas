@@ -125,7 +125,7 @@ export default function DashboardPage() {
           setSalesTrend(buildEmptySalesTrend());
           setSalesError(
             isOfflineError(ventasRes.reason)
-              ? 'Sin conexiÃ³n para cargar ventas.'
+              ? 'Sin conexión para cargar ventas.'
               : 'No se pudieron cargar las ventas recientes.'
           );
         }
