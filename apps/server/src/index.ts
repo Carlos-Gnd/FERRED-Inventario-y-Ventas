@@ -53,6 +53,7 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5174',
   'http://127.0.0.1:5175',
   'http://127.0.0.1:4173',
+  'http://127.0.0.1:5176',
   'null', // Electron renderer en producción (file:// origin)
 ];
 
@@ -90,6 +91,7 @@ app.use('/api/zonas-envio', zonasEnvioPublicRoutes);
 app.use('/api/productos', productosPublicosRoutes);
 app.use('/api/pedidos-online', pedidosOnlinePublicRoutes);
 app.use('/api/pedidos-online', pagosOnlineRoutes);
+app.use('/api/pagos', apiLimiter, pagosRoutes);
 
 app.use(jwtMiddleware);
 app.use(apiLimiter);
@@ -103,7 +105,6 @@ app.use('/api/caja',        cajaRoutes);
 app.use('/api/dte',        dteRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/caja', cajaRoutes);
-app.use('/api/pagos',      pagosRoutes);
 app.use('/api/sync',       syncRoutes);
 app.use('/api/reportes',   reportesRoutes);
 app.use('/api/pedidos-online', pedidosOnlineRoutes);
