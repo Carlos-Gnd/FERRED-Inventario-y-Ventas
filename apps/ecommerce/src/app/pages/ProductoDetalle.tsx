@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import { Minus, Plus, ArrowLeft } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
@@ -10,6 +10,10 @@ export function ProductoDetalle() {
   const { products, addToCart } = useEcommerce();
   const product = products.find((p) => p.id === Number(id));
   const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [id]);
 
   const relatedProducts = useMemo(() => {
     if (!product) return [];

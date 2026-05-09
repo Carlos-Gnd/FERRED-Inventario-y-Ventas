@@ -292,13 +292,25 @@ html, body, #root {
 
 /* ── IMPRESIÓN DE TICKET ─────────────────────────────────── */
 @media print {
+  .no-print { display: none !important; }
   body * { visibility: hidden; }
   #ticket-print,
-  #ticket-print * { visibility: visible; }
-  #ticket-print {
+  #ticket-print *,
+  #corte-print,
+  #corte-print * { visibility: visible; }
+  #ticket-print,
+  #corte-print {
     position: fixed;
     top: 0;
     left: 0;
     margin: 0;
+  }
+  #corte-print {
+    top: 12mm;
+    left: 8mm;
+    width: calc(100vw - 16mm) !important;
+    max-width: none !important;
+    transform: scale(1.05);
+    transform-origin: top left;
   }
 }
