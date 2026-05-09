@@ -89,6 +89,7 @@ app.use('/api/zonas-envio', zonasEnvioPublicRoutes);
 app.use('/api/productos', productosPublicosRoutes);
 app.use('/api/pedidos-online', pedidosOnlinePublicRoutes);
 app.use('/api/pedidos-online', pagosOnlineRoutes);
+app.use('/api/pagos', apiLimiter, pagosRoutes);
 
 app.use(jwtMiddleware);
 app.use(apiLimiter);
@@ -101,7 +102,6 @@ app.use('/api/ventas',     ventasRoutes);
 app.use('/api/dte',        dteRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/caja', cajaRoutes);
-app.use('/api/pagos',      pagosRoutes);
 app.use('/api/sync',       syncRoutes);
 app.use('/api/reportes',   reportesRoutes);
 app.use('/api/pedidos-online', pedidosOnlineRoutes);

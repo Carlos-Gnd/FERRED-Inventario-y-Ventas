@@ -18,6 +18,10 @@ export const RegistrarPagoSchema = z.object({
   ]),
   monto: z.number().positive().optional(),
   referencia: z.string().trim().min(1).max(120).optional(),
+  comprobanteUrl: z.string().trim().regex(
+    /^\/api\/pagos\/comprobante\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|jpeg|png)$/i,
+    'comprobanteUrl invalida',
+  ).optional(),
   tarjeta: z.object({
     numero: z.string().regex(/^\d{12,19}$/, 'numero de tarjeta invalido'),
   }).optional(),
@@ -68,6 +72,7 @@ function assertMontoPedido(monto: number, totalPedido: number): void {
 export async function registrarPago(
   pedidoId: number,
   input: RegistrarPagoInput,
+  options: { clienteId?: number } = {},
 ): Promise<PagoRegistrado> {
   if (!Number.isInteger(pedidoId) || pedidoId < 1) {
     throw new PagoServiceError('pedidoId invalido', 400);
@@ -88,10 +93,14 @@ export async function registrarPago(
           id: true,
           total: true,
           estado: true,
+          clienteId: true,
         },
       });
 
       if (!pedido) {
+        throw new PagoServiceError('Pedido online no encontrado', 404);
+      }
+      if (options.clienteId && pedido.clienteId !== options.clienteId) {
         throw new PagoServiceError('Pedido online no encontrado', 404);
       }
       if (pedido.estado === 'CANCELADO') {
@@ -146,11 +155,16 @@ export async function registrarPago(
       }
 
       if (data.metodo === MetodoPagoOnline.TRANSFERENCIA) {
+        if (!data.comprobanteUrl) {
+          throw new PagoServiceError('comprobanteUrl es requerida para transferencia', 400);
+        }
+
         return tx.pago.create({
           data: {
             pedidoId,
             metodo: data.metodo,
             referencia: data.referencia ?? null,
+            comprobanteUrl: data.comprobanteUrl,
             monto,
             estado: 'VALIDACION_PENDIENTE',
           },
