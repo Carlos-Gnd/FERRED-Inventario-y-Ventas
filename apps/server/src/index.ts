@@ -89,7 +89,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/zonas-envio', zonasEnvioPublicRoutes);
 app.use('/api/productos', productosPublicosRoutes);
 app.use('/api/pedidos-online', pedidosOnlinePublicRoutes);
-app.use('/api/pedidos-online', pagosOnlineRoutes);
+app.use('/api/pedidos-online', apiLimiter, pagosOnlineRoutes);
 app.use('/api/pagos', apiLimiter, pagosRoutes);
 
 app.use(jwtMiddleware);

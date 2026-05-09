@@ -12,7 +12,6 @@ import { z } from 'zod';
 import { prisma } from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
-import { logPendiente } from '../../sync/sync.service';
 
 export const cajaRoutes = Router();
 
@@ -302,9 +301,9 @@ cajaRoutes.post(
         },
       });
 
-      await logPendiente('corteCaja', 'CREATE', {
-        id: corte.id, tipo, sucursalId, totalGeneral: totales.totalGeneral,
-      }, cajeroId ?? undefined);
+      // BUG-NEW-03: no hay SQLite local para corteCaja; el write ya fue a Postgres arriba.
+      // logPendiente post-write generaba entradas sync_log con payload incompleto
+      // que SyncService intentaba re-aplicar (upsert parcial). Removido.
 
       return res.status(201).json({ ok: true, corte });
     } catch (err) {
