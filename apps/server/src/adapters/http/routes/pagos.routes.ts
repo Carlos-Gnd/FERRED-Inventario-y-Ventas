@@ -7,6 +7,14 @@ import jwt from 'jsonwebtoken';
 import { env } from '../../../config/env';
 import { prisma } from '../../db/prisma/prisma.client';
 import type { UserRole } from '../../../types/roles';
+import {
+  PagoServiceError,
+  ValidarPagoSchema,
+  validarPago,
+} from '../services/pagos.service';
+import { roleMiddleware } from '../middleware/role.middleware';
+import { assertSameSucursal } from '../middleware/sucursal.guard';
+import { OfflineCache } from '../../sync/sync.service';
 
 const MAX_COMPROBANTE_BYTES = 2 * 1024 * 1024;
 const COMPROBANTES_DIR = path.resolve(process.cwd(), 'uploads', 'comprobantes');
@@ -123,6 +131,58 @@ async function authorizeComprobanteRead(req: Request, res: Response, next: NextF
     return next(error);
   }
 }
+
+pagosRoutes.patch(
+  '/:id/validar',
+  roleMiddleware('ADMIN', 'CAJERO'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const pagoId = Number(req.params.id);
+      if (!Number.isInteger(pagoId) || pagoId < 1) {
+        return res.status(400).json({ error: 'id invalido' });
+      }
+
+      const parsed = ValidarPagoSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Datos de validacion invalidos',
+          detalle: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const pagoActual = await prisma.pago.findUnique({
+        where: { id: pagoId },
+        select: {
+          pedido: {
+            select: {
+              sucursalId: true,
+            },
+          },
+        },
+      });
+
+      if (!pagoActual) {
+        return res.status(404).json({ error: 'Pago no encontrado' });
+      }
+      if (!assertSameSucursal(req, res, pagoActual.pedido.sucursalId)) return;
+
+      const pago = await validarPago(pagoId, parsed.data);
+
+      if (parsed.data.accion === 'RECHAZAR') {
+        OfflineCache.invalidate(`stock:${pago.pedido.sucursalId}`);
+        OfflineCache.invalidate('productos:');
+      }
+
+      return res.json({ ok: true, pago });
+    } catch (error) {
+      if (error instanceof PagoServiceError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+
+      return next(error);
+    }
+  },
+);
 
 pagosRoutes.post('/comprobante', authenticatePago, (req: Request, res: Response, next: NextFunction) => {
   uploadComprobante(req, res, (error: unknown) => {
