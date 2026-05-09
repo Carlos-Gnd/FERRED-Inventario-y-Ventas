@@ -8,7 +8,7 @@
  * - Solo visible para ADMIN y CAJERO
  */
 
-import { useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { api } from '../../services/api.client';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────
@@ -53,6 +53,10 @@ const fmt = (n: number) =>
 
 const fmtFecha = (iso: string) =>
   new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium', timeStyle: 'short', hour12: true }).format(new Date(iso));
+
+function comprobanteApiPath(url: string): string {
+  return url.startsWith('/api/') ? url.slice(4) : url;
+}
 
 // ── Iconos ────────────────────────────────────────────────────────────────
 const IcoCheck = () => (
@@ -241,8 +245,8 @@ export function PagoDetalleSection({ pagos, isDark, onActualizar }: PagoDetalleS
                     }}
                     onClick={() => setZoomUrl(pago.comprobanteUrl)}
                   >
-                    <img
-                      src={`http://localhost:3001${pago.comprobanteUrl}`}
+                    <ComprobanteImage
+                      url={pago.comprobanteUrl}
                       alt="Comprobante de transferencia"
                       style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', display: 'block' }}
                     />
@@ -371,7 +375,7 @@ export function PagoDetalleSection({ pagos, isDark, onActualizar }: PagoDetalleS
       {/* Modal zoom comprobante */}
       {zoomUrl && (
         <ZoomModal
-          url={`http://localhost:3001${zoomUrl}`}
+          url={zoomUrl}
           onClose={() => setZoomUrl(null)}
         />
       )}
@@ -405,6 +409,72 @@ function MiniInfo({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ComprobanteImage({ url, alt, style }: { url: string; alt: string; style?: CSSProperties }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+
+    setBlobUrl(null);
+    setFailed(false);
+
+    api.get(comprobanteApiPath(url), { responseType: 'blob' })
+      .then((res) => {
+        if (!active) return;
+        createdUrl = URL.createObjectURL(res.data);
+        setBlobUrl(createdUrl);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+
+    return () => {
+      active = false;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [url]);
+
+  if (failed) {
+    return (
+      <div style={{
+        ...style,
+        minHeight: style?.maxHeight ?? 120,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        background: 'var(--bg-elevated)',
+        color: 'var(--text-muted)',
+        fontSize: 12,
+        textAlign: 'center',
+      }}>
+        No se pudo cargar el comprobante
+      </div>
+    );
+  }
+
+  if (!blobUrl) {
+    return (
+      <div style={{
+        ...style,
+        minHeight: style?.maxHeight ?? 120,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-elevated)',
+        color: 'var(--text-muted)',
+        fontSize: 12,
+      }}>
+        Cargando comprobante...
+      </div>
+    );
+  }
+
+  return <img src={blobUrl} alt={alt} style={style} />;
+}
+
 function ZoomModal({ url, onClose }: { url: string; onClose: () => void }) {
   return (
     <div
@@ -418,12 +488,13 @@ function ZoomModal({ url, onClose }: { url: string; onClose: () => void }) {
       }}
     >
       <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
-        <img
-          src={url}
-          alt="Comprobante — vista completa"
-          style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '8px', display: 'block' }}
-          onClick={(e) => e.stopPropagation()}
-        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <ComprobanteImage
+            url={url}
+            alt="Comprobante - vista completa"
+            style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '8px', display: 'block' }}
+          />
+        </div>
         <button
           onClick={onClose}
           style={{

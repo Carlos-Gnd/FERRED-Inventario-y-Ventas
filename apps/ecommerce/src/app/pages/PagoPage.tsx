@@ -164,8 +164,12 @@ export function PagoPage() {
       const body = await res.json().catch(() => ({}));
       throw new Error(body?.error ?? 'Error al subir el comprobante');
     }
-    const { url } = await res.json();
-    return url as string;
+    const body = await res.json();
+    const comprobanteUrl = body.comprobanteUrl ?? body.url;
+    if (!comprobanteUrl || typeof comprobanteUrl !== 'string') {
+      throw new Error('El servidor no devolvio la URL del comprobante');
+    }
+    return comprobanteUrl;
   }
 
   // ── Validar tarjeta ───────────────────────────────────────────────────
