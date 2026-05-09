@@ -134,6 +134,7 @@ async function authorizeComprobanteRead(req: Request, res: Response, next: NextF
 
 pagosRoutes.patch(
   '/:id/validar',
+  authenticatePago,
   roleMiddleware('ADMIN', 'CAJERO'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
