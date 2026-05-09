@@ -34,6 +34,7 @@ import { syncRoutes }       from './adapters/http/routes/sync.routes';
 import { reportesRoutes }   from './adapters/http/routes/reportes.routes';
 import { initSqlite }       from './adapters/db/sqlite/sqlite.client';
 import { contarPendientes } from './adapters/sync/sync.local';
+import { cajaRoutes }      from './adapters/http/routes/caja.routes';
 
 try { initSqlite(); } catch (e) { console.warn('[sqlite] Modo offline no disponible:', (e as Error).message); }
 
@@ -100,6 +101,7 @@ app.use('/api/categorias', categoriaRoutes);
 app.use('/api/productos',  productoRoutes);
 app.use('/api/inventario', inventarioRoutes);
 app.use('/api/ventas',     ventasRoutes);
+app.use('/api/caja',        cajaRoutes);
 app.use('/api/dte',        dteRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/caja', cajaRoutes);

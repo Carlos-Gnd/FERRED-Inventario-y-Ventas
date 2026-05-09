@@ -4,6 +4,7 @@ import { useThemeStore }    from './store/themeStore';
 import { AppRouter }        from './router/AppRouter';
 import { ErrorBoundary }    from './components/ErrorBoundary';
 
+
 export default function App() {
   const { status }               = useNetworkStatus();
   const { isDark }               = useThemeStore();

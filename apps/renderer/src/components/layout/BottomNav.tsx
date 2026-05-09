@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import type { UserRole } from '../../types';
 import {
   IcoDashboard, IcoInventory, IcoSales, IcoUsers, IcoCategories,
-  IcoReports, IcoSettings, IcoLogout, IcoMore,
+  IcoReports, IcoSettings, IcoLogout, IcoMore, IcoCaja,
 } from '../icons';
 
 interface NavItem {
@@ -18,6 +18,7 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Inicio',     to: '/dashboard',  icon: <IcoDashboard  size={22} />, roles: ['ADMIN', 'CAJERO', 'BODEGA'] },
   { label: 'Productos',  to: '/productos',  icon: <IcoInventory  size={22} />, roles: ['ADMIN', 'BODEGA'] },
   { label: 'Ventas',     to: '/ventas',     icon: <IcoSales      size={22} />, roles: ['ADMIN', 'CAJERO'] },
+  { label: 'Caja',       to: '/caja',       icon: <IcoCaja       size={22} />, roles: ['ADMIN', 'CAJERO'] },
   { label: 'Usuarios',   to: '/usuarios',   icon: <IcoUsers      size={22} />, roles: ['ADMIN'] },
   { label: 'Categorias', to: '/categorias', icon: <IcoCategories size={22} />, roles: ['ADMIN'] },
   { label: 'Reportes',   to: '/reportes',   icon: <IcoReports    size={22} />, roles: ['ADMIN', 'BODEGA'] },
