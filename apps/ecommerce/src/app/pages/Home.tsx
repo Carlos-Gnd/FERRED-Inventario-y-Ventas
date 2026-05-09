@@ -1,9 +1,10 @@
 import { ChevronRight, Drill, Hammer, Paintbrush, Zap, Wrench, Package, MapPin, Store } from 'lucide-react';
 import { Link } from 'react-router';
 import { ProductCard } from '../components/ProductCard';
-import { products } from '../data/products';
+import { useEcommerce } from '../context/EcommerceContext';
 
 export function Home() {
+  const { products, addToCart, loadingProducts, productsError } = useEcommerce();
   const featuredProducts = products.slice(0, 4);
 
   return (
@@ -84,11 +85,15 @@ export function Home() {
               <ChevronRight size={18} />
             </Link>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} {...product} onAddToCart={(item) => console.log('Agregar al carrito:', item)} />
-            ))}
-          </div>
+          {loadingProducts && <p className="text-[#5F6368]">Cargando productos...</p>}
+          {productsError && <p className="text-red-600">{productsError}</p>}
+          {!loadingProducts && !productsError && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} onAddToCart={addToCart} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

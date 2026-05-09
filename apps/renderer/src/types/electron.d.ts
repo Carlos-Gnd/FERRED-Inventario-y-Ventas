@@ -1,7 +1,7 @@
 // DT-06: Declaración de tipo para window.electronAPI — expuesta por preload.js.
 // Permite usar window.electronAPI con tipado estático en lugar de `any`.
 
-import type { PrintTicketData, PrintResult, SyncStatusData } from '../hooks/useElectron';
+import type { PrintCorteData, PrintTicketData, PrintResult, SyncStatusData } from '../hooks/useElectron';
 
 declare global {
   interface Window {
@@ -18,6 +18,7 @@ declare global {
 
       // Impresora térmica
       printTicket(data: PrintTicketData): Promise<PrintResult>;
+      printCorte(data: PrintCorteData): Promise<PrintResult>;
       getPrinters(): Promise<{ ok: boolean; printers?: unknown[] }>;
 
       // Estado del servidor embebido

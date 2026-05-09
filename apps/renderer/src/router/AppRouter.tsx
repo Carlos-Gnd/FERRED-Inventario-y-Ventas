@@ -18,6 +18,7 @@ import StockPage           from '../pages/stock/StockPage';
 import VentasPage          from '../pages/ventas/VentasPage';
 import ReportsPage         from '../pages/reports/ReportsPage';
 import PedidosOnlinePage   from '../pages/pedidos-online/PedidosOnlinePage';
+import ReceptionHistoryPage from '../pages/reception-history/ReceptionHistoryPage';
 
 function LoginRoute() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
@@ -52,7 +53,7 @@ export function AppRouter() {
           {/* Rutas exclusivas para el rol ADMIN */}
           <Route path="usuarios"      element={<RoleGuard roles={['ADMIN']}><UsersPage /></RoleGuard>} />
           <Route path="categorias"    element={<RoleGuard roles={['ADMIN']}><CategoriesPage /></RoleGuard>} />
-          <Route path="reportes"      element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ComingSoonPage titulo="Reportes" /></RoleGuard>} />
+          <Route path="reportes"      element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ReportsPage /></RoleGuard>} />
           <Route path="historial-recepciones" element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ReceptionHistoryPage /></RoleGuard>} />
           <Route path="ajustes"       element={<RoleGuard roles={['ADMIN']}><ComingSoonPage titulo="Ajustes" /></RoleGuard>} />
           <Route path="transferencias" element={<RoleGuard roles={['ADMIN']}><TransfersPage /></RoleGuard>} />

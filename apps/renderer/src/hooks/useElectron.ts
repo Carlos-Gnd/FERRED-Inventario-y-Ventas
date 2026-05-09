@@ -24,6 +24,8 @@ export function useElectron() {
     // Impresora térmica
     printTicket: (data: PrintTicketData): Promise<PrintResult> =>
       api?.printTicket(data) ?? Promise.resolve({ ok: false, error: 'No en Electron' }),
+    printCorte: (data: PrintCorteData): Promise<PrintResult> =>
+      api?.printCorte(data) ?? Promise.resolve({ ok: false, error: 'No en Electron' }),
 
     getPrinters: (): Promise<{ ok: boolean; printers?: any[] }> =>
       api?.getPrinters() ?? Promise.resolve({ ok: false, printers: [] }),
@@ -66,4 +68,21 @@ export interface SyncStatusData {
   status:    'syncing' | 'done' | 'error';
   records?:  number;
   message?:  string;
+}
+
+export interface PrintCorteData {
+  printerName?: string;
+  tipo: 'X' | 'Y' | 'Z';
+  id: number;
+  cajeroNombre: string;
+  sucursalNombre: string;
+  fechaInicio: string;
+  fechaFin: string;
+  totalEfectivo: number;
+  totalTarjeta: number;
+  totalOtros: number;
+  totalTransferencia?: number;
+  totalGeneral: number;
+  cantidadVentas: number;
+  observaciones?: string;
 }

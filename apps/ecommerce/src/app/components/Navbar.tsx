@@ -2,9 +2,11 @@ import { ShoppingCart, User, Search, Menu, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { useEcommerce } from '../context/EcommerceContext';
+import { useAuth } from '../context/AuthContext';
 
 export function Navbar() {
   const { cartCount } = useEcommerce();
+  const { cliente, isAuthenticated, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -88,11 +90,20 @@ export function Navbar() {
             </Link>
 
             <Link
-              to="/cliente"
+              to={isAuthenticated ? '/cliente' : '/login'}
               className="hover:text-[#D97706] transition-colors flex-shrink-0"
+              title={isAuthenticated ? cliente?.nombre : 'Iniciar sesion'}
             >
               <User size={20} />
             </Link>
+            {isAuthenticated && (
+              <button
+                onClick={logout}
+                className="hidden sm:inline text-xs text-[#E5E2DA] hover:text-[#D97706] transition-colors"
+              >
+                Salir
+              </button>
+            )}
           </div>
         </div>
 

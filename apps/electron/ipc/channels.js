@@ -10,6 +10,7 @@ const IPC = {
   GET_USER_DATA_PATH:  'get-user-data-path',
   GET_SYNC_PENDIENTES: 'get-sync-pendientes',
   PRINT_TICKET:        'print-ticket',
+  PRINT_CORTE:         'imprimir-corte',
   GET_PRINTERS:        'get-printers',
   GET_SERVER_STATUS:   'get-server-status',
 
