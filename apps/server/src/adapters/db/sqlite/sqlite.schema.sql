@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   rol TEXT NOT NULL,
   activo INTEGER NOT NULL DEFAULT 1,
   creado_en TEXT NOT NULL DEFAULT (datetime('now')),
-  last_synced_at TEXT
+  last_synced_at TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS stock_sucursal (
   sucursal_id INTEGER NOT NULL REFERENCES sucursales(id),
   cantidad INTEGER NOT NULL DEFAULT 0,
   minimo INTEGER NOT NULL DEFAULT 0,
+  stock_reservado INTEGER NOT NULL DEFAULT 0,
   actualizado_en TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(producto_id, sucursal_id)
@@ -91,7 +93,8 @@ CREATE TABLE IF NOT EXISTS proveedores (
   email TEXT,
   direccion TEXT,
   activo INTEGER NOT NULL DEFAULT 1,
-  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+  creado_en TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS recepciones_mercancia (

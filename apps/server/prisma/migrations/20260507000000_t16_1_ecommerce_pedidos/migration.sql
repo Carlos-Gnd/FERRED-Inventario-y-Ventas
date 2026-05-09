@@ -47,13 +47,13 @@ CREATE TABLE "pedidos_online_detalle" (
     "subtotal"    DOUBLE PRECISION NOT NULL
 );
 
--- Seed: 5 zonas mapeadas a las sucursales existentes (sucursal_id 1 a 5 si existen)
--- La FK usa ON DELETE SET NULL implícito al ser nullable — no se define aquí para evitar
--- fallo si hay menos de 5 sucursales en el entorno de prueba.
+-- Seed: 5 zonas de entrega. sucursal_id_preferente en NULL para que la migración
+-- sea idempotente en la shadow database (que arranca sin sucursales). La asignación
+-- real de sucursal se hace en producción vía Prisma Studio o el admin panel.
 INSERT INTO "zonas_envio" ("nombre", "descripcion", "sucursal_id_preferente", "costo_envio") VALUES
-    ('Zona Centro',        'Centro histórico y alrededores',   1, 3.00),
-    ('Zona Norte',         'Apopa, Mejicanos, Cuscatancingo',  1, 4.50),
-    ('Zona Sur',           'Soyapango, Ilopango, San Marcos',  1, 4.50),
-    ('Zona Oriente',       'San Miguel, Usulután, La Unión',   1, 8.00),
-    ('Zona Occidente',     'Santa Ana, Sonsonate, Ahuachapán', 1, 8.00)
+    ('Zona Centro',        'Centro histórico y alrededores',   NULL, 3.00),
+    ('Zona Norte',         'Apopa, Mejicanos, Cuscatancingo',  NULL, 4.50),
+    ('Zona Sur',           'Soyapango, Ilopango, San Marcos',  NULL, 4.50),
+    ('Zona Oriente',       'San Miguel, Usulután, La Unión',   NULL, 8.00),
+    ('Zona Occidente',     'Santa Ana, Sonsonate, Ahuachapán', NULL, 8.00)
 ON CONFLICT DO NOTHING;

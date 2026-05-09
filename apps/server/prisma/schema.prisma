@@ -44,6 +44,7 @@ model Usuario {
   rol            String
   activo         Boolean  @default(true)
   creadoEn       DateTime @default(now()) @map("creado_en")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
   sucursal       Sucursal?    @relation(fields: [sucursalId], references: [id])
   facturas       FacturaDte[]
   syncLogs       SyncLog[]
@@ -173,6 +174,7 @@ model Proveedor {
   direccion   String?
   activo      Boolean  @default(true)
   creadoEn    DateTime @default(now()) @map("creado_en")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
   recepciones RecepcionMercancia[]
   @@map("proveedores")
 }
