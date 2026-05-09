@@ -23,14 +23,14 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
   ],
   categoria: ['id', 'nombre', 'descripcion', 'activo', 'updatedAt'],
   // BUG-A03: campo correcto en Prisma es 'contrasenaHash', no 'passwordHash'
-  usuario: ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo'],
-  stockSucursal: ['id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'actualizadoEn', 'updatedAt'],
+  usuario: ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo', 'updatedAt'],
+  stockSucursal: ['id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'stockReservado', 'actualizadoEn', 'updatedAt'],
   facturaDte: [
     'id', 'sucursalId', 'usuarioId', 'codigoGeneracion', 'numeroControl', 'tipoDte',
     'clienteNombre', 'totalSinIva', 'iva', 'total', 'dteJson', 'estado', 'sincronizado', 'creadoEn',
   ],
   detalleVenta: ['id', 'facturaId', 'productoId', 'cantidad', 'precioUnit', 'subtotal'],
-  proveedor: ['id', 'nombre', 'nit', 'telefono', 'email', 'direccion', 'activo', 'creadoEn'],
+  proveedor: ['id', 'nombre', 'nit', 'telefono', 'email', 'direccion', 'activo', 'creadoEn', 'updatedAt'],
   recepcionMercancia: [
     'id', 'proveedorId', 'sucursalId', 'usuarioId', 'numeroFactura', 'total', 'observaciones', 'creadoEn',
   ],

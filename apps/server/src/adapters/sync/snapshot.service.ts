@@ -110,8 +110,8 @@ export async function bootstrapSnapshot(sucursalId: number): Promise<SnapshotCou
     `);
     const stmtStock = db.prepare(`
       INSERT OR REPLACE INTO stock_sucursal
-        (producto_id, sucursal_id, cantidad, minimo, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+        (producto_id, sucursal_id, cantidad, minimo, stock_reservado, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     for (const p of productos) {
       stmtProd.run(
@@ -123,7 +123,7 @@ export async function bootstrapSnapshot(sucursalId: number): Promise<SnapshotCou
       );
       const stockRow = p.stocks[0];
       if (stockRow) {
-        stmtStock.run(p.id, sucursalId, stockRow.cantidad, stockRow.minimo, stockRow.updatedAt.toISOString());
+        stmtStock.run(p.id, sucursalId, stockRow.cantidad, stockRow.minimo, stockRow.stockReservado, stockRow.updatedAt.toISOString());
       }
     }
     if (productos.length > 0) {
@@ -136,27 +136,29 @@ export async function bootstrapSnapshot(sucursalId: number): Promise<SnapshotCou
     // ── Usuarios (con hash para login offline — T-07F) ────────────────────
     const stmtUser = db.prepare(`
       INSERT OR REPLACE INTO usuarios
-        (id, sucursal_id, nombre, email, contrasena_hash, rol, activo, last_synced_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (id, sucursal_id, nombre, email, contrasena_hash, rol, activo, last_synced_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const u of usuarios) {
       stmtUser.run(
         u.id, u.sucursalId ?? null, u.nombre, u.email,
         u.contrasenaHash, u.rol, u.activo ? 1 : 0,
         now.toISOString(),
+        u.updatedAt.toISOString(),
       );
     }
 
     // ── GAP-2: Proveedores + GAP-4 ────────────────────────────────────────
     const stmtProv = db.prepare(`
-      INSERT OR REPLACE INTO proveedores (id, nombre, nit, telefono, email, direccion, activo, creado_en)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO proveedores (id, nombre, nit, telefono, email, direccion, activo, creado_en, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const p of proveedores) {
       stmtProv.run(
         p.id, p.nombre, p.nit ?? null, p.telefono ?? null,
         p.email ?? null, p.direccion ?? null, p.activo ? 1 : 0,
         p.creadoEn.toISOString(),
+        p.updatedAt.toISOString(),
       );
     }
     if (proveedores.length > 0) {
@@ -244,19 +246,15 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
 
   const now   = new Date();
 
-  // BUG-NUEVO-D: usuarios no tiene updatedAt → siempre re-sincronizar TODOS los
-  // usuarios de la sucursal para que desactivaciones propaguen en ≤5 min.
-  // Las tablas con updatedAt siguen el camino delta normal.
+  // DT-NUEVA-B resuelto: proveedores y usuarios ahora tienen updatedAt → delta real.
   const [categorias, productos, proveedores, facturas, recepciones, usuarios] =
     await Promise.all([
-      // updatedAt cubre CREATE y UPDATE en categorias y productos
       prisma.categoria.findMany({ where: { updatedAt: { gte: since } } }),
       prisma.producto.findMany({
         where:   { updatedAt: { gte: since } },
         include: { stocks: { where: { sucursalId } } },
       }),
-      // proveedores no tiene updatedAt → filtrar por creadoEn (solo nuevos)
-      prisma.proveedor.findMany({ where: { creadoEn: { gte: since } } }),
+      prisma.proveedor.findMany({ where: { updatedAt: { gte: since } } }),
       prisma.facturaDte.findMany({
         where:   { sucursalId, creadoEn: { gte: since } },
         include: { detalles: true },
@@ -265,8 +263,7 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
         where:   { sucursalId, creadoEn: { gte: since } },
         include: { detalles: true },
       }),
-      // Siempre todos los usuarios de la sucursal (sin filtro por fecha)
-      prisma.usuario.findMany({ where: { sucursalId } }),
+      prisma.usuario.findMany({ where: { sucursalId, updatedAt: { gte: since } } }),
     ]);
 
   const hayDelta = categorias.length > 0 || productos.length > 0 || usuarios.length > 0
@@ -297,8 +294,8 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
     `);
     const stmtStock = db.prepare(`
       INSERT OR REPLACE INTO stock_sucursal
-        (producto_id, sucursal_id, cantidad, minimo, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+        (producto_id, sucursal_id, cantidad, minimo, stock_reservado, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     for (const p of productos) {
       stmtProd.run(
@@ -310,41 +307,36 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
       );
       const stockRow = p.stocks[0];
       if (stockRow) {
-        stmtStock.run(p.id, sucursalId, stockRow.cantidad, stockRow.minimo, stockRow.updatedAt.toISOString());
+        stmtStock.run(p.id, sucursalId, stockRow.cantidad, stockRow.minimo, stockRow.stockReservado, stockRow.updatedAt.toISOString());
       }
     }
 
-    // ── Usuarios: re-sync completo + GAP-4 para propagar desactivaciones ──
+    // ── Usuarios: delta por updatedAt (DT-NUEVA-B resuelto) ───────────────
     const stmtUser = db.prepare(`
       INSERT OR REPLACE INTO usuarios
-        (id, sucursal_id, nombre, email, contrasena_hash, rol, activo, last_synced_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (id, sucursal_id, nombre, email, contrasena_hash, rol, activo, last_synced_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const u of usuarios) {
       stmtUser.run(
         u.id, u.sucursalId ?? null, u.nombre, u.email,
         u.contrasenaHash, u.rol, u.activo ? 1 : 0,
         now.toISOString(),
+        u.updatedAt.toISOString(),
       );
     }
-    // GAP-4 para usuarios: desactivar en SQLite los que ya no existen/están activos en nube
-    if (usuarios.length > 0) {
-      const ph  = usuarios.map(() => '?').join(',');
-      const ids = usuarios.map(u => u.id);
-      db.prepare(`UPDATE usuarios SET activo = 0 WHERE sucursal_id = ? AND id NOT IN (${ph}) AND activo = 1`)
-        .run(sucursalId, ...ids);
-    }
 
-    // ── GAP-2: Proveedores nuevos ─────────────────────────────────────────
+    // ── GAP-2: Proveedores nuevos y modificados (DT-NUEVA-B resuelto) ─────
     const stmtProv = db.prepare(`
-      INSERT OR REPLACE INTO proveedores (id, nombre, nit, telefono, email, direccion, activo, creado_en)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO proveedores (id, nombre, nit, telefono, email, direccion, activo, creado_en, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const p of proveedores) {
       stmtProv.run(
         p.id, p.nombre, p.nit ?? null, p.telefono ?? null,
         p.email ?? null, p.direccion ?? null, p.activo ? 1 : 0,
         p.creadoEn.toISOString(),
+        p.updatedAt.toISOString(),
       );
     }
 
