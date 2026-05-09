@@ -3,6 +3,8 @@ import { api, isOfflineError } from '../../services/api.client';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Modal } from '../../components/ui/Modal';
+import { exportSalesReportPdf } from '../pdf-exporter/sales-report-pdf';
+import { generateSalesExcel } from '../xlsxExporter/generateSalesExcel';
 import './ReportsPage.css';
 
 interface BranchOption {
@@ -236,6 +238,36 @@ export default function ReportsPage() {
       ? [{ id: usuario.sucursalId, nombre: `Sucursal #${usuario.sucursalId}` }]
       : [];
 
+  const exportBranchName = appliedFilters.branchId
+    ? branchLabelById.get(Number(appliedFilters.branchId)) ?? `Sucursal #${appliedFilters.branchId}`
+    : 'Todas las sucursales';
+
+  const handleExportPdf = useCallback(() => {
+    exportSalesReportPdf({
+      ventas,
+      summary,
+      filters: {
+        startDate: appliedFilters.startDate,
+        endDate: appliedFilters.endDate,
+        branchName: exportBranchName,
+      },
+      generatedBy: visibleName,
+    });
+  }, [appliedFilters.endDate, appliedFilters.startDate, exportBranchName, summary, ventas, visibleName]);
+
+  const handleExportExcel = useCallback(() => {
+    generateSalesExcel({
+      ventas,
+      summary,
+      filters: {
+        startDate: appliedFilters.startDate,
+        endDate: appliedFilters.endDate,
+        branchName: exportBranchName,
+      },
+      generatedBy: visibleName,
+    });
+  }, [appliedFilters.endDate, appliedFilters.startDate, exportBranchName, summary, ventas, visibleName]);
+
   return (
     <div className="reports-page">
       <section className="reports-header">
@@ -360,10 +392,29 @@ export default function ReportsPage() {
             </p>
           </div>
 
-          <button type="button" className="reports-export-button" disabled>
-            <span>{'\u2193'}</span>
-            Exportar Excel
-          </button>
+          <div className="reports-export-actions">
+            <button
+              type="button"
+              className="reports-export-button"
+              onClick={handleExportExcel}
+              disabled={loading || ventas.length === 0}
+              title={ventas.length === 0 ? 'No hay ventas para exportar' : 'Exportar reporte de ventas en Excel'}
+            >
+              <span>{'\u2193'}</span>
+              Exportar Excel
+            </button>
+
+            <button
+              type="button"
+              className="reports-export-button"
+              onClick={handleExportPdf}
+              disabled={loading || ventas.length === 0}
+              title={ventas.length === 0 ? 'No hay ventas para exportar' : 'Exportar reporte de ventas en PDF'}
+            >
+              <span>{'\u2193'}</span>
+              Exportar PDF
+            </button>
+          </div>
         </div>
 
         <div className="reports-table-wrap">
