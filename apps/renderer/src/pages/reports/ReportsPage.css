@@ -317,6 +317,14 @@
   color: var(--text-primary);
 }
 
+.reports-export-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .reports-export-button {
   display: inline-flex;
   align-items: center;
@@ -331,10 +339,15 @@
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
+  cursor: pointer;
 }
 
 .reports-export-button span {
   font-size: 12px;
+}
+
+.reports-export-button:not(:disabled):hover {
+  filter: brightness(1.08);
 }
 
 .reports-export-button:disabled {
