@@ -52,6 +52,7 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5174',
   'http://127.0.0.1:5175',
   'http://127.0.0.1:4173',
+  'http://127.0.0.1:5176',
   'null', // Electron renderer en producción (file:// origin)
 ];
 

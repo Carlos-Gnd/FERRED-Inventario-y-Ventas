@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, isOfflineError } from '../../services/api.client';
 import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
 import { Modal } from '../../components/ui/Modal';
+import { PagoDetalleSection } from '../../components/pagos/PagoDetalleSection';
+import type { PagoOnline } from '../../components/pagos/PagoDetalleSection';
 import './PedidosOnlinePage.css';
 
-// ── Tipos ────────────────────────────────────────────────────
+// ── Tipos ──────────────────────────────────────────────────────────────────
 
 type EstadoPedido = 'RECIBIDO' | 'PREPARANDO' | 'LISTO' | 'ENTREGADO' | 'CANCELADO';
-type TipoEntrega = 'RETIRO' | 'ENVIO';
+type TipoEntrega  = 'RETIRO' | 'ENVIO';
 
 interface DetallePedido {
   id: number;
@@ -32,41 +35,41 @@ interface PedidoOnline {
   costoEnvio: number;
   sucursalId: number;
   creadoEn: string;
-  sucursal: { id: number; nombre: string; direccion: string; telefono: string } | null;
+  sucursal:  { id: number; nombre: string; direccion: string; telefono: string } | null;
   zonaEnvio: { id: number; nombre: string; costoEnvio: number } | null;
-  detalles: DetallePedido[];
+  detalles:  DetallePedido[];
+  pagos:     PagoOnline[];   // ← T-18.6
 }
 
-// ── Constantes ───────────────────────────────────────────────
+// ── Constantes ─────────────────────────────────────────────────────────────
 
 const ESTADOS: EstadoPedido[] = ['RECIBIDO', 'PREPARANDO', 'LISTO', 'ENTREGADO', 'CANCELADO'];
 
 const TRANSICIONES: Record<EstadoPedido, EstadoPedido[]> = {
   RECIBIDO:   ['PREPARANDO', 'CANCELADO'],
-  PREPARANDO: ['LISTO', 'CANCELADO'],
-  LISTO:      ['ENTREGADO', 'CANCELADO'],
+  PREPARANDO: ['LISTO',      'CANCELADO'],
+  LISTO:      ['ENTREGADO',  'CANCELADO'],
   ENTREGADO:  [],
   CANCELADO:  [],
 };
 
 const ESTADO_CONFIG: Record<EstadoPedido, { label: string; color: string; bg: string }> = {
   RECIBIDO:   { label: 'Recibido',   color: '#6B7280', bg: 'rgba(107,114,128,0.12)' },
-  PREPARANDO: { label: 'Preparando', color: '#D97706', bg: 'rgba(217,119,6,0.12)'  },
-  LISTO:      { label: 'Listo',      color: '#2563EB', bg: 'rgba(37,99,235,0.12)'  },
-  ENTREGADO:  { label: 'Entregado',  color: '#16A34A', bg: 'rgba(22,163,74,0.12)'  },
-  CANCELADO:  { label: 'Cancelado',  color: '#DC2626', bg: 'rgba(220,38,38,0.12)'  },
+  PREPARANDO: { label: 'Preparando', color: '#D97706', bg: 'rgba(217,119,6,0.12)'   },
+  LISTO:      { label: 'Listo',      color: '#2563EB', bg: 'rgba(37,99,235,0.12)'   },
+  ENTREGADO:  { label: 'Entregado',  color: '#16A34A', bg: 'rgba(22,163,74,0.12)'   },
+  CANCELADO:  { label: 'Cancelado',  color: '#DC2626', bg: 'rgba(220,38,38,0.12)'   },
 };
 
 const POLL_INTERVAL = 30_000;
 
-// ── Helpers ──────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function formatFecha(iso: string) {
-  const d = new Date(iso);
   return new Intl.DateTimeFormat('es-SV', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true,
-  }).format(d);
+  }).format(new Date(iso));
 }
 
 function EstadoBadge({ estado }: { estado: EstadoPedido }) {
@@ -79,43 +82,50 @@ function EstadoBadge({ estado }: { estado: EstadoPedido }) {
   );
 }
 
-// ── Componente principal ──────────────────────────────────────
+// ── Componente principal ───────────────────────────────────────────────────
 
 export default function PedidosOnlinePage() {
   const { usuario, token } = useAuthStore();
-  const esAdmin = usuario?.rol === 'ADMIN';
-  const sucursalFija = !esAdmin ? (usuario?.sucursalId ?? null) : null;
+  const { isDark }         = useThemeStore();
+  const esAdmin            = usuario?.rol === 'ADMIN';
+  const sucursalFija       = !esAdmin ? (usuario?.sucursalId ?? null) : null;
 
-  // ── Filtros ──
+  // Filtros
   const [filSucursal, setFilSucursal] = useState<string>(sucursalFija ? String(sucursalFija) : '');
   const [filEstado, setFilEstado]     = useState<string>('');
   const [filFechaIni, setFilFechaIni] = useState('');
   const [filFechaFin, setFilFechaFin] = useState('');
-  const [applied, setApplied]         = useState({ sucursal: sucursalFija ? String(sucursalFija) : '', estado: '', fechaIni: '', fechaFin: '' });
+  const [applied, setApplied]         = useState({
+    sucursal: sucursalFija ? String(sucursalFija) : '',
+    estado: '', fechaIni: '', fechaFin: '',
+  });
 
-  // ── Datos ──
-  const [pedidos, setPedidos]   = useState<PedidoOnline[]>([]);
-  const [total, setTotal]       = useState(0);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-  const mountedRef               = useRef(true);
+  // Datos
+  const [pedidos, setPedidos] = useState<PedidoOnline[]>([]);
+  const [total, setTotal]     = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
+  const mountedRef             = useRef(true);
 
-  // ── Modal detalle ──
+  // Modal detalle
   const [selected, setSelected]       = useState<PedidoOnline | null>(null);
   const [nuevoEstado, setNuevoEstado] = useState<EstadoPedido | ''>('');
   const [cambiando, setCambiando]     = useState(false);
   const [cambioError, setCambioError] = useState<string | null>(null);
 
-  // ── Carga ─────────────────────────────────────────────────
+  // Búsqueda rápida
+  const [busqueda, setBusqueda] = useState('');
+
+  // ── Carga ─────────────────────────────────────────────────────────────
   const cargar = useCallback(async (params: typeof applied, silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
       const q = new URLSearchParams();
       if (params.sucursal) q.set('sucursalId', params.sucursal);
-      if (params.estado)   q.set('estado', params.estado);
+      if (params.estado)   q.set('estado',     params.estado);
       if (params.fechaIni) q.set('fechaInicio', params.fechaIni);
-      if (params.fechaFin) q.set('fechaFin', params.fechaFin);
+      if (params.fechaFin) q.set('fechaFin',    params.fechaFin);
 
       const { data } = await api.get<{ total: number; pedidos: PedidoOnline[] }>(
         `/pedidos-online?${q.toString()}`,
@@ -126,28 +136,24 @@ export default function PedidosOnlinePage() {
       setTotal(data.total);
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(isOfflineError(err) ? 'Sin conexion. No se pudo cargar pedidos.' : 'Error al cargar pedidos online.');
+      setError(isOfflineError(err)
+        ? 'Sin conexión. No se pudo cargar pedidos.'
+        : 'Error al cargar pedidos online.',
+      );
     } finally {
       if (mountedRef.current && !silent) setLoading(false);
     }
   }, [token]);
 
-  // Carga inicial y al aplicar filtros
-  useEffect(() => {
-    void cargar(applied);
-  }, [applied, cargar]);
+  useEffect(() => { void cargar(applied); }, [applied, cargar]);
 
-  // Polling 30s
   useEffect(() => {
     mountedRef.current = true;
     const id = setInterval(() => void cargar(applied, true), POLL_INTERVAL);
-    return () => {
-      mountedRef.current = false;
-      clearInterval(id);
-    };
+    return () => { mountedRef.current = false; clearInterval(id); };
   }, [applied, cargar]);
 
-  // ── Cambio de estado ─────────────────────────────────────
+  // ── Cambio de estado ──────────────────────────────────────────────────
   async function handleCambiarEstado() {
     if (!selected || !nuevoEstado) return;
     setCambiando(true);
@@ -158,7 +164,7 @@ export default function PedidosOnlinePage() {
         { estado: nuevoEstado },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      setPedidos((prev) => prev.map((p) => (p.id === data.pedido.id ? data.pedido : p)));
+      setPedidos((prev) => prev.map((p) => p.id === data.pedido.id ? data.pedido : p));
       setSelected(data.pedido);
       setNuevoEstado('');
     } catch (err: any) {
@@ -168,31 +174,45 @@ export default function PedidosOnlinePage() {
     }
   }
 
-  // ── Abrir modal ──────────────────────────────────────────
+  // ── Recargar pedido seleccionado (tras aprobar/rechazar pago) ─────────
+  async function recargarPedidoSeleccionado() {
+    if (!selected) return;
+    try {
+      const q = new URLSearchParams();
+      if (applied.sucursal) q.set('sucursalId', applied.sucursal);
+      const { data } = await api.get<{ total: number; pedidos: PedidoOnline[] }>(
+        `/pedidos-online?${q.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const actualizado = data.pedidos.find((p) => p.id === selected.id);
+      if (actualizado) {
+        setPedidos(data.pedidos);
+        setSelected(actualizado);
+      }
+    } catch { /* silencioso */ }
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────
   function abrirModal(pedido: PedidoOnline) {
     setSelected(pedido);
     setNuevoEstado('');
     setCambioError(null);
   }
 
-  // ── Transiciones disponibles para el pedido seleccionado ──
   const transicionesDisponibles = useMemo(
     () => (selected ? TRANSICIONES[selected.estado] : []),
     [selected],
   );
 
-  // ── Filtrado local por nombre de cliente (búsqueda rápida) ──
-  const [busqueda, setBusqueda] = useState('');
   const pedidosFiltrados = useMemo(() => {
     if (!busqueda.trim()) return pedidos;
     const q = busqueda.toLowerCase();
     return pedidos.filter(
-      (p) =>
-        p.clienteNombre?.toLowerCase().includes(q) ||
-        String(p.id).includes(q),
+      (p) => p.clienteNombre?.toLowerCase().includes(q) || String(p.id).includes(q),
     );
   }, [pedidos, busqueda]);
 
+  // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="po-page">
       {/* Header */}
@@ -200,10 +220,11 @@ export default function PedidosOnlinePage() {
         <div>
           <h1 className="po-title">Pedidos Online</h1>
           <p className="po-subtitle">
-            {esAdmin ? 'Todas las sucursales' : `Sucursal #${sucursalFija}`} — {total} pedido{total !== 1 ? 's' : ''}
+            {esAdmin ? 'Todas las sucursales' : `Sucursal #${sucursalFija}`}
+            {' — '}{total} pedido{total !== 1 ? 's' : ''}
           </p>
         </div>
-        <div className="po-poll-indicator" title="Actualizacion automatica cada 30 s">
+        <div className="po-poll-indicator" title="Actualización automática cada 30 s">
           <span className="po-poll-dot" />
           <span>Auto-actualiza 30s</span>
         </div>
@@ -217,39 +238,30 @@ export default function PedidosOnlinePage() {
           <div className="po-field">
             <label>Sucursal ID</label>
             <input
-              type="number"
-              min={1}
-              placeholder="Todas"
-              value={filSucursal}
-              onChange={(e) => setFilSucursal(e.target.value)}
+              type="number" min={1} placeholder="Todas"
+              value={filSucursal} onChange={(e) => setFilSucursal(e.target.value)}
               className="po-input"
             />
           </div>
         )}
-
         <div className="po-field">
           <label>Estado</label>
           <div className="po-select-wrap">
             <select value={filEstado} onChange={(e) => setFilEstado(e.target.value)} className="po-select">
               <option value="">Todos</option>
-              {ESTADOS.map((e) => (
-                <option key={e} value={e}>{ESTADO_CONFIG[e].label}</option>
-              ))}
+              {ESTADOS.map((e) => <option key={e} value={e}>{ESTADO_CONFIG[e].label}</option>)}
             </select>
             <span className="po-caret">▾</span>
           </div>
         </div>
-
         <div className="po-field">
           <label>Desde</label>
           <input type="date" value={filFechaIni} onChange={(e) => setFilFechaIni(e.target.value)} className="po-input" />
         </div>
-
         <div className="po-field">
           <label>Hasta</label>
           <input type="date" value={filFechaFin} onChange={(e) => setFilFechaFin(e.target.value)} className="po-input" />
         </div>
-
         <button
           className="po-btn-filter"
           onClick={() => setApplied({ sucursal: filSucursal, estado: filEstado, fechaIni: filFechaIni, fechaFin: filFechaFin })}
@@ -261,10 +273,8 @@ export default function PedidosOnlinePage() {
       {/* Búsqueda rápida */}
       <div className="po-search-wrap">
         <input
-          type="text"
-          placeholder="Buscar por cliente o # pedido..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
+          type="text" placeholder="Buscar por cliente o # pedido..."
+          value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
           className="po-input po-search"
         />
       </div>
@@ -275,14 +285,9 @@ export default function PedidosOnlinePage() {
           <table className="po-table">
             <thead>
               <tr>
-                <th>#</th>
-                <th>Fecha</th>
-                <th>Cliente</th>
-                <th>Tipo</th>
+                <th>#</th><th>Fecha</th><th>Cliente</th><th>Tipo</th>
                 {esAdmin && <th>Sucursal</th>}
-                <th>Total</th>
-                <th>Estado</th>
-                <th>Acciones</th>
+                <th>Total</th><th>Estado</th><th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -301,7 +306,7 @@ export default function PedidosOnlinePage() {
                     </td>
                     <td>
                       <span className={`po-tipo-badge po-tipo-${p.tipoEntrega.toLowerCase()}`}>
-                        {p.tipoEntrega === 'RETIRO' ? 'Retiro' : 'Envio'}
+                        {p.tipoEntrega === 'RETIRO' ? 'Retiro' : 'Envío'}
                       </span>
                     </td>
                     {esAdmin && <td className="po-cell-sucursal">{p.sucursal?.nombre ?? `#${p.sucursalId}`}</td>}
@@ -325,11 +330,14 @@ export default function PedidosOnlinePage() {
         open={!!selected}
         onClose={() => setSelected(null)}
         title={`Pedido #${selected?.id ?? ''}`}
-        subtitle={selected ? `${ESTADO_CONFIG[selected.estado].label} · ${selected.tipoEntrega === 'RETIRO' ? 'Retiro' : 'Envio'}` : ''}
+        subtitle={selected
+          ? `${ESTADO_CONFIG[selected.estado].label} · ${selected.tipoEntrega === 'RETIRO' ? 'Retiro' : 'Envío'}`
+          : ''}
         maxWidth={560}
       >
         {selected && (
           <div className="po-modal-body">
+
             {/* Info cliente */}
             <div className="po-modal-section">
               <h4 className="po-modal-label">Cliente</h4>
@@ -339,14 +347,16 @@ export default function PedidosOnlinePage() {
 
             {/* Info entrega */}
             <div className="po-modal-section">
-              <h4 className="po-modal-label">{selected.tipoEntrega === 'RETIRO' ? 'Sucursal de retiro' : 'Zona de envio'}</h4>
+              <h4 className="po-modal-label">
+                {selected.tipoEntrega === 'RETIRO' ? 'Sucursal de retiro' : 'Zona de envío'}
+              </h4>
               {selected.tipoEntrega === 'RETIRO' ? (
                 <p className="po-modal-value">{selected.sucursal?.nombre ?? `Sucursal #${selected.sucursalId}`}</p>
               ) : (
                 <>
                   <p className="po-modal-value">{selected.zonaEnvio?.nombre ?? '—'}</p>
                   {selected.costoEnvio > 0 && (
-                    <p className="po-modal-sub">Costo envio: ${Number(selected.costoEnvio).toFixed(2)}</p>
+                    <p className="po-modal-sub">Costo envío: ${Number(selected.costoEnvio).toFixed(2)}</p>
                   )}
                 </>
               )}
@@ -370,7 +380,7 @@ export default function PedidosOnlinePage() {
             <div className="po-modal-totales">
               {selected.tipoEntrega === 'ENVIO' && (
                 <div className="po-total-row">
-                  <span>Costo envio</span>
+                  <span>Costo envío</span>
                   <span>${Number(selected.costoEnvio).toFixed(2)}</span>
                 </div>
               )}
@@ -380,7 +390,14 @@ export default function PedidosOnlinePage() {
               </div>
             </div>
 
-            {/* Indicador de entrega */}
+            {/* ── T-18.6: Sección de Pago ─────────────────────────────── */}
+            <PagoDetalleSection
+              pagos={selected.pagos ?? []}
+              isDark={isDark}
+              onActualizar={recargarPedidoSeleccionado}
+            />
+
+            {/* Indicador de estado */}
             <div className="po-entrega-indicator">
               <span
                 className="po-entrega-dot"
