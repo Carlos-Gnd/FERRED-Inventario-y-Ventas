@@ -16,6 +16,7 @@ import { inventarioRoutes } from './adapters/http/routes/inventario.routes';
 import { ventasRoutes }     from './adapters/http/routes/ventas.routes';
 import { dteRoutes }        from './adapters/http/routes/dte.routes';
 import { proveedorRoutes }  from './adapters/http/routes/proveedor.routes';
+import { cajaRoutes } from './adapters/http/routes/caja.routes';
 import { errorMiddleware }  from './adapters/http/middleware/error.middleware';
 import { jwtMiddleware }    from './adapters/http/middleware/jwt.middleware';
 import { SyncService }      from './adapters/sync/sync.service';
@@ -82,6 +83,7 @@ app.use('/api/inventario', inventarioRoutes);
 app.use('/api/ventas',     ventasRoutes);
 app.use('/api/dte',        dteRoutes);
 app.use('/api/proveedores', proveedorRoutes);
+app.use('/api/caja', cajaRoutes);
 app.use('/api/sync',       syncRoutes);
 
 app.use(errorMiddleware);
