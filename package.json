@@ -27,5 +27,10 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "6.3.5"
+    }
   }
 }
