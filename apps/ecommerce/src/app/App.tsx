@@ -12,7 +12,8 @@ import { ComoComprar } from './pages/ComoComprar';
 import { Sucursales } from './pages/Sucursales';
 import { AcercaDeNosotros } from './pages/AcercaDeNosotros';
 import { AuthPage } from './pages/AuthPage';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from './context/AuthContext';import { PagoPage } from './pages/PagoPage';
+
 
 function RequireCliente({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/como-comprar" element={<ComoComprar />} />
             <Route path="/sucursales" element={<Sucursales />} />
             <Route path="/acerca-de-nosotros" element={<AcercaDeNosotros />} />
+            <Route path="/pago/:pedidoId" element={<RequireCliente><PagoPage /></RequireCliente>} />
           </Routes>
         </main>
         <Footer />

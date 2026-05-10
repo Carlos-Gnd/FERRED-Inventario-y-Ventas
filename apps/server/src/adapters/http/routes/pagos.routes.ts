@@ -3,6 +3,18 @@ import fs from 'fs';
 import path from 'path';
 import { Router, Request, Response, NextFunction } from 'express';
 import multer, { FileFilterCallback } from 'multer';
+import jwt from 'jsonwebtoken';
+import { env } from '../../../config/env';
+import { prisma } from '../../db/prisma/prisma.client';
+import type { UserRole } from '../../../types/roles';
+import {
+  PagoServiceError,
+  ValidarPagoSchema,
+  validarPago,
+} from '../services/pagos.service';
+import { roleMiddleware } from '../middleware/role.middleware';
+import { assertSameSucursal } from '../middleware/sucursal.guard';
+import { OfflineCache } from '../../sync/sync.service';
 
 const MAX_COMPROBANTE_BYTES = 2 * 1024 * 1024;
 const COMPROBANTES_DIR = path.resolve(process.cwd(), 'uploads', 'comprobantes');
@@ -42,7 +54,138 @@ const uploadComprobante = multer({
 
 export const pagosRoutes = Router();
 
-pagosRoutes.post('/comprobante', (req: Request, res: Response, next: NextFunction) => {
+type AdminJwtPayload = {
+  id: number;
+  rol: UserRole;
+  sucursalId: number;
+  email: string;
+};
+
+type ClienteJwtPayload = {
+  id: number;
+  rol: 'CLIENTE';
+  email: string;
+};
+
+function getBearerToken(req: Request): string | null {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return null;
+  return auth.slice(7);
+}
+
+async function authenticatePago(req: Request, res: Response, next: NextFunction) {
+  const token = getBearerToken(req);
+  if (!token) return res.status(401).json({ error: 'Token requerido' });
+
+  try {
+    const payload = jwt.verify(token, env.jwt.secret) as AdminJwtPayload;
+    if (!['ADMIN', 'CAJERO', 'BODEGA'].includes(payload.rol)) {
+      throw new Error('Rol administrativo invalido');
+    }
+    req.usuario = {
+      id: payload.id,
+      rol: payload.rol,
+      sucursalId: payload.sucursalId,
+      email: payload.email,
+    };
+    return next();
+  } catch {
+    // Si no es token administrativo, se intenta como token de cliente ecommerce.
+  }
+
+  try {
+    const payload = jwt.verify(token, env.ecommerceJwt.secret) as ClienteJwtPayload;
+    if (payload.rol !== 'CLIENTE') return res.status(401).json({ error: 'Token invalido' });
+
+    const cliente = await prisma.clienteEcommerce.findFirst({
+      where: { id: payload.id, email: payload.email, activo: true },
+      select: { id: true, email: true },
+    });
+    if (!cliente) return res.status(401).json({ error: 'Cliente no encontrado o inactivo' });
+
+    req.cliente = { id: cliente.id, rol: 'CLIENTE', email: cliente.email };
+    return next();
+  } catch {
+    return res.status(401).json({ error: 'Token invalido o expirado' });
+  }
+}
+
+async function authorizeComprobanteRead(req: Request, res: Response, next: NextFunction) {
+  if (req.usuario) return next();
+  if (!req.cliente) return res.status(401).json({ error: 'Token requerido' });
+
+  const archivo = req.params.archivo;
+  const comprobanteUrl = `/api/pagos/comprobante/${archivo}`;
+  try {
+    const pago = await prisma.pago.findFirst({
+      where: {
+        comprobanteUrl,
+        pedido: { is: { clienteId: req.cliente.id } },
+      },
+      select: { id: true },
+    });
+
+    if (!pago) return res.status(404).json({ error: 'Comprobante no encontrado' });
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+pagosRoutes.patch(
+  '/:id/validar',
+  authenticatePago,
+  roleMiddleware('ADMIN', 'CAJERO'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const pagoId = Number(req.params.id);
+      if (!Number.isInteger(pagoId) || pagoId < 1) {
+        return res.status(400).json({ error: 'id invalido' });
+      }
+
+      const parsed = ValidarPagoSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Datos de validacion invalidos',
+          detalle: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const pagoActual = await prisma.pago.findUnique({
+        where: { id: pagoId },
+        select: {
+          pedido: {
+            select: {
+              sucursalId: true,
+            },
+          },
+        },
+      });
+
+      if (!pagoActual) {
+        return res.status(404).json({ error: 'Pago no encontrado' });
+      }
+      if (!assertSameSucursal(req, res, pagoActual.pedido.sucursalId)) return;
+
+      const pago = await validarPago(pagoId, parsed.data);
+
+      if (parsed.data.accion === 'RECHAZAR') {
+        OfflineCache.invalidate(`stock:${pago.pedido.sucursalId}`);
+        OfflineCache.invalidate('productos:');
+      }
+
+      return res.json({ ok: true, pago });
+    } catch (error) {
+      if (error instanceof PagoServiceError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+
+      return next(error);
+    }
+  },
+);
+
+pagosRoutes.post('/comprobante', authenticatePago, (req: Request, res: Response, next: NextFunction) => {
   uploadComprobante(req, res, (error: unknown) => {
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
@@ -68,7 +211,7 @@ pagosRoutes.post('/comprobante', (req: Request, res: Response, next: NextFunctio
   });
 });
 
-pagosRoutes.get('/comprobante/:archivo', (req: Request, res: Response, next: NextFunction) => {
+pagosRoutes.get('/comprobante/:archivo', authenticatePago, authorizeComprobanteRead, (req: Request, res: Response, next: NextFunction) => {
   const archivo = req.params.archivo;
   if (!COMPROBANTE_FILENAME_PATTERN.test(archivo)) {
     return res.status(400).json({ error: 'Nombre de comprobante invalido' });

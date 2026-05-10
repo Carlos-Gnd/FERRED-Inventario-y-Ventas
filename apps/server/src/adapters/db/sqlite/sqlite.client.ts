@@ -104,6 +104,7 @@
       ss.sucursal_id AS sucursalId,
       ss.cantidad,
       ss.minimo,
+      ss.stock_reservado AS stockReservado,
       ss.actualizado_en AS actualizadoEn,
       p.nombre AS productoNombre,
       p.codigo_barras AS codigoBarras,
@@ -288,6 +289,7 @@
       sucursalId: Number(row.sucursalId),
       cantidad: Number(row.cantidad ?? 0),
       minimo: Number(row.minimo ?? 0),
+      stockReservado: Number(row.stockReservado ?? 0),
       actualizadoEn: row.actualizadoEn,
       producto: {
         id: Number(row.productoId),
@@ -564,28 +566,19 @@
   }
 
   function ensureUpdatedAtColumns(db: Database.Database) {
-    ensureColumn(db, 'categorias', 'updated_at', 'TEXT');
-    ensureColumn(db, 'productos', 'updated_at', 'TEXT');
-    ensureColumn(db, 'stock_sucursal', 'updated_at', 'TEXT');
-    ensureColumn(db, 'usuarios', 'last_synced_at', 'TEXT'); // T-07F.3
+    ensureColumn(db, 'categorias',    'updated_at',     'TEXT');
+    ensureColumn(db, 'productos',     'updated_at',     'TEXT');
+    ensureColumn(db, 'stock_sucursal','updated_at',     'TEXT');
+    ensureColumn(db, 'stock_sucursal','stock_reservado','INTEGER NOT NULL DEFAULT 0');
+    ensureColumn(db, 'proveedores',   'updated_at',     'TEXT');       // DT-NUEVA-B
+    ensureColumn(db, 'usuarios',      'last_synced_at', 'TEXT');       // T-07F.3
+    ensureColumn(db, 'usuarios',      'updated_at',     'TEXT');       // DT-NUEVA-B
 
-    db.prepare(`
-      UPDATE categorias
-      SET updated_at = datetime('now')
-      WHERE updated_at IS NULL
-    `).run();
-
-    db.prepare(`
-      UPDATE productos
-      SET updated_at = COALESCE(creado_en, datetime('now'))
-      WHERE updated_at IS NULL
-    `).run();
-
-    db.prepare(`
-      UPDATE stock_sucursal
-      SET updated_at = COALESCE(actualizado_en, datetime('now'))
-      WHERE updated_at IS NULL
-    `).run();
+    db.prepare(`UPDATE categorias   SET updated_at = datetime('now')                  WHERE updated_at IS NULL`).run();
+    db.prepare(`UPDATE productos    SET updated_at = COALESCE(creado_en, datetime('now')) WHERE updated_at IS NULL`).run();
+    db.prepare(`UPDATE stock_sucursal SET updated_at = COALESCE(actualizado_en, datetime('now')) WHERE updated_at IS NULL`).run();
+    db.prepare(`UPDATE proveedores  SET updated_at = COALESCE(creado_en, datetime('now')) WHERE updated_at IS NULL`).run();
+    db.prepare(`UPDATE usuarios     SET updated_at = COALESCE(creado_en, datetime('now')) WHERE updated_at IS NULL`).run();
 
     db.exec(`
       CREATE TRIGGER IF NOT EXISTS categorias_touch_updated_at
@@ -613,6 +606,22 @@
         SET updated_at = datetime('now'),
             actualizado_en = datetime('now')
         WHERE id = OLD.id;
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS proveedores_touch_updated_at
+      AFTER UPDATE ON proveedores
+      FOR EACH ROW
+      WHEN NEW.updated_at = OLD.updated_at
+      BEGIN
+        UPDATE proveedores SET updated_at = datetime('now') WHERE id = OLD.id;
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS usuarios_touch_updated_at
+      AFTER UPDATE ON usuarios
+      FOR EACH ROW
+      WHEN NEW.updated_at = OLD.updated_at
+      BEGIN
+        UPDATE usuarios SET updated_at = datetime('now') WHERE id = OLD.id;
       END;
     `);
   }

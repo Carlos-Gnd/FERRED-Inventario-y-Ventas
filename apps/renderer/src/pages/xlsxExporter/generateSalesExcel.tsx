@@ -131,6 +131,22 @@ function buildSalesRows(ventas: SalesExcelSale[]) {
   }));
 }
 
+<<<<<<< HEAD
+=======
+function getUniqueSheetName(workbook: XLSX.WorkBook, sheetName: string, fallback: string) {
+  const baseName = sanitizeSheetName(sheetName, fallback).slice(0, 28);
+  let candidate = sanitizeSheetName(sheetName, fallback);
+  let counter = 2;
+
+  while (workbook.SheetNames.includes(candidate)) {
+    candidate = sanitizeSheetName(`${baseName} ${counter}`, fallback);
+    counter += 1;
+  }
+
+  return candidate;
+}
+
+>>>>>>> 4772acf7271e8cd858405762aca141f4736bb01b
 function addSalesSheet(workbook: XLSX.WorkBook, sheetName: string, ventas: SalesExcelSale[]) {
   const sheet = XLSX.utils.json_to_sheet(buildSalesRows(ventas), {
     cellDates: true,
@@ -138,7 +154,11 @@ function addSalesSheet(workbook: XLSX.WorkBook, sheetName: string, ventas: Sales
 
   appendColumnWidths(sheet);
   applyNumericFormats(sheet);
+<<<<<<< HEAD
   XLSX.utils.book_append_sheet(workbook, sheet, sanitizeSheetName(sheetName, 'Ventas'));
+=======
+  XLSX.utils.book_append_sheet(workbook, sheet, getUniqueSheetName(workbook, sheetName, 'Ventas'));
+>>>>>>> 4772acf7271e8cd858405762aca141f4736bb01b
 }
 
 function addSummarySheet(workbook: XLSX.WorkBook, options: GenerateSalesExcelOptions, groupByLabel: string) {

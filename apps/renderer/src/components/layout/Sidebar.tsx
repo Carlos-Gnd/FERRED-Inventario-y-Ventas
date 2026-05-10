@@ -3,6 +3,7 @@ import { useAuthStore } from '../../store/authStore';
 import type { UserRole } from '../../types';
 import {
   IcoDashboard, IcoInventory, IcoSales, IcoUsers, IcoCategories,
+   IcoCaja,
   IcoReports, IcoSettings, IcoTransfer, IcoStock, IcoClose, IcoLogout,
   IcoOrders,
 } from '../icons';
@@ -23,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Historial recepciones', to: '/historial-recepciones', icon: <IcoReports />, roles: ['ADMIN', 'BODEGA'] },
   { label: 'Transferencias',to: '/transferencias',icon: <IcoTransfer />,    roles: ['ADMIN'] },
   { label: 'Ventas',        to: '/ventas',        icon: <IcoSales />,       roles: ['ADMIN', 'CAJERO'] },
+  { label: 'Caja',           to: '/caja',           icon: <IcoCaja />,       roles: ['ADMIN', 'CAJERO'] },
   { label: 'Categorias',    to: '/categorias',    icon: <IcoCategories />,  roles: ['ADMIN'] },
   { label: 'Usuarios',      to: '/usuarios',      icon: <IcoUsers />,       roles: ['ADMIN'] },
   { label: 'Pedidos Online', to: '/pedidos-online', icon: <IcoOrders />,     roles: ['ADMIN', 'BODEGA'] },

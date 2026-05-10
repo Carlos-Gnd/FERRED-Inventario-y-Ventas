@@ -17,6 +17,8 @@ import TransfersPage       from '../pages/transfers/TransfersPage';
 import StockPage           from '../pages/stock/StockPage';
 import VentasPage          from '../pages/ventas/VentasPage';
 import ReportsPage         from '../pages/reports/ReportsPage';
+import CajaPage from '../pages/caja/CajaPage';
+import CajaHistorialPage from '../pages/caja/historial/CajaHistorialPage';
 import PedidosOnlinePage   from '../pages/pedidos-online/PedidosOnlinePage';
 import ReceptionHistoryPage from '../pages/reception-history/ReceptionHistoryPage';
 
@@ -65,6 +67,10 @@ export function AppRouter() {
 
           {/* Rutas para ADMIN y CAJERO */}
           <Route path="ventas"        element={<RoleGuard roles={['ADMIN','CAJERO']}><VentasPage /></RoleGuard>} />
+          <Route path="caja"   element={<RoleGuard roles={['ADMIN','CAJERO']}><CajaPage /></RoleGuard>} />
+          <Route path="caja/historial" element={<RoleGuard roles={['ADMIN','CAJERO']}><CajaHistorialPage /></RoleGuard>} />
+
+          
 
           {/* Pedidos online: ADMIN ve todas las sucursales, BODEGA solo la suya */}
           <Route path="pedidos-online" element={<RoleGuard roles={['ADMIN','BODEGA']}><PedidosOnlinePage /></RoleGuard>} />

@@ -10,6 +10,7 @@ const TABLAS_SYNC = new Set([
   'proveedor',
   'recepcionMercancia',
   'detalleRecepcion',
+  'corteCaja',
 ]);
 
 export interface SyncLocalLog {
