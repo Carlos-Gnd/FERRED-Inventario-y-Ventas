@@ -1,0 +1,18 @@
+[build]
+  base    = "apps/ecommerce"
+  command = "pnpm build"
+  publish = "dist"
+
+[build.environment]
+  VITE_API_URL = "/api"
+
+[[redirects]]
+  from   = "/api/*"
+  to     = "https://ferred.onrender.com/api/:splat"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

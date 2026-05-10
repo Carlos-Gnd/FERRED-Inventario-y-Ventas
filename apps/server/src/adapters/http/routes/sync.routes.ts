@@ -1,8 +1,3 @@
-/**
- * sync.routes.ts — T-07E.4
- * POST /api/sync/snapshot  → dispara refreshSnapshot() manualmente.
- * Útil para el botón "Sincronizar ahora" del frontend (T-07E.5).
- */
 import { Router, Request, Response, NextFunction } from 'express';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { bootstrapSnapshot, getLastSnapshotAt, refreshSnapshot } from '../../sync/snapshot.service';
