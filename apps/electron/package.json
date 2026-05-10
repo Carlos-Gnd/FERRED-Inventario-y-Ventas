@@ -16,9 +16,6 @@
     "dotenv": "^16.4.5",
     "electron-store": "^8.0.0"
   },
-  "optionalDependencies": {
-    "electron-pos-printer": "^3.0.9"
-  },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "electron": "^30.5.1",
