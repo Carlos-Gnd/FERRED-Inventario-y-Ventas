@@ -69,4 +69,20 @@ export const env = {
     // T-07F.3: días máximos sin sincronizar antes de rechazar login offline
     authMaxDays: Number(process.env.OFFLINE_AUTH_MAX_DAYS ?? 30),
   },
+
+  // T-19.1: Stripe — secretKey requerida; publicKey expuesta al frontend vía endpoint
+  payment: {
+    secretKey:    required('STRIPE_SECRET_KEY'),
+    webhookSecret: required('STRIPE_WEBHOOK_SECRET'),
+    publicKey:    process.env.STRIPE_PUBLISHABLE_KEY ?? '',
+  },
+
+  // T-19.5 / T-03.2: Nodemailer — opcional; sin vars → modo simulado (solo consola)
+  smtp: {
+    host:   process.env.SMTP_HOST,
+    port:   Number(process.env.SMTP_PORT ?? 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    user:   process.env.SMTP_USER,
+    pass:   process.env.SMTP_PASS,
+  },
 } as const;
