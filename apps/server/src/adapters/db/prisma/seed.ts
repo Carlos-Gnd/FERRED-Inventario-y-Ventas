@@ -70,6 +70,28 @@ async function main() {
     });
   }
   console.log('✓ 3 usuarios\n');
+
+  // T-20.1: Configuracion centralizada del negocio
+  const configDefaults = [
+    { clave: 'nombre_negocio',   valor: 'FERRED Inventario y Ventas', tipo: 'TEXT' },
+    { clave: 'NIT',              valor: '00000000000000',              tipo: 'TEXT' },
+    { clave: 'NRC',              valor: '0000000',                     tipo: 'TEXT' },
+    { clave: 'banco',            valor: '',                            tipo: 'TEXT' },
+    { clave: 'cuenta_bancaria',  valor: '',                            tipo: 'TEXT' },
+    { clave: 'titular_cuenta',   valor: '',                            tipo: 'TEXT' },
+    { clave: 'correo_remitente', valor: process.env.SMTP_USER ?? '',  tipo: 'TEXT' },
+    { clave: 'zonas_envio_json', valor: '[]',                         tipo: 'JSON' },
+  ];
+
+  for (const cfg of configDefaults) {
+    await prisma.configuracionNegocio.upsert({
+      where:  { clave: cfg.clave },
+      update: {},
+      create: cfg,
+    });
+  }
+  console.log('✓ Configuracion del negocio (8 registros)\n');
+
   console.log('✅ Listo. Credenciales:');
   console.log('   admin@ferred.com  / admin123');
   console.log('   cajero@ferred.com / cajero123');
