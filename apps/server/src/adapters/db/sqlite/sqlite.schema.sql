@@ -135,3 +135,47 @@ CREATE TABLE IF NOT EXISTS snapshot_meta (
   sucursal_id INTEGER PRIMARY KEY,
   last_refresh TEXT NOT NULL
 );
+
+-- HU-20: Configuracion centralizada del negocio (NIT, NRC, banco, etc.)
+CREATE TABLE IF NOT EXISTS configuracion_negocio (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  clave         TEXT NOT NULL UNIQUE,
+  valor         TEXT NOT NULL,
+  tipo          TEXT NOT NULL DEFAULT 'TEXT',
+  actualizado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- HU-25: Kardex — historial cronologico de movimientos de inventario
+CREATE TABLE IF NOT EXISTS movimientos_inventario (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  producto_id      INTEGER NOT NULL REFERENCES productos(id),
+  sucursal_id      INTEGER NOT NULL REFERENCES sucursales(id),
+  tipo             TEXT NOT NULL,
+  cantidad         REAL NOT NULL,
+  saldo_anterior   INTEGER NOT NULL,
+  saldo_nuevo      INTEGER NOT NULL,
+  referencia       TEXT,
+  usuario_id       INTEGER,
+  fecha_movimiento TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_movimientos_kardex
+  ON movimientos_inventario(producto_id, sucursal_id, fecha_movimiento);
+
+-- HU-12: Devoluciones y garantias
+CREATE TABLE IF NOT EXISTS devoluciones (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  venta_id         INTEGER NOT NULL REFERENCES facturas_dte(id),
+  motivo           TEXT NOT NULL,
+  estado           TEXT NOT NULL DEFAULT 'APROBADA',
+  aprobado_por     INTEGER,
+  creado_por       INTEGER NOT NULL,
+  fecha_devolucion TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_devoluciones_venta ON devoluciones(venta_id);
+
+CREATE TABLE IF NOT EXISTS detalles_devolucion (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  devolucion_id INTEGER NOT NULL REFERENCES devoluciones(id) ON DELETE CASCADE,
+  producto_id   INTEGER NOT NULL REFERENCES productos(id),
+  cantidad      REAL NOT NULL
+);
