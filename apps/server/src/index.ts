@@ -30,10 +30,11 @@ import { errorMiddleware }  from './adapters/http/middleware/error.middleware';
 import { jwtMiddleware }    from './adapters/http/middleware/jwt.middleware';
 import { SyncService }      from './adapters/sync/sync.service';
 import { SnapshotService }  from './adapters/sync/snapshot.service';
-import { syncRoutes }       from './adapters/http/routes/sync.routes';
-import { reportesRoutes }   from './adapters/http/routes/reportes.routes';
-import { initSqlite }       from './adapters/db/sqlite/sqlite.client';
-import { contarPendientes } from './adapters/sync/sync.local';
+import { syncRoutes }           from './adapters/http/routes/sync.routes';
+import { reportesRoutes }       from './adapters/http/routes/reportes.routes';
+import { stripeWebhookRoutes }  from './adapters/http/routes/webhook.routes';
+import { initSqlite }           from './adapters/db/sqlite/sqlite.client';
+import { contarPendientes }     from './adapters/sync/sync.local';
 
 try { initSqlite(); } catch (e) { console.warn('[sqlite] Modo offline no disponible:', (e as Error).message); }
 
@@ -41,6 +42,10 @@ const app = express();
 const branchId = process.env.BRANCH_ID || '1';
 
 app.use(helmet());
+
+// T-19.3: El webhook de Stripe necesita el body SIN parsear para verificar la firma.
+// Debe montarse ANTES de express.json() — de lo contrario la verificación de firma falla.
+app.use('/api/pagos/webhook', express.raw({ type: 'application/json' }), stripeWebhookRoutes);
 
 const ALLOWED_ORIGINS = [
   'https://ferred.netlify.app',

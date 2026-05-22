@@ -3,8 +3,8 @@
  * T-03.1: Job automatico revision de stock cada 60 minutos
  * T-03.2: Envio de correo con Nodemailer
  */
-import nodemailer from 'nodemailer';
 import { prisma } from '../db/prisma/prisma.client';
+import { crearTransporte } from '../email/email.service';
 
 const INTERVALO_MS = 60 * 60 * 1000;  // 60 minutos
 const ANTI_SPAM_MS = 60 * 60 * 1000;  // no re-alertar en 1 hora
@@ -43,18 +43,6 @@ async function initAntiSpam(): Promise<void> {
   }
 }
 
-function crearTransporte() {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    return nodemailer.createTransport({
-      host:   process.env.SMTP_HOST,
-      port:   Number(process.env.SMTP_PORT ?? 587),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-  }
-  console.warn('[Alertas] SMTP no configurado — modo simulado activo');
-  return null;
-}
 
 async function getEmailBodeguero(sucursalId: number): Promise<string | null> {
   const bodeguero = await prisma.usuario.findFirst({
