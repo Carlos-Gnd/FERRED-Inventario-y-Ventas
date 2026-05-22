@@ -573,6 +573,7 @@
     ensureColumn(db, 'proveedores',   'updated_at',     'TEXT');       // DT-NUEVA-B
     ensureColumn(db, 'usuarios',      'last_synced_at', 'TEXT');       // T-07F.3
     ensureColumn(db, 'usuarios',      'updated_at',     'TEXT');       // DT-NUEVA-B
+    ensureColumn(db, 'productos',     'image_url',      'TEXT');       // T-22.1
 
     db.prepare(`UPDATE categorias   SET updated_at = datetime('now')                  WHERE updated_at IS NULL`).run();
     db.prepare(`UPDATE productos    SET updated_at = COALESCE(creado_en, datetime('now')) WHERE updated_at IS NULL`).run();

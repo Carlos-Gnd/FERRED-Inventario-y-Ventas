@@ -13,13 +13,16 @@ const TABLAS_PERMITIDAS = new Set([
   'recepcionMercancia',
   'detalleRecepcion',
   'corteCaja',
+  'movimientoInventario',
+  'devolucion',
+  'detalleDevolucion',
 ]);
 
 const CAMPOS_ESCALARES: Record<string, string[]> = {
   producto: [
     'id', 'categoriaId', 'nombre', 'codigoBarras', 'tipoUnidad', 'precioCompra',
     'porcentajeGanancia', 'precioVenta', 'precioConIva', 'tieneIva', 'stockActual',
-    'stockMinimo', 'activo', 'creadoEn', 'updatedAt',
+    'stockMinimo', 'activo', 'imageUrl', 'creadoEn', 'updatedAt',
   ],
   categoria: ['id', 'nombre', 'descripcion', 'activo', 'updatedAt'],
   // BUG-A03: campo correcto en Prisma es 'contrasenaHash', no 'passwordHash'
@@ -41,6 +44,16 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'totalEfectivo', 'totalTarjeta', 'totalTransferencia', 'totalGeneral',
     'cantidadVentas', 'observaciones', 'creadoEn',
   ],
+  // T-25.1: kardex — solo CREATE, los movimientos son inmutables
+  movimientoInventario: [
+    'id', 'productoId', 'sucursalId', 'tipo', 'cantidad',
+    'saldoAnterior', 'saldoNuevo', 'referencia', 'usuarioId', 'fechaMovimiento',
+  ],
+  // T-12.1: devoluciones offline (T-12.7)
+  devolucion: [
+    'id', 'ventaId', 'motivo', 'estado', 'aprobadoPor', 'creadoPor', 'fechaDevolucion',
+  ],
+  detalleDevolucion: ['id', 'devolucionId', 'productoId', 'cantidad'],
 };
 
 // DT-11: tipo mínimo para acceder a los modelos de Prisma de forma dinámica
