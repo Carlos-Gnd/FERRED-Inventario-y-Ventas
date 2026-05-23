@@ -92,6 +92,18 @@ async function main() {
   }
   console.log('✓ Configuracion del negocio (8 registros)\n');
 
+  // T-24.1: Tipos de gasto por defecto
+  for (const tipo of [
+    { nombre: 'Servicios',     descripcion: 'Pagos de agua, luz, internet, teléfono, etc.' },
+    { nombre: 'Sueldos',       descripcion: 'Pago de salarios y planilla de empleados.' },
+    { nombre: 'Transporte',    descripcion: 'Gastos de combustible, fletes y envíos.' },
+    { nombre: 'Mantenimiento', descripcion: 'Reparaciones y mantenimiento de equipos e instalaciones.' },
+    { nombre: 'Otros',         descripcion: 'Gastos varios no clasificados en otras categorías.' },
+  ]) {
+    await prisma.tipoGasto.upsert({ where: { nombre: tipo.nombre }, update: {}, create: tipo });
+  }
+  console.log('✓ 5 tipos de gasto\n');
+
   console.log('✅ Listo. Credenciales:');
   console.log('   admin@ferred.com  / admin123');
   console.log('   cajero@ferred.com / cajero123');
