@@ -1,12 +1,12 @@
 // T-19.3: Webhook de Stripe — recibe payment_intent.succeeded / payment_intent.payment_failed.
 // Montado ANTES de express.json() en index.ts para que el body llegue sin parsear.
 import { Router, Request, Response } from 'express';
-import type Stripe from 'stripe';
 import { prisma }                    from '../../db/prisma/prisma.client';
 import { stripe, construirEventoStripe } from '../../payment/payment.service';
 import { enviarEmailConfirmacionPago } from '../../email/email.service';
 
 export const stripeWebhookRoutes = Router();
+type PaymentIntent = Awaited<ReturnType<typeof stripe.paymentIntents.create>>;
 
 stripeWebhookRoutes.post('/', async (req: Request, res: Response) => {
   const signature = req.headers['stripe-signature'];
@@ -23,7 +23,7 @@ stripeWebhookRoutes.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const pi = evento.data.object as Stripe.PaymentIntent;
+    const pi = evento.data.object as PaymentIntent;
     if (evento.type === 'payment_intent.succeeded') {
       await manejarPagoExitoso(pi);
     } else if (evento.type === 'payment_intent.payment_failed') {
@@ -38,7 +38,7 @@ stripeWebhookRoutes.post('/', async (req: Request, res: Response) => {
   return res.json({ received: true });
 });
 
-async function manejarPagoExitoso(pi: Stripe.PaymentIntent): Promise<void> {
+async function manejarPagoExitoso(pi: PaymentIntent): Promise<void> {
   const pedidoId = Number(pi.metadata?.pedidoId);
   if (!pedidoId) return;
 
@@ -90,7 +90,7 @@ async function manejarPagoExitoso(pi: Stripe.PaymentIntent): Promise<void> {
   }
 }
 
-async function manejarPagoFallido(pi: Stripe.PaymentIntent): Promise<void> {
+async function manejarPagoFallido(pi: PaymentIntent): Promise<void> {
   const pedidoId = Number(pi.metadata?.pedidoId);
   if (!pedidoId) return;
 

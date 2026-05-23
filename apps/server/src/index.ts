@@ -13,6 +13,7 @@ import { ecommerceAuthRoutes } from './adapters/http/routes/ecommerce-auth.route
 import { usuarioRoutes }    from './adapters/http/routes/usuario.routes';
 import { categoriaRoutes }  from './adapters/http/routes/categoria.routes';
 import { productoRoutes }   from './adapters/http/routes/producto.routes';
+import { ofertaRoutes }     from './adapters/http/routes/oferta.routes';
 import { inventarioRoutes } from './adapters/http/routes/inventario.routes';
 import { ventasRoutes }     from './adapters/http/routes/ventas.routes';
 import { dteRoutes }        from './adapters/http/routes/dte.routes';
@@ -103,6 +104,7 @@ app.get('/sync/pendientes-local', (_req, res) => res.json(contarPendientes()));
 app.use('/api/usuarios',   usuarioRoutes);
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/productos',  productoRoutes);
+app.use('/api/ofertas',    ofertaRoutes);
 app.use('/api/inventario', inventarioRoutes);
 app.use('/api/ventas',     ventasRoutes);
 app.use('/api/caja',        cajaRoutes);
