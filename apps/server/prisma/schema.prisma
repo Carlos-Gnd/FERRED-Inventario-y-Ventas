@@ -23,6 +23,7 @@ model Sucursal {
   pedidosOnline  PedidoOnline[]
   cortesCaja     CorteCaja[]
   movimientos    MovimientoInventario[]
+  gastos         Gasto[]
   @@map("sucursales")
 }
 
@@ -54,6 +55,7 @@ model Usuario {
   movimientos         MovimientoInventario[]
   devolucionesCreadas Devolucion[] @relation("CreadorDevolucion")
   devolucionesAprobadas Devolucion[] @relation("AprobadorDevolucion")
+  gastos              Gasto[]
   @@map("usuarios")
 }
 
@@ -351,6 +353,31 @@ model MovimientoInventario {
   usuario         Usuario?  @relation(fields: [usuarioId], references: [id])
   @@index([productoId, sucursalId, fechaMovimiento])
   @@map("movimientos_inventario")
+}
+
+// ── HU-24: Control de gastos ────────────────────────────────────
+
+model TipoGasto {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique
+  descripcion String?
+  gastos      Gasto[]
+  @@map("tipos_gasto")
+}
+
+model Gasto {
+  id          Int       @id @default(autoincrement())
+  tipoGastoId Int       @map("tipo_gasto_id")
+  monto       Float
+  descripcion String?
+  fecha       DateTime  @default(now())
+  sucursalId  Int       @map("sucursal_id")
+  usuarioId   Int       @map("usuario_id")
+  tipoGasto   TipoGasto @relation(fields: [tipoGastoId], references: [id])
+  sucursal    Sucursal  @relation(fields: [sucursalId], references: [id])
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+  @@index([sucursalId, fecha])
+  @@map("gastos")
 }
 
 // ── HU-12: Devoluciones y garantias ─────────────────────────────
