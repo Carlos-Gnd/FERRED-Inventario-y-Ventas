@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Building2, ChevronRight, CreditCard, Home, MapPin, Truck, User, Wallet } from 'lucide-react';
+import { Building2, ChevronRight, CreditCard, Home, MapPin, Truck, User } from 'lucide-react';
 import { useEcommerce } from '../context/EcommerceContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,7 +12,6 @@ const checkoutSteps = [
 ];
 
 type CheckoutStep = 0 | 1 | 2 | 3;
-type PaymentMethod = 'CARD' | 'CASH';
 
 export function Checkout() {
   const navigate = useNavigate();
@@ -28,10 +27,6 @@ export function Checkout() {
   const [referencias, setReferencias] = useState('');
   const [tipoEntrega, setTipoEntrega] = useState<'RETIRO' | 'ENVIO'>('RETIRO');
   const [zonaEnvioId, setZonaEnvioId] = useState<number | null>(zonasEnvio[0]?.id ?? null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CARD');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,10 +79,6 @@ export function Checkout() {
 
   const handleSubmit = async () => {
     if (cartItems.length === 0) return;
-    if (paymentMethod === 'CARD' && (!cardNumber.trim() || !cardExpiry.trim() || !cardCvv.trim())) {
-      setError('Completa los datos de la tarjeta o selecciona efectivo');
-      return;
-    }
 
     setLoading(true);
     setError(null);
@@ -96,7 +87,7 @@ export function Checkout() {
         clienteNombre: nombre,
         clienteTel: telefono,
         tipoEntrega,
-        observaciones: `Metodo de pago: ${paymentMethod === 'CARD' ? 'Tarjeta de credito/debito' : 'Efectivo'}`,
+        observaciones: 'Pago pendiente de confirmacion en pasarela',
         ...(tipoEntrega === 'RETIRO'
           ? { sucursalId: selectedSucursalId }
           : { zonaEnvioId: zonaEnvioId ?? undefined, direccionEnvio }),
@@ -104,7 +95,7 @@ export function Checkout() {
       };
       const result = await createOrder(payload);
       clearCart();
-      navigate(`/pedido/${result.pedido.id}/exito`, { state: { pedido: result.pedido } });
+      navigate(`/pago/${result.pedido.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear el pedido');
     } finally {
@@ -232,33 +223,12 @@ export function Checkout() {
 
     return (
       <>
-        <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Metodo de Pago</h2>
-        <div className="space-y-3 mb-6">
-          <PaymentOption selected={paymentMethod === 'CARD'} onClick={() => setPaymentMethod('CARD')} icon={<CreditCard size={20} />}>
-            Tarjeta de Credito/Debito
-          </PaymentOption>
-          <PaymentOption selected={paymentMethod === 'CASH'} onClick={() => setPaymentMethod('CASH')} icon={<Wallet size={20} />}>
-            Efectivo
-          </PaymentOption>
+        <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Pago</h2>
+        <div className="mb-8 rounded-xl border border-[#D8D3C8] bg-[#F9F8F6] p-4 text-sm text-[#5F6368]">
+          El metodo de pago se selecciona y procesa en la siguiente pantalla segura.
         </div>
 
-        {paymentMethod === 'CARD' && (
-          <>
-            <Field label="Numero de Tarjeta" className="mb-5">
-              <input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="1234 5678 9012 3456" className="checkout-input" />
-            </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              <Field label="Fecha de Expiracion">
-                <input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} placeholder="MM/AA" className="checkout-input" />
-              </Field>
-              <Field label="CVV">
-                <input value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} placeholder="123" className="checkout-input" />
-              </Field>
-            </div>
-          </>
-        )}
-
-        <StepButtons onBack={goBack} onNext={handleSubmit} nextLabel={loading ? 'Procesando...' : 'Confirmar Pedido'} disabled={loading} />
+        <StepButtons onBack={goBack} onNext={handleSubmit} nextLabel={loading ? 'Procesando...' : 'Ir a pagar'} disabled={loading} />
       </>
     );
   };
@@ -393,24 +363,3 @@ function SelectableCard({ selected = false, children }: { selected?: boolean; ch
   );
 }
 
-function PaymentOption({
-  selected,
-  onClick,
-  icon,
-  children,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <button type="button" onClick={onClick} className="w-full text-left">
-      <div className={`rounded-xl border p-4 flex items-center gap-3 ${selected ? 'border-[#D97706] bg-[#FFF7ED]' : 'border-[#D8D3C8] bg-white'}`}>
-        <span className={`h-3 w-3 rounded-full ${selected ? 'bg-[#0F8B8D]' : 'bg-[#5F6368]'}`} />
-        <span className="text-[#D97706]">{icon}</span>
-        <span className="font-bold text-[#2B2D31]">{children}</span>
-      </div>
-    </button>
-  );
-}

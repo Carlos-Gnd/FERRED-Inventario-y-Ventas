@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Package, User, MapPin, ShoppingBag, Clock, LogOut, CreditCard } from 'lucide-react';
+import { Package, User, MapPin, ShoppingBag, Clock, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { getMisPedidos } from '../services/ecommerceApi';
@@ -144,11 +144,6 @@ export function PanelCliente() {
                 <div className="space-y-4">
                   {orders.map((order) => {
                     const pagoActivo  = getPagoActivo(order.pagos);
-                    const pagoPendiente = !pagoActivo || pagoActivo.estado === 'RECHAZADO';
-                    const mostrarPagarAhora =
-                      order.estado !== 'CANCELADO' &&
-                      order.estado !== 'ENTREGADO' &&
-                      pagoPendiente;
 
                     return (
                       <div key={order.id} className="bg-white rounded-xl p-6 shadow-md">
@@ -187,7 +182,7 @@ export function PanelCliente() {
                             </div>
                           </div>
 
-                          {/* Derecha: total + estado + botón */}
+                          {/* Derecha: total + estado */}
                           <div className="flex flex-col items-end gap-3">
                             <div className="text-right">
                               <p className="text-sm text-[#5F6368]">Total</p>
@@ -199,18 +194,6 @@ export function PanelCliente() {
                             <span className="bg-[#2B2D31] text-white px-4 py-2 rounded-lg text-sm font-semibold">
                               {order.estado}
                             </span>
-
-                            {/* ── Botón Pagar ahora (T-18.5) ── */}
-                            {mostrarPagarAhora && (
-                              <button
-                                type="button"
-                                onClick={() => navigate(`/pago/${order.id}`)}
-                                className="flex items-center gap-2 bg-[#D97706] text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-[#B45309] transition-colors"
-                              >
-                                <CreditCard size={16} />
-                                {pagoActivo?.estado === 'RECHAZADO' ? 'Reintentar pago' : 'Pagar ahora'}
-                              </button>
-                            )}
                           </div>
                         </div>
                       </div>
