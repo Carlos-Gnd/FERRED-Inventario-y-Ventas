@@ -38,8 +38,8 @@ async function initAntiSpam(): Promise<void> {
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[Alertas] Anti-spam cargado desde BD — ${ultimaAlerta.size} entradas`);
     }
-  } catch (err: any) {
-    console.warn('[Alertas] No se pudo cargar anti-spam desde BD:', err.message);
+  } catch (err: unknown) {
+    console.warn('[Alertas] No se pudo cargar anti-spam desde BD:', (err as Error).message);
   }
 }
 
@@ -116,7 +116,7 @@ async function checkStock(): Promise<void> {
     });
 
     const bajoMinimo = todos.filter(
-      (c: any) => c.producto.activo && c.cantidad <= c.minimo
+      (c) => c.producto.activo && c.cantidad <= c.minimo
     );
 
     if (bajoMinimo.length === 0) return;
@@ -133,7 +133,7 @@ async function checkStock(): Promise<void> {
 
     for (const [sucursalId, items] of porSucursal) {
       // Anti-spam: filtrar ya alertados en la ultima hora
-      const paraAlertar = items.filter((item: any) => {
+      const paraAlertar = items.filter((item) => {
         const key      = `${item.productoId}-${sucursalId}`;
         const lastTime = ultimaAlerta.get(key) ?? 0;
         return Date.now() - lastTime > ANTI_SPAM_MS;
@@ -142,7 +142,7 @@ async function checkStock(): Promise<void> {
       if (paraAlertar.length === 0) continue;
 
       // Marcar como alertados
-      paraAlertar.forEach((item: any) =>
+      paraAlertar.forEach((item) =>
         ultimaAlerta.set(`${item.productoId}-${sucursalId}`, Date.now())
       );
 
@@ -154,7 +154,7 @@ async function checkStock(): Promise<void> {
           operacion: 'ALERTA',
           payload:   JSON.stringify({
             sucursalId,
-            items: paraAlertar.map((i: any) => ({
+            items: paraAlertar.map((i) => ({
               productoId: i.productoId,
               nombre:     i.producto.nombre,
               cantidad:   i.cantidad,
@@ -166,8 +166,8 @@ async function checkStock(): Promise<void> {
       });
 
       const sucursalNombre = items[0].sucursal.nombre;
-      const tieneCriticos  = paraAlertar.some((i: any) => i.cantidad === 0);
-      const productosInfo  = paraAlertar.map((i: any) => ({
+      const tieneCriticos  = paraAlertar.some((i) => i.cantidad === 0);
+      const productosInfo  = paraAlertar.map((i) => ({
         nombre:   i.producto.nombre,
         cantidad: i.cantidad,
         minimo:   i.minimo,
@@ -197,8 +197,16 @@ async function checkStock(): Promise<void> {
         console.log(`[Alertas] Correo enviado a ${emailBodeguero} — ${paraAlertar.length} productos`);
       }
     }
-  } catch (err: any) {
-    console.error('[Alertas] Error en checkStock:', err.message);
+  } catch (err: unknown) {
+    console.error('[Alertas] Error en checkStock:', (err as Error).message);
+  }
+}
+
+// SP4-M01: limpiar entradas del mapa que superaron el periodo anti-spam para evitar memory leak
+function purgarAntiSpam(): void {
+  const limite = Date.now() - ANTI_SPAM_MS;
+  for (const [key, ts] of ultimaAlerta) {
+    if (ts < limite) ultimaAlerta.delete(key);
   }
 }
 
@@ -206,7 +214,8 @@ export const AlertasService = {
   async start() {
     await initAntiSpam();
     checkStock();
-    setInterval(checkStock, INTERVALO_MS);
+    setInterval(checkStock,    INTERVALO_MS);
+    setInterval(purgarAntiSpam, ANTI_SPAM_MS);
   },
   checkNow: checkStock,
 };
