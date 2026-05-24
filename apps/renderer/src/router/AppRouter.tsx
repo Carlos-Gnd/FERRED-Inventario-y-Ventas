@@ -22,6 +22,7 @@ import CajaHistorialPage from '../pages/caja/historial/CajaHistorialPage';
 import PedidosOnlinePage   from '../pages/pedidos-online/PedidosOnlinePage';
 import ReceptionHistoryPage from '../pages/reception-history/ReceptionHistoryPage';
 import OfertasTable        from '../pages/offers/OfertasTable';
+import AjustesPage          from '../pages/ajustes/AjustesPage';
 
 function LoginRoute() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
@@ -58,7 +59,7 @@ export function AppRouter() {
           <Route path="categorias"    element={<RoleGuard roles={['ADMIN']}><CategoriesPage /></RoleGuard>} />
           <Route path="reportes"      element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ReportsPage /></RoleGuard>} />
           <Route path="historial-recepciones" element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ReceptionHistoryPage /></RoleGuard>} />
-          <Route path="ajustes"       element={<RoleGuard roles={['ADMIN']}><ComingSoonPage titulo="Ajustes" /></RoleGuard>} />
+          <Route path="ajustes"       element={<RoleGuard roles={['ADMIN']}><AjustesPage /></RoleGuard>} />
           <Route path="transferencias" element={<RoleGuard roles={['ADMIN']}><TransfersPage /></RoleGuard>} />
           <Route path="ofertas"       element={<RoleGuard roles={['ADMIN']}><OfertasTable /></RoleGuard>} />
 

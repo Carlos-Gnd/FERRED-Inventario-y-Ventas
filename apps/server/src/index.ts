@@ -34,6 +34,7 @@ import { SnapshotService }  from './adapters/sync/snapshot.service';
 import { syncRoutes }           from './adapters/http/routes/sync.routes';
 import { reportesRoutes }       from './adapters/http/routes/reportes.routes';
 import { stripeWebhookRoutes }  from './adapters/http/routes/webhook.routes';
+import { ajustesRoutes }        from './adapters/http/routes/ajustes.routes';
 import { initSqlite }           from './adapters/db/sqlite/sqlite.client';
 import { contarPendientes }     from './adapters/sync/sync.local';
 
@@ -113,6 +114,7 @@ app.use('/api/dte',        dteRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/sync',       syncRoutes);
 app.use('/api/reportes',   reportesRoutes);
+app.use('/api/ajustes',   ajustesRoutes);
 app.use('/api/pedidos-online', pedidosOnlineRoutes);
 
 app.use(errorMiddleware);
