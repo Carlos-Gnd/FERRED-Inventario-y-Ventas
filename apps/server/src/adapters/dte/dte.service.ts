@@ -10,6 +10,22 @@ import QRCode from 'qrcode';
 import { prisma } from '../db/prisma/prisma.client';
 import { env }   from '../../config/env';
 
+interface DetalleVentaDte {
+  productoId: number;
+  cantidad:   number;
+  precioUnit: number;
+  producto: {
+    nombre:      string;
+    codigoBarras: string | null;
+    tipoUnidad:  string | null;
+  };
+}
+
+interface AxiosErrorConRespuesta {
+  response?: { data?: unknown; status?: number };
+  message:   string;
+}
+
 // Mapa tipoUnidad -> codigo catalogo Hacienda
 function uniMedidaCode(tipoUnidad: string | null): number {
   switch ((tipoUnidad ?? 'UNIDAD').toUpperCase()) {
@@ -56,7 +72,7 @@ export async function construirJsonDTE(facturaId: number): Promise<{
   const fechaEmision     = factura.creadoEn.toISOString().split('T')[0];
   const horaEmision      = factura.creadoEn.toISOString().split('T')[1].substring(0, 8);
 
-  const cuerpoDocumento = factura.detalles.map((det: any, idx: number) => ({
+  const cuerpoDocumento = (factura.detalles as DetalleVentaDte[]).map((det, idx) => ({
     numItem:      idx + 1,
     codigo:       det.producto.codigoBarras ?? `PROD-${det.productoId}`,
     descripcion:  det.producto.nombre,
@@ -184,7 +200,7 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
     });
 
     // Generar QR con la fecha real de emisión del DTE
-    const fechaEmi = (dteJson as any).identificacion.fecEmi as string;
+    const fechaEmi = (dteJson as { identificacion: { fecEmi: string } }).identificacion.fecEmi;
     const qrBase64 = await generarQRDte(codigoGeneracion, fechaEmi);
 
     // Intentar enviar al Sandbox de Hacienda
@@ -206,7 +222,7 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
       const response = await axios.post(
         `${env.dte.sandboxUrl}/fe/dte/recepcion`,
         {
-          ambiente:         (dteJson as any).identificacion.ambiente,
+          ambiente:         (dteJson as { identificacion: { ambiente: string } }).identificacion.ambiente,
           idEnvio:          facturaId,
           version:          1,
           tipoDte:          '01',
@@ -229,14 +245,15 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
         });
         return { ok: false, estado: estadoFinal, error: errMsg };
       }
-    } catch (axiosErr: any) {
-      const errData = axiosErr?.response?.data;
-      const hasHttpResponse = Boolean(axiosErr?.response);
+    } catch (axiosErr: unknown) {
+      const e             = axiosErr as AxiosErrorConRespuesta;
+      const errData       = e.response?.data;
+      const hasHttpResponse = Boolean(e.response);
 
       // Si Hacienda respondió (4xx/5xx), es error real y NO debe pasar como SIMULADO.
       if (hasHttpResponse) {
         estadoFinal = 'ERROR_HACIENDA';
-        const errMsg = JSON.stringify(errData ?? { message: axiosErr.message });
+        const errMsg = JSON.stringify(errData ?? { message: e.message });
         await prisma.facturaDte.update({
           where: { id: facturaId },
           data:  { estado: estadoFinal, sincronizado: false },
@@ -247,7 +264,7 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
       // Sandbox no disponible (timeout/red/DNS) — permitir modo simulado sin bloquear venta.
       estadoFinal  = 'SIMULADO';
       sincronizado = false;
-      console.warn('[DTE] Sandbox no disponible — modo SIMULADO:', axiosErr.message);
+      console.warn('[DTE] Sandbox no disponible — modo SIMULADO:', e.message);
     }
 
     await prisma.facturaDte.update({
@@ -257,13 +274,13 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
 
     return { ok: true, estado: estadoFinal, selloRecibido, qrBase64 };
 
-  } catch (err: any) {
-    console.error('[DTE] Error:', err.message);
+  } catch (err: unknown) {
+    console.error('[DTE] Error:', (err as Error).message);
     await prisma.facturaDte.update({
       where: { id: facturaId },
       data:  { estado: 'ERROR_INTERNO' },
-    }).catch((updateErr: any) => {
-      console.error('[DTE] Error al actualizar estado tras fallo interno:', updateErr.message);
+    }).catch((updateErr: unknown) => {
+      console.error('[DTE] Error al actualizar estado tras fallo interno:', (updateErr as Error).message);
     });
     return { ok: false, estado: 'ERROR_INTERNO', error: 'No se pudo procesar el DTE. Contacte al administrador.' };
   }
@@ -295,7 +312,7 @@ export async function listarDTEsSucursal(
   sucursalId: number,
   limit:      number = 50,
   offset:     number = 0,
-): Promise<{ total: number; DTEs: any[] }> {
+): Promise<{ total: number; DTEs: { id: number; numeroControl: string | null; codigoGeneracion: string | null; estado: string; clienteNombre: string | null; total: number | null; creadoEn: Date }[] }> {
   const [total, DTEs] = await Promise.all([
     prisma.facturaDte.count({ where: { sucursalId } }),
     prisma.facturaDte.findMany({
