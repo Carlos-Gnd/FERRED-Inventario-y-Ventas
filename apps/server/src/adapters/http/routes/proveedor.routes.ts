@@ -162,11 +162,30 @@ proveedorRoutes.post(
           })),
         });
 
+        // T-25.3: upsert stock y registrar MovimientoInventario ENTRADA en la misma tx
         for (const item of items) {
+          const stockActual = await tx.stockSucursal.findUnique({
+            where: { productoId_sucursalId: { productoId: item.productoId, sucursalId } },
+          });
+          const saldoAnterior = stockActual?.cantidad ?? 0;
+
           await tx.stockSucursal.upsert({
             where:  { productoId_sucursalId: { productoId: item.productoId, sucursalId } },
             create: { productoId: item.productoId, sucursalId, cantidad: item.cantidad, minimo: 0 },
             update: { cantidad: { increment: item.cantidad } },
+          });
+
+          await tx.movimientoInventario.create({
+            data: {
+              productoId:   item.productoId,
+              sucursalId,
+              tipo:         'ENTRADA',
+              cantidad:     item.cantidad,
+              saldoAnterior,
+              saldoNuevo:   saldoAnterior + item.cantidad,
+              referencia:   `RECEPCION-${nueva.id}`,
+              usuarioId:    usuarioId ?? null,
+            },
           });
         }
 
