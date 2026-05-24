@@ -320,9 +320,15 @@
 .reports-export-actions {
   display: inline-flex;
   align-items: center;
+<<<<<<< HEAD
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+=======
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+>>>>>>> 4772acf7271e8cd858405762aca141f4736bb01b
 }
 
 .reports-export-button {

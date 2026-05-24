@@ -21,6 +21,7 @@ import CajaPage from '../pages/caja/CajaPage';
 import CajaHistorialPage from '../pages/caja/historial/CajaHistorialPage';
 import PedidosOnlinePage   from '../pages/pedidos-online/PedidosOnlinePage';
 import ReceptionHistoryPage from '../pages/reception-history/ReceptionHistoryPage';
+import OfertasTable        from '../pages/offers/OfertasTable';
 import AjustesPage          from '../pages/ajustes/AjustesPage';
 
 function LoginRoute() {
@@ -60,6 +61,7 @@ export function AppRouter() {
           <Route path="historial-recepciones" element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ReceptionHistoryPage /></RoleGuard>} />
           <Route path="ajustes"       element={<RoleGuard roles={['ADMIN']}><AjustesPage /></RoleGuard>} />
           <Route path="transferencias" element={<RoleGuard roles={['ADMIN']}><TransfersPage /></RoleGuard>} />
+          <Route path="ofertas"       element={<RoleGuard roles={['ADMIN']}><OfertasTable /></RoleGuard>} />
 
           {/* Rutas para ADMIN y BODEGA */}
           <Route path="productos"     element={<RoleGuard roles={['ADMIN','BODEGA']}><ProductsPage /></RoleGuard>} />

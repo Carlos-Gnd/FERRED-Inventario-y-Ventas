@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import { Minus, Plus, ArrowLeft } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
+import { OfertaBadge, OfertaPrice, tieneOfertaVigente } from '../components/OfertaBadge';
 import { useEcommerce } from '../context/EcommerceContext';
 
 export function ProductoDetalle() {
@@ -27,8 +28,13 @@ export function ProductoDetalle() {
       <Link to="/catalogo" className="flex items-center gap-2 text-[#5F6368] hover:text-[#D97706] mb-6"><ArrowLeft size={20} />Volver al catalogo</Link>
       <div className="bg-white rounded-xl shadow-lg overflow-hidden p-8">
         <h1 className="text-3xl font-bold text-[#2B2D31] mb-3">{product.nombre}</h1>
-        <p className="text-[#5F6368] mb-2">{product.categoria?.nombre}</p>
-        <p className="text-4xl font-bold text-[#D97706] mb-6">${product.precioConIva.toFixed(2)}</p>
+        <div className="mb-2 flex flex-wrap items-center gap-3">
+          <p className="text-[#5F6368]">{product.categoria?.nombre}</p>
+          {tieneOfertaVigente(product) && <OfertaBadge />}
+        </div>
+        <div className="mb-6">
+          <OfertaPrice product={product} size="detail" />
+        </div>
         <div className="flex items-center gap-4 mb-6"><div className="flex items-center border border-[#E5E2DA] rounded-xl overflow-hidden"><button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-3"><Minus size={20} /></button><span className="px-6 font-semibold">{quantity}</span><button onClick={() => setQuantity(Math.min(product.stockDisponible, quantity + 1))} className="p-3"><Plus size={20} /></button></div><span className="text-sm text-[#5F6368]">Disponibles: {product.stockDisponible}</span></div>
         <div className="flex gap-4"><button onClick={() => addToCart(product, quantity)} className="flex-1 bg-[#D97706] text-white py-4 rounded-xl font-semibold">Agregar al carrito</button><button onClick={() => { addToCart(product, quantity); navigate('/checkout'); }} className="border-2 border-[#D97706] text-[#D97706] px-6 py-4 rounded-xl font-semibold">Comprar ahora</button></div>
       </div>

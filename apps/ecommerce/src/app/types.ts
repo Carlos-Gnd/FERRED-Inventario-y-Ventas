@@ -5,6 +5,13 @@ export interface Product {
   tipoUnidad: string;
   precioVenta: number;
   precioConIva: number;
+  precioOferta?: number | null;
+  oferta?: {
+    id: number;
+    precioOferta: number;
+    fechaInicio: string;
+    fechaFin: string;
+  } | null;
   categoria: { id: number; nombre: string } | null;
   sucursalId: number;
   stockDisponible: number;
