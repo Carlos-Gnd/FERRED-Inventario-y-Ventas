@@ -1,9 +1,45 @@
+import { randomUUID } from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import multer, { FileFilterCallback } from 'multer';
 import { prisma } from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
 import { sincronizarStockTotal } from '../services/stock-sync.service';
+
+// ── Multer: subida de imágenes de productos (T-18) ────────────
+const MAX_IMAGEN_BYTES = 5 * 1024 * 1024;
+const IMAGENES_DIR = path.resolve(process.cwd(), 'uploads', 'productos');
+
+const MIME_TO_EXT: Readonly<Record<string, string>> = {
+  'image/jpeg': 'jpg',
+  'image/png':  'png',
+  'image/webp': 'webp',
+};
+
+const imagenStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    fs.mkdirSync(IMAGENES_DIR, { recursive: true });
+    cb(null, IMAGENES_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const ext = MIME_TO_EXT[file.mimetype] ?? 'bin';
+    cb(null, `${randomUUID()}.${ext}`);
+  },
+});
+
+const imagenFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback): void => {
+  if (file.mimetype in MIME_TO_EXT) { cb(null, true); return; }
+  cb(new Error('Solo se permiten imágenes JPG, PNG o WebP'));
+};
+
+const uploadImagen = multer({
+  storage:    imagenStorage,
+  limits:     { fileSize: MAX_IMAGEN_BYTES, files: 1 },
+  fileFilter: imagenFilter,
+}).single('imagen');
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import {
   crearProductoSqlite,
@@ -305,6 +341,58 @@ productoRoutes.delete('/:id', roleMiddleware('ADMIN'), async (req: Request, res:
     return next(err);
   }
 });
+
+// ── POST /api/productos/:id/imagen (T-18) ────────────────────
+// Sube una imagen para el producto, la guarda en uploads/productos/
+// y actualiza imageUrl con la ruta pública relativa.
+productoRoutes.post(
+  '/:id/imagen',
+  roleMiddleware('ADMIN', 'BODEGA'),
+  (req: Request, res: Response, next: NextFunction) => {
+    uploadImagen(req, res, async (err) => {
+      if (err instanceof multer.MulterError) {
+        const msg = err.code === 'LIMIT_FILE_SIZE'
+          ? 'La imagen supera el límite de 5 MB'
+          : err.message;
+        return res.status(400).json({ error: msg });
+      }
+      if (err) return res.status(400).json({ error: (err as Error).message });
+
+      const productoId = Number(req.params.id);
+      if (!Number.isInteger(productoId) || productoId < 1) {
+        if (req.file) fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ error: 'ID de producto inválido' });
+      }
+
+      if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
+
+      // URL pública relativa — no se expone el path absoluto del sistema
+      const imageUrl = `/uploads/productos/${req.file.filename}`;
+
+      try {
+        const producto = await prisma.producto.findUnique({ where: { id: productoId } });
+        if (!producto) {
+          fs.unlink(req.file.path, () => {});
+          return res.status(404).json({ error: 'Producto no encontrado' });
+        }
+
+        // Eliminar imagen anterior si era un archivo local (no base64 ni URL externa)
+        if (producto.imageUrl?.startsWith('/uploads/')) {
+          const anterior = path.join(process.cwd(), producto.imageUrl);
+          fs.unlink(anterior, () => {});
+        }
+
+        await prisma.producto.update({ where: { id: productoId }, data: { imageUrl } });
+        OfflineCache.invalidate('productos:');
+
+        return res.json({ ok: true, imageUrl });
+      } catch (dbErr) {
+        fs.unlink(req.file.path, () => {});
+        return next(dbErr);
+      }
+    });
+  },
+);
 
 productoRoutes.post('/:id/descontar-stock', roleMiddleware('ADMIN', 'CAJERO'), async (req, res, next) => {
   try {
