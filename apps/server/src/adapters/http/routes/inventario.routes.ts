@@ -331,6 +331,8 @@ inventarioRoutes.post(
         return res.status(400).json({ error: 'Origen y destino deben ser diferentes' });
       }
 
+      const usuarioId = req.usuario?.id ?? null;
+
       const [stockOrigen, stockDestino] = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const origen = await tx.stockSucursal.findUnique({
           where: { productoId_sucursalId: { productoId, sucursalId: origenId } },
@@ -339,6 +341,12 @@ inventarioRoutes.post(
         if (!origen || origen.cantidad < cantidad) {
           throw new Error(`Stock insuficiente en sucursal origen. Disponible: ${origen?.cantidad ?? 0}`);
         }
+
+        // T-25.4: leer saldo destino antes del upsert para el kardex
+        const destinoActual = await tx.stockSucursal.findUnique({
+          where: { productoId_sucursalId: { productoId, sucursalId: destinoId } },
+        });
+        const saldoDestinoAntes = destinoActual?.cantidad ?? 0;
 
         const stockOrigen = await tx.stockSucursal.update({
           where: { productoId_sucursalId: { productoId, sucursalId: origenId } },
@@ -349,6 +357,33 @@ inventarioRoutes.post(
           where:  { productoId_sucursalId: { productoId, sucursalId: destinoId } },
           create: { productoId, sucursalId: destinoId, cantidad, minimo: 0 },
           update: { cantidad: { increment: cantidad } },
+        });
+
+        // T-25.4: movimiento SALIDA en origen y ENTRADA en destino — ambos o ninguno
+        await tx.movimientoInventario.create({
+          data: {
+            productoId,
+            sucursalId:   origenId,
+            tipo:         'TRANSFERENCIA_SALIDA',
+            cantidad,
+            saldoAnterior: origen.cantidad,
+            saldoNuevo:    origen.cantidad - cantidad,
+            referencia:   `TRANSFERENCIA-${origenId}-${destinoId}`,
+            usuarioId,
+          },
+        });
+
+        await tx.movimientoInventario.create({
+          data: {
+            productoId,
+            sucursalId:   destinoId,
+            tipo:         'TRANSFERENCIA_ENTRADA',
+            cantidad,
+            saldoAnterior: saldoDestinoAntes,
+            saldoNuevo:    saldoDestinoAntes + cantidad,
+            referencia:   `TRANSFERENCIA-${origenId}-${destinoId}`,
+            usuarioId,
+          },
         });
 
         return [stockOrigen, stockDestino];
