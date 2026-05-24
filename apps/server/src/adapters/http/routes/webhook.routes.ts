@@ -32,7 +32,10 @@ stripeWebhookRoutes.post('/', async (req: Request, res: Response) => {
     // Otros eventos de Stripe se ignoran silenciosamente
   } catch (err: unknown) {
     console.error('[Webhook] Error procesando evento:', (err as Error).message);
-    // Retornamos 200 igual para que Stripe no reintente indefinidamente errores de lógica
+    // SP4-C03: retornar 500 para que Stripe reintente si falla la BD (no errores de lógica)
+    const msg = (err as Error).message ?? '';
+    const esFallaBD = msg.includes('prisma') || msg.includes('connection') || msg.includes('database');
+    if (esFallaBD) return res.status(500).json({ error: 'Error interno al procesar pago' });
   }
 
   return res.json({ received: true });
@@ -56,9 +59,10 @@ async function manejarPagoExitoso(pi: PaymentIntent): Promise<void> {
   const monto = pi.amount_received / 100;
 
   // Idempotencia: upsert por (pedidoId, estado='VALIDADO') — la constraint unique lo garantiza
+  // SP4-M04: update incluye monto/referencia por si Stripe re-entrega con datos actualizados
   await prisma.pago.upsert({
     where:  { pago_pedido_validado_unique: { pedidoId, estado: 'VALIDADO' } },
-    update: {},
+    update: { monto, referencia: pi.id, validadoEn: new Date() },
     create: {
       pedidoId,
       metodo:     'STRIPE',
