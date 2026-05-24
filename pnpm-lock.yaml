@@ -425,7 +425,7 @@ importers:
         specifier: ^7.4.2
         version: 7.4.4
       prisma:
-        specifier: ^5.14.0
+        specifier: ^5.22.0
         version: 5.22.0
       tsx:
         specifier: ^4.15.6
