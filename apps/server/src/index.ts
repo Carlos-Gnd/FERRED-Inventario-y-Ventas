@@ -13,6 +13,7 @@ import { ecommerceAuthRoutes } from './adapters/http/routes/ecommerce-auth.route
 import { usuarioRoutes }    from './adapters/http/routes/usuario.routes';
 import { categoriaRoutes }  from './adapters/http/routes/categoria.routes';
 import { productoRoutes }   from './adapters/http/routes/producto.routes';
+import { ofertaRoutes }     from './adapters/http/routes/oferta.routes';
 import { inventarioRoutes } from './adapters/http/routes/inventario.routes';
 import { ventasRoutes }     from './adapters/http/routes/ventas.routes';
 import { dteRoutes }        from './adapters/http/routes/dte.routes';
@@ -30,10 +31,11 @@ import { errorMiddleware }  from './adapters/http/middleware/error.middleware';
 import { jwtMiddleware }    from './adapters/http/middleware/jwt.middleware';
 import { SyncService }      from './adapters/sync/sync.service';
 import { SnapshotService }  from './adapters/sync/snapshot.service';
-import { syncRoutes }       from './adapters/http/routes/sync.routes';
-import { reportesRoutes }   from './adapters/http/routes/reportes.routes';
-import { initSqlite }       from './adapters/db/sqlite/sqlite.client';
-import { contarPendientes } from './adapters/sync/sync.local';
+import { syncRoutes }           from './adapters/http/routes/sync.routes';
+import { reportesRoutes }       from './adapters/http/routes/reportes.routes';
+import { stripeWebhookRoutes }  from './adapters/http/routes/webhook.routes';
+import { initSqlite }           from './adapters/db/sqlite/sqlite.client';
+import { contarPendientes }     from './adapters/sync/sync.local';
 
 try { initSqlite(); } catch (e) { console.warn('[sqlite] Modo offline no disponible:', (e as Error).message); }
 
@@ -42,8 +44,13 @@ const branchId = process.env.BRANCH_ID || '1';
 
 app.use(helmet());
 
+// T-19.3: El webhook de Stripe necesita el body SIN parsear para verificar la firma.
+// Debe montarse ANTES de express.json() — de lo contrario la verificación de firma falla.
+app.use('/api/pagos/webhook', express.raw({ type: 'application/json' }), stripeWebhookRoutes);
+
 const ALLOWED_ORIGINS = [
   'https://ferred.netlify.app',
+  'https://tienda-ferred.netlify.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -98,6 +105,7 @@ app.get('/sync/pendientes-local', (_req, res) => res.json(contarPendientes()));
 app.use('/api/usuarios',   usuarioRoutes);
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/productos',  productoRoutes);
+app.use('/api/ofertas',    ofertaRoutes);
 app.use('/api/inventario', inventarioRoutes);
 app.use('/api/ventas',     ventasRoutes);
 app.use('/api/caja',        cajaRoutes);

@@ -1,24 +1,25 @@
 /**
  * PagoPage.tsx
- * T-18.5: Página /pago/:pedidoId — ecommerce
- *
- * - Selector de método: EFECTIVO, TARJETA, TRANSFERENCIA
- * - Formulario por método
- * - Banner "pago de prueba" en tarjeta
- * - Dropzone para comprobante (transferencia)
- * - Validación regex tarjeta (16 dígitos)
- * - Preview del comprobante antes de subir
+ * T-19.4: Reemplaza el formulario simulado por Stripe Elements oficial.
+ * El banner "Entorno de prueba" solo aparece cuando VITE_STRIPE_MODE=sandbox.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { loadStripe } from '@stripe/stripe-js';
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js';
 import { useAuth } from '../context/AuthContext';
 import { getAuthHeader } from '../services/ecommerceApi';
 import type { PedidoOnline } from '../types';
 
 // ── Constantes ────────────────────────────────────────────────────────────
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001/api';
-const TARJETA_REGEX = /^\d{16}$/;
+const IS_SANDBOX = import.meta.env.VITE_STRIPE_MODE === 'sandbox';
 const MAX_FILE_SIZE_MB = 2;
 
 type MetodoPago = 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA';
@@ -82,35 +83,35 @@ const IcoInfo = () => (
 const fmt = (n: number) =>
   new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(n);
 
-function formatCardNumber(value: string): string {
-  return value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-}
-
 // ── Componente principal ──────────────────────────────────────────────────
 export function PagoPage() {
   const { pedidoId } = useParams<{ pedidoId: string }>();
   const navigate = useNavigate();
   const { token } = useAuth();
 
-  const [pedido, setPedido]             = useState<PedidoOnline | null>(null);
+  const [pedido, setPedido]               = useState<PedidoOnline | null>(null);
   const [loadingPedido, setLoadingPedido] = useState(true);
-  const [metodo, setMetodo]             = useState<MetodoPago>('EFECTIVO');
-  const [estado, setEstado]             = useState<EstadoPago>('idle');
-  const [errorMsg, setErrorMsg]         = useState<string | null>(null);
+  const [metodo, setMetodo]               = useState<MetodoPago>('EFECTIVO');
+  const [estado, setEstado]               = useState<EstadoPago>('idle');
+  const [errorMsg, setErrorMsg]           = useState<string | null>(null);
 
-  // Tarjeta
-  const [cardNumber, setCardNumber]     = useState('');
-  const [cardExpiry, setCardExpiry]     = useState('');
-  const [cardCvv, setCardCvv]           = useState('');
-  const [cardError, setCardError]       = useState<string | null>(null);
+  // Stripe Elements
+  const [stripePromise, setStripePromise] = useState<ReturnType<typeof loadStripe> | null>(null);
+  const [clientSecret, setClientSecret]   = useState<string | null>(null);
+  const [intentLoading, setIntentLoading] = useState(false);
 
   // Transferencia
-  const [referencia, setReferencia]     = useState('');
-  const [archivo, setArchivo]           = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl]     = useState<string | null>(null);
-  const [dragOver, setDragOver]         = useState(false);
-  const [uploadError, setUploadError]   = useState<string | null>(null);
-  const fileInputRef                    = useRef<HTMLInputElement>(null);
+  const [referencia, setReferencia]   = useState('');
+  const [archivo, setArchivo]         = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl]   = useState<string | null>(null);
+  const [dragOver, setDragOver]       = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef                  = useRef<HTMLInputElement>(null);
+
+  const irACompraExitosa = useCallback(() => {
+    if (!pedido) return;
+    navigate(`/pedido/${pedido.id}/exito`, { state: { pedido } });
+  }, [navigate, pedido]);
 
   // ── Cargar pedido ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -128,6 +129,39 @@ export function PagoPage() {
       .catch(() => setErrorMsg('No se pudo cargar el pedido'))
       .finally(() => setLoadingPedido(false));
   }, [pedidoId, token]);
+
+  // ── Inicializar Stripe + crear PaymentIntent al seleccionar TARJETA ──
+  useEffect(() => {
+    if (metodo !== 'TARJETA' || !pedido || !token) return;
+    if (clientSecret) return; // ya creado
+
+    setIntentLoading(true);
+    setErrorMsg(null);
+
+    // Obtener llave pública y crear intent en paralelo
+    Promise.all([
+      fetch(`${API_BASE}/pagos/stripe-public-key`, {
+        headers: getAuthHeader(token),
+      }).then((r) => r.json() as Promise<{ publicKey: string }>),
+
+      fetch(`${API_BASE}/pagos/crear-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader(token) },
+        body: JSON.stringify({ pedidoId: pedido.id }),
+      }).then((r) => r.json() as Promise<{ ok: boolean; clientSecret: string; error?: string }>),
+    ])
+      .then(([{ publicKey }, intentData]) => {
+        if (!intentData.ok || !intentData.clientSecret) {
+          throw new Error(intentData.error ?? 'No se pudo iniciar el pago con tarjeta');
+        }
+        setStripePromise(loadStripe(publicKey));
+        setClientSecret(intentData.clientSecret);
+      })
+      .catch((err: unknown) => {
+        setErrorMsg(err instanceof Error ? err.message : 'Error al iniciar el pago');
+      })
+      .finally(() => setIntentLoading(false));
+  }, [metodo, pedido, token, clientSecret]);
 
   // ── Dropzone ──────────────────────────────────────────────────────────
   const handleFile = useCallback((file: File) => {
@@ -167,36 +201,16 @@ export function PagoPage() {
     const body = await res.json();
     const comprobanteUrl = body.comprobanteUrl ?? body.url;
     if (!comprobanteUrl || typeof comprobanteUrl !== 'string') {
-      throw new Error('El servidor no devolvio la URL del comprobante');
+      throw new Error('El servidor no devolvió la URL del comprobante');
     }
     return comprobanteUrl;
   }
 
-  // ── Validar tarjeta ───────────────────────────────────────────────────
-  function validarTarjeta(): boolean {
-    const digits = cardNumber.replace(/\s/g, '');
-    if (!TARJETA_REGEX.test(digits)) {
-      setCardError('El número de tarjeta debe tener 16 dígitos');
-      return false;
-    }
-    if (!cardExpiry.match(/^\d{2}\/\d{2}$/)) {
-      setCardError('Formato de expiración inválido (MM/AA)');
-      return false;
-    }
-    if (!cardCvv.match(/^\d{3,4}$/)) {
-      setCardError('CVV inválido');
-      return false;
-    }
-    setCardError(null);
-    return true;
-  }
-
-  // ── Confirmar pago ────────────────────────────────────────────────────
+  // ── Confirmar pago (EFECTIVO / TRANSFERENCIA) ─────────────────────────
   async function confirmarPago() {
     if (!pedido || !token) return;
     setErrorMsg(null);
 
-    if (metodo === 'TARJETA' && !validarTarjeta()) return;
     if (metodo === 'TRANSFERENCIA' && !archivo) {
       setUploadError('Debes subir el comprobante de transferencia');
       return;
@@ -206,10 +220,6 @@ export function PagoPage() {
     try {
       let body: Record<string, unknown> = { metodo, monto: pedido.total };
 
-      if (metodo === 'TARJETA') {
-        body.tarjeta = { numero: cardNumber.replace(/\s/g, '') };
-      }
-
       if (metodo === 'TRANSFERENCIA' && archivo) {
         const comprobanteUrl = await subirComprobante(archivo);
         body.comprobanteUrl = comprobanteUrl;
@@ -218,26 +228,19 @@ export function PagoPage() {
 
       const res = await fetch(`${API_BASE}/pedidos-online/${pedido.id}/pago`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader(token),
-        },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader(token) },
         body: JSON.stringify(body),
       });
 
       const data = await res.json();
-
-      if (!res.ok || data.pago?.estado === 'RECHAZADO') {
+      if (!res.ok) {
         setEstado('error');
-        setErrorMsg(
-          data.pago?.estado === 'RECHAZADO'
-            ? 'Tarjeta rechazada por el simulador. Intenta con otra tarjeta.'
-            : data.error ?? 'No se pudo procesar el pago',
-        );
+        setErrorMsg(data.error ?? 'No se pudo procesar el pago');
         return;
       }
 
       setEstado('success');
+      irACompraExitosa();
     } catch (err) {
       setEstado('error');
       setErrorMsg(err instanceof Error ? err.message : 'Error inesperado');
@@ -250,13 +253,11 @@ export function PagoPage() {
       <ResultScreen
         tipo="success"
         titulo={metodo === 'TRANSFERENCIA' ? '¡Comprobante enviado!' : '¡Pago procesado!'}
-        descripcion={
-          metodo === 'TRANSFERENCIA'
-            ? 'Tu comprobante está en revisión. Te notificaremos cuando sea aprobado.'
-            : 'Tu pago fue procesado correctamente. Puedes ver el estado en tu panel.'
-        }
-        onAction={() => navigate('/cliente')}
-        actionLabel="Ver mis pedidos"
+        descripcion={metodo === 'TRANSFERENCIA'
+          ? 'Tu comprobante está en revisión. Te notificaremos cuando sea aprobado.'
+          : 'Tu pago fue procesado correctamente. Redirigiendo...'}
+        onAction={irACompraExitosa}
+        actionLabel="Continuar"
       />
     );
   }
@@ -266,14 +267,13 @@ export function PagoPage() {
       <ResultScreen
         tipo="error"
         titulo="Pago rechazado"
-        descripcion={errorMsg ?? 'La tarjeta fue rechazada. Intenta con otro método de pago.'}
-        onAction={() => { setEstado('idle'); setErrorMsg(null); setCardNumber(''); setCardExpiry(''); setCardCvv(''); }}
+        descripcion={errorMsg ?? 'La pasarela rechazó el pago. Intenta con otro método.'}
+        onAction={() => { setEstado('idle'); setErrorMsg(null); setClientSecret(null); }}
         actionLabel="Intentar de nuevo"
       />
     );
   }
 
-  // ── Loading ───────────────────────────────────────────────────────────
   if (loadingPedido) {
     return (
       <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center">
@@ -282,7 +282,7 @@ export function PagoPage() {
     );
   }
 
-  if (!pedido || errorMsg) {
+  if (!pedido || (errorMsg && !['TARJETA'].includes(metodo))) {
     return (
       <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center">
         <p className="text-red-600">{errorMsg ?? 'Pedido no encontrado'}</p>
@@ -323,7 +323,7 @@ export function PagoPage() {
                   onClick={() => { setMetodo('TARJETA'); setErrorMsg(null); }}
                   icon={<IcoCard />}
                   label="Tarjeta"
-                  sublabel="Simulada"
+                  sublabel="Stripe"
                 />
                 <MetodoBtn
                   selected={metodo === 'TRANSFERENCIA'}
@@ -340,17 +340,28 @@ export function PagoPage() {
               {metodo === 'EFECTIVO' && (
                 <EfectivoForm total={pedido.total} />
               )}
+
               {metodo === 'TARJETA' && (
-                <TarjetaForm
-                  cardNumber={cardNumber}
-                  cardExpiry={cardExpiry}
-                  cardCvv={cardCvv}
-                  cardError={cardError}
-                  onCardNumber={(v) => { setCardNumber(formatCardNumber(v)); setCardError(null); }}
-                  onExpiry={(v) => { setCardExpiry(v); setCardError(null); }}
-                  onCvv={(v) => { setCardCvv(v); setCardError(null); }}
-                />
+                intentLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <p className="text-[#5F6368] text-sm">Iniciando pasarela de pago...</p>
+                  </div>
+                ) : stripePromise && clientSecret ? (
+                  <Elements stripe={stripePromise} options={{ clientSecret }}>
+                    <TarjetaStripeForm
+                      pedidoId={pedido.id}
+                      onSuccess={() => {
+                        setEstado('success');
+                        irACompraExitosa();
+                      }}
+                      onError={(msg) => { setEstado('error'); setErrorMsg(msg); }}
+                    />
+                  </Elements>
+                ) : errorMsg ? (
+                  <p className="text-sm text-red-600">{errorMsg}</p>
+                ) : null
               )}
+
               {metodo === 'TRANSFERENCIA' && (
                 <TransferenciaForm
                   referencia={referencia}
@@ -369,28 +380,28 @@ export function PagoPage() {
               )}
             </div>
 
-            {/* Error general */}
-            {errorMsg && estado === 'error' && (
+            {/* Error general (no TARJETA — ese maneja su propio error) */}
+            {errorMsg && estado === 'error' && metodo !== 'TARJETA' && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
                 {errorMsg}
               </div>
             )}
 
-            {/* Botón confirmar */}
-            <button
-              type="button"
-              onClick={confirmarPago}
-              disabled={estado === 'loading'}
-              className="w-full bg-[#D97706] text-white py-4 rounded-xl font-bold text-base hover:bg-[#B45309] disabled:bg-[#E5E2DA] disabled:text-[#5F6368] transition-colors"
-            >
-              {estado === 'loading'
-                ? 'Procesando...'
-                : metodo === 'EFECTIVO'
-                ? 'Confirmar pago en efectivo'
-                : metodo === 'TARJETA'
-                ? 'Pagar con tarjeta'
-                : 'Enviar comprobante'}
-            </button>
+            {/* Botón confirmar — solo EFECTIVO y TRANSFERENCIA; TARJETA tiene el suyo propio */}
+            {metodo !== 'TARJETA' && (
+              <button
+                type="button"
+                onClick={confirmarPago}
+                disabled={estado === 'loading'}
+                className="w-full bg-[#D97706] text-white py-4 rounded-xl font-bold text-base hover:bg-[#B45309] disabled:bg-[#E5E2DA] disabled:text-[#5F6368] transition-colors"
+              >
+                {estado === 'loading'
+                  ? 'Procesando...'
+                  : metodo === 'EFECTIVO'
+                  ? 'Confirmar pago en efectivo'
+                  : 'Enviar comprobante'}
+              </button>
+            )}
           </div>
 
           {/* Resumen del pedido */}
@@ -419,6 +430,81 @@ export function PagoPage() {
   );
 }
 
+// ── Formulario Stripe Elements ────────────────────────────────────────────
+function TarjetaStripeForm({
+  pedidoId,
+  onSuccess,
+  onError,
+}: {
+  pedidoId: number;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  const stripe   = useStripe();
+  const elements = useElements();
+  const [loading, setLoading]   = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function handlePagar() {
+    if (!stripe || !elements) return;
+    setLoading(true);
+    setErrorMsg(null);
+
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/cliente`,
+      },
+      redirect: 'if_required',
+    });
+
+    if (error) {
+      const msg = error.message ?? 'La pasarela rechazó el pago. Intenta con otro método.';
+      setErrorMsg(msg);
+      onError(msg);
+      setLoading(false);
+    } else {
+      onSuccess();
+    }
+  }
+
+  return (
+    <div>
+      <h3 className="font-bold text-[#2B2D31] text-lg mb-4">Pago con tarjeta</h3>
+
+      {/* Banner sandbox — solo visible cuando VITE_STRIPE_MODE=sandbox */}
+      {IS_SANDBOX && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3 mb-5">
+          <span className="text-blue-600 flex-shrink-0 mt-0.5"><IcoInfo /></span>
+          <div className="text-sm text-blue-800">
+            <p className="font-semibold mb-1">Entorno sandbox</p>
+            <p>Usa la tarjeta <strong>4242 4242 4242 4242</strong> con cualquier fecha futura y CVV para aprobar. Usa <strong>4000 0000 0000 0002</strong> para simular un rechazo.</p>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-5">
+        <PaymentElement id={`stripe-payment-element-${pedidoId}`} />
+      </div>
+
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 text-sm text-red-700">
+          {errorMsg}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={handlePagar}
+        disabled={loading || !stripe || !elements}
+        className="w-full bg-[#D97706] text-white py-4 rounded-xl font-bold text-base hover:bg-[#B45309] disabled:bg-[#E5E2DA] disabled:text-[#5F6368] transition-colors"
+      >
+        {loading ? 'Procesando...' : 'Pagar con tarjeta'}
+      </button>
+    </div>
+  );
+}
+
 // ── Sub-formularios ───────────────────────────────────────────────────────
 
 function EfectivoForm({ total }: { total: number }) {
@@ -436,79 +522,6 @@ function EfectivoForm({ total }: { total: number }) {
         <p className="text-sm text-[#5F6368] mb-1">Monto a pagar</p>
         <p className="text-3xl font-bold text-[#2B2D31]">{fmt(total)}</p>
         <p className="text-xs text-[#5F6368] mt-2">Lleva el monto exacto para agilizar el proceso</p>
-      </div>
-    </div>
-  );
-}
-
-function TarjetaForm({
-  cardNumber, cardExpiry, cardCvv, cardError,
-  onCardNumber, onExpiry, onCvv,
-}: {
-  cardNumber: string; cardExpiry: string; cardCvv: string; cardError: string | null;
-  onCardNumber: (v: string) => void; onExpiry: (v: string) => void; onCvv: (v: string) => void;
-}) {
-  const digits = cardNumber.replace(/\s/g, '');
-  const isTestCard = digits.startsWith('4111');
-
-  return (
-    <div>
-      <h3 className="font-bold text-[#2B2D31] text-lg mb-4">Datos de tarjeta</h3>
-
-      {/* Banner pago de prueba */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3 mb-5">
-        <span className="text-blue-600 flex-shrink-0 mt-0.5"><IcoInfo /></span>
-        <div className="text-sm text-blue-800">
-          <p className="font-semibold mb-1">Entorno de prueba</p>
-          <p>Usa el número <strong>4111 1111 1111 1111</strong> para simular un rechazo. Cualquier otro número de 16 dígitos será aprobado.</p>
-        </div>
-      </div>
-
-      {isTestCard && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-sm text-red-700 font-semibold">
-          ⚠ Esta tarjeta será rechazada por el simulador
-        </div>
-      )}
-
-      <div className="space-y-4">
-        <label className="block">
-          <span className="block text-sm font-semibold text-[#2B2D31] mb-2">Número de tarjeta</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="1234 5678 9012 3456"
-            value={cardNumber}
-            onChange={(e) => onCardNumber(e.target.value)}
-            maxLength={19}
-            className="w-full border border-[#D8D3C8] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#D97706] font-mono text-lg tracking-widest"
-          />
-        </label>
-        <div className="grid grid-cols-2 gap-4">
-          <label className="block">
-            <span className="block text-sm font-semibold text-[#2B2D31] mb-2">Expiración</span>
-            <input
-              type="text"
-              placeholder="MM/AA"
-              value={cardExpiry}
-              onChange={(e) => onExpiry(e.target.value)}
-              maxLength={5}
-              className="w-full border border-[#D8D3C8] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#D97706]"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-sm font-semibold text-[#2B2D31] mb-2">CVV</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="123"
-              value={cardCvv}
-              onChange={(e) => onCvv(e.target.value)}
-              maxLength={4}
-              className="w-full border border-[#D8D3C8] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#D97706]"
-            />
-          </label>
-        </div>
-        {cardError && <p className="text-sm text-red-600">{cardError}</p>}
       </div>
     </div>
   );
@@ -586,7 +599,6 @@ function TransferenciaForm({
           </div>
         ) : (
           <div className="rounded-xl border border-[#D8D3C8] overflow-hidden">
-            {/* Preview del comprobante */}
             {previewUrl && (
               <div className="relative">
                 <img

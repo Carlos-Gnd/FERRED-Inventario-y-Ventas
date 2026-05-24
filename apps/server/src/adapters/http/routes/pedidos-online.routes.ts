@@ -182,6 +182,7 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
       return res.status(400).json({ error: 'sucursalId invalido' });
     }
 
+    const ahora = new Date();
     const productos = await prisma.producto.findMany({
       where: {
         activo: true,
@@ -200,6 +201,21 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
         precioVenta: true,
         precioConIva: true,
         categoria: { select: { id: true, nombre: true } },
+        ofertas: {
+          where: {
+            activo: true,
+            fechaInicio: { lte: ahora },
+            fechaFin: { gte: ahora },
+          },
+          select: {
+            id: true,
+            precioOferta: true,
+            fechaInicio: true,
+            fechaFin: true,
+          },
+          orderBy: { fechaInicio: 'desc' },
+          take: 1,
+        },
         stocks: {
           where: { sucursalId },
           select: {
@@ -215,6 +231,7 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
     return res.json(productos.map((producto) => {
       const stock = producto.stocks[0];
       const disponible = Math.max(0, (stock?.cantidad ?? 0) - (stock?.stockReservado ?? 0));
+      const oferta = producto.ofertas[0] ?? null;
 
       return {
         id: producto.id,
@@ -223,6 +240,8 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
         tipoUnidad: producto.tipoUnidad,
         precioVenta: producto.precioVenta,
         precioConIva: producto.precioConIva,
+        precioOferta: oferta?.precioOferta ?? null,
+        oferta,
         categoria: producto.categoria,
         sucursalId,
         stockDisponible: disponible,

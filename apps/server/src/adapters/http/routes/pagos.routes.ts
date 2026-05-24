@@ -15,6 +15,7 @@ import {
 import { roleMiddleware } from '../middleware/role.middleware';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { OfflineCache } from '../../sync/sync.service';
+import { createPaymentIntent } from '../../payment/payment.service';
 
 const MAX_COMPROBANTE_BYTES = 2 * 1024 * 1024;
 const COMPROBANTES_DIR = path.resolve(process.cwd(), 'uploads', 'comprobantes');
@@ -228,4 +229,49 @@ pagosRoutes.get('/comprobante/:archivo', authenticatePago, authorizeComprobanteR
 
     return next(error);
   });
+});
+
+// T-19.2: Crea un PaymentIntent de Stripe y devuelve el clientSecret al frontend.
+// Pacheco usa este clientSecret para inicializar Stripe Elements en PagoPage.tsx.
+pagosRoutes.post('/crear-intent', authenticatePago, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const pedidoId = Number(req.body.pedidoId);
+    if (!Number.isInteger(pedidoId) || pedidoId < 1) {
+      return res.status(400).json({ error: 'pedidoId invalido' });
+    }
+
+    const pedido = await prisma.pedidoOnline.findUnique({
+      where:  { id: pedidoId },
+      select: { id: true, total: true, estado: true, clienteId: true, sucursalId: true },
+    });
+
+    if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
+    if (pedido.estado === 'CANCELADO') {
+      return res.status(409).json({ error: 'El pedido esta cancelado' });
+    }
+
+    // Verificar que el cliente que llama sea el dueño del pedido (si es cliente ecommerce)
+    if (req.cliente && pedido.clienteId !== req.cliente.id) {
+      return res.status(404).json({ error: 'Pedido no encontrado' });
+    }
+
+    const pagoValidado = await prisma.pago.findFirst({
+      where:  { pedidoId, estado: 'VALIDADO' },
+      select: { id: true },
+    });
+    if (pagoValidado) {
+      return res.status(409).json({ error: 'El pedido ya tiene un pago aprobado' });
+    }
+
+    const { clientSecret, paymentIntentId } = await createPaymentIntent(pedidoId, pedido.total);
+
+    return res.json({ ok: true, clientSecret, paymentIntentId });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// Expone la clave publicable de Stripe al frontend sin necesidad de hardcodearla en el bundle.
+pagosRoutes.get('/stripe-public-key', (_req: Request, res: Response) => {
+  res.json({ publicKey: env.payment.publicKey });
 });

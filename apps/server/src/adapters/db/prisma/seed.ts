@@ -70,6 +70,40 @@ async function main() {
     });
   }
   console.log('✓ 3 usuarios\n');
+
+  // T-20.1: Configuracion centralizada del negocio
+  const configDefaults = [
+    { clave: 'nombre_negocio',   valor: 'FERRED Inventario y Ventas', tipo: 'TEXT' },
+    { clave: 'NIT',              valor: '00000000000000',              tipo: 'TEXT' },
+    { clave: 'NRC',              valor: '0000000',                     tipo: 'TEXT' },
+    { clave: 'banco',            valor: '',                            tipo: 'TEXT' },
+    { clave: 'cuenta_bancaria',  valor: '',                            tipo: 'TEXT' },
+    { clave: 'titular_cuenta',   valor: '',                            tipo: 'TEXT' },
+    { clave: 'correo_remitente', valor: process.env.SMTP_USER ?? '',  tipo: 'TEXT' },
+    { clave: 'zonas_envio_json', valor: '[]',                         tipo: 'JSON' },
+  ];
+
+  for (const cfg of configDefaults) {
+    await prisma.configuracionNegocio.upsert({
+      where:  { clave: cfg.clave },
+      update: {},
+      create: cfg,
+    });
+  }
+  console.log('✓ Configuracion del negocio (8 registros)\n');
+
+  // T-24.1: Tipos de gasto por defecto
+  for (const tipo of [
+    { nombre: 'Servicios',     descripcion: 'Pagos de agua, luz, internet, teléfono, etc.' },
+    { nombre: 'Sueldos',       descripcion: 'Pago de salarios y planilla de empleados.' },
+    { nombre: 'Transporte',    descripcion: 'Gastos de combustible, fletes y envíos.' },
+    { nombre: 'Mantenimiento', descripcion: 'Reparaciones y mantenimiento de equipos e instalaciones.' },
+    { nombre: 'Otros',         descripcion: 'Gastos varios no clasificados en otras categorías.' },
+  ]) {
+    await prisma.tipoGasto.upsert({ where: { nombre: tipo.nombre }, update: {}, create: tipo });
+  }
+  console.log('✓ 5 tipos de gasto\n');
+
   console.log('✅ Listo. Credenciales:');
   console.log('   admin@ferred.com  / admin123');
   console.log('   cajero@ferred.com / cajero123');

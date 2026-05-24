@@ -21,7 +21,7 @@ categoriaRoutes.get('/', async (_req: Request, res: Response, next: NextFunction
       orderBy: { nombre: 'asc' },
     });
     console.info('[categorias] modo=online origen=prisma');
-    return res.json(categorias.map((c: any) => ({
+    return res.json(categorias.map((c) => ({
       id: c.id, nombre: c.nombre, descripcion: c.descripcion,
       nProductos: c._count.productos,
     })));

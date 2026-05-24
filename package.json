@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
+    "prisma:studio": "prisma studio",
     "dev": "pnpm --filter renderer dev",
     "dev:server": "pnpm --filter server dev",
     "dev:renderer": "pnpm --filter renderer dev",

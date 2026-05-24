@@ -21,7 +21,9 @@ model Sucursal {
   recepciones    RecepcionMercancia[]
   zonasEnvio     ZonaEnvio[]
   pedidosOnline  PedidoOnline[]
-  cortesCaja  CorteCaja[]
+  cortesCaja     CorteCaja[]
+  movimientos    MovimientoInventario[]
+  gastos         Gasto[]
   @@map("sucursales")
 }
 
@@ -45,11 +47,15 @@ model Usuario {
   activo         Boolean  @default(true)
   creadoEn       DateTime @default(now()) @map("creado_en")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
-  sucursal       Sucursal?    @relation(fields: [sucursalId], references: [id])
-  facturas       FacturaDte[]
-  syncLogs       SyncLog[]
-  recepciones    RecepcionMercancia[]
-  cortesCaja     CorteCaja[]
+  sucursal            Sucursal?    @relation(fields: [sucursalId], references: [id])
+  facturas            FacturaDte[]
+  syncLogs            SyncLog[]
+  recepciones         RecepcionMercancia[]
+  cortesCaja          CorteCaja[]
+  movimientos         MovimientoInventario[]
+  devolucionesCreadas Devolucion[] @relation("CreadorDevolucion")
+  devolucionesAprobadas Devolucion[] @relation("AprobadorDevolucion")
+  gastos              Gasto[]
   @@map("usuarios")
 }
 
@@ -67,6 +73,7 @@ model Producto {
   stockActual        Int      @default(0) @map("stock_actual")
   stockMinimo        Int      @default(0) @map("stock_minimo")
   activo             Boolean  @default(true)
+  imageUrl           String?  @map("image_url")
   creadoEn           DateTime @default(now()) @map("creado_en")
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
   categoria          Categoria?    @relation(fields: [categoriaId], references: [id])
@@ -74,6 +81,9 @@ model Producto {
   stocks                StockSucursal[]
   detallesRecepcion     DetalleRecepcion[]
   detallesPedidoOnline  PedidoOnlineDetalle[]
+  ofertas               Oferta[]
+  movimientos           MovimientoInventario[]
+  detallesDevolucion    DetalleDevolucion[]
   @@map("productos")
 }
 
@@ -110,6 +120,7 @@ model FacturaDte {
   sucursal         Sucursal?    @relation(fields: [sucursalId], references: [id])
   usuario          Usuario?     @relation(fields: [usuarioId], references: [id])
   detalles         DetalleVenta[]
+  devoluciones     Devolucion[]
   @@map("facturas_dte")
 }
 
@@ -291,4 +302,109 @@ model Pago {
   @@unique([pedidoId, estado], name: "pago_pedido_validado_unique", map: "pago_pedido_validado_unique")
   @@index([pedidoId])
   @@map("pagos")
+}
+
+// ── HU-22: Imagen de producto ────────────────────────────────────
+// imageUrl añadido directamente al modelo Producto (campo nullable)
+
+// ── HU-20: Configuracion del negocio ────────────────────────────
+
+model ConfiguracionNegocio {
+  id            Int      @id @default(autoincrement())
+  clave         String   @unique
+  valor         String
+  tipo          String   @default("TEXT")
+  actualizadoEn DateTime @default(now()) @updatedAt @map("actualizado_en")
+  @@map("configuracion_negocio")
+}
+
+// ── HU-23: Ofertas web con fechas ───────────────────────────────
+
+model Oferta {
+  id           Int      @id @default(autoincrement())
+  productoId   Int      @map("producto_id")
+  precioOferta Float    @map("precio_oferta")
+  fechaInicio  DateTime @map("fecha_inicio")
+  fechaFin     DateTime @map("fecha_fin")
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now()) @map("creado_en")
+  producto     Producto @relation(fields: [productoId], references: [id])
+  @@index([productoId, activo])
+  @@map("ofertas")
+}
+
+// ── HU-25: Kardex de inventario ─────────────────────────────────
+
+model MovimientoInventario {
+  id              Int      @id @default(autoincrement())
+  productoId      Int      @map("producto_id")
+  sucursalId      Int      @map("sucursal_id")
+  // ENTRADA | SALIDA_VENTA | SALIDA_PEDIDO | TRANSFERENCIA_ENTRADA |
+  // TRANSFERENCIA_SALIDA | AJUSTE | ENTRADA_DEVOLUCION
+  tipo            String
+  cantidad        Float
+  saldoAnterior   Int      @map("saldo_anterior")
+  saldoNuevo      Int      @map("saldo_nuevo")
+  referencia      String?
+  usuarioId       Int?     @map("usuario_id")
+  fechaMovimiento DateTime @default(now()) @map("fecha_movimiento")
+  producto        Producto  @relation(fields: [productoId], references: [id])
+  sucursal        Sucursal  @relation(fields: [sucursalId], references: [id])
+  usuario         Usuario?  @relation(fields: [usuarioId], references: [id])
+  @@index([productoId, sucursalId, fechaMovimiento])
+  @@map("movimientos_inventario")
+}
+
+// ── HU-24: Control de gastos ────────────────────────────────────
+
+model TipoGasto {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique
+  descripcion String?
+  gastos      Gasto[]
+  @@map("tipos_gasto")
+}
+
+model Gasto {
+  id          Int       @id @default(autoincrement())
+  tipoGastoId Int       @map("tipo_gasto_id")
+  monto       Float
+  descripcion String?
+  fecha       DateTime  @default(now())
+  sucursalId  Int       @map("sucursal_id")
+  usuarioId   Int       @map("usuario_id")
+  tipoGasto   TipoGasto @relation(fields: [tipoGastoId], references: [id])
+  sucursal    Sucursal  @relation(fields: [sucursalId], references: [id])
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+  @@index([sucursalId, fecha])
+  @@map("gastos")
+}
+
+// ── HU-12: Devoluciones y garantias ─────────────────────────────
+
+model Devolucion {
+  id              Int      @id @default(autoincrement())
+  ventaId         Int      @map("venta_id")
+  motivo          String
+  // APROBADA | PENDIENTE_APROBACION | RECHAZADA
+  estado          String   @default("APROBADA")
+  aprobadoPor     Int?     @map("aprobado_por")
+  creadoPor       Int      @map("creado_por")
+  fechaDevolucion DateTime @default(now()) @map("fecha_devolucion")
+  venta           FacturaDte @relation(fields: [ventaId], references: [id])
+  aprobador       Usuario?   @relation("AprobadorDevolucion", fields: [aprobadoPor], references: [id])
+  creador         Usuario    @relation("CreadorDevolucion", fields: [creadoPor], references: [id])
+  detalles        DetalleDevolucion[]
+  @@index([ventaId])
+  @@map("devoluciones")
+}
+
+model DetalleDevolucion {
+  id           Int        @id @default(autoincrement())
+  devolucionId Int        @map("devolucion_id")
+  productoId   Int        @map("producto_id")
+  cantidad     Float
+  devolucion   Devolucion @relation(fields: [devolucionId], references: [id], onDelete: Cascade)
+  producto     Producto   @relation(fields: [productoId], references: [id])
+  @@map("detalles_devolucion")
 }

@@ -67,8 +67,9 @@ dteRoutes.get(
 
       const estado = await obtenerEstadoDTE(facturaId);
       return res.json(estado);
-    } catch (err: any) {
-      if (err.message?.includes('no encontrada')) return res.status(404).json({ error: err.message });
+    } catch (err: unknown) {
+      const msg = (err as Error).message ?? '';
+      if (msg.includes('no encontrada')) return res.status(404).json({ error: msg });
       return next(err);
     }
   },
@@ -127,8 +128,9 @@ dteRoutes.post(
       const resultado = await enviarDteHacienda(facturaId);
       const status    = resultado.ok ? 200 : 502;
       return res.status(status).json(resultado);
-    } catch (err: any) {
-      if (err.message?.includes('no encontrada')) return res.status(404).json({ error: err.message });
+    } catch (err: unknown) {
+      const msg = (err as Error).message ?? '';
+      if (msg.includes('no encontrada')) return res.status(404).json({ error: msg });
       return next(err);
     }
   },
@@ -153,8 +155,9 @@ dteRoutes.post(
       const resultado = await reenviarDTE(facturaId);
       const status    = resultado.ok ? 200 : 502;
       return res.status(status).json(resultado);
-    } catch (err: any) {
-      if (err.message?.includes('no encontrada')) return res.status(404).json({ error: err.message });
+    } catch (err: unknown) {
+      const msg = (err as Error).message ?? '';
+      if (msg.includes('no encontrada')) return res.status(404).json({ error: msg });
       return next(err);
     }
   },
