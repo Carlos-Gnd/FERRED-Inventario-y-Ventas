@@ -29,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Usuarios',      to: '/usuarios',      icon: <IcoUsers />,       roles: ['ADMIN'] },
   { label: 'Pedidos Online', to: '/pedidos-online', icon: <IcoOrders />,     roles: ['ADMIN', 'BODEGA'] },
   { label: 'Reportes',      to: '/reportes',      icon: <IcoReports />,     roles: ['ADMIN', 'BODEGA'] },
-  { label: 'Ajustes',       to: '/ajustes',       icon: <IcoSettings />,    roles: ['ADMIN'], badge: 'Pronto' },
+  { label: 'Ajustes',       to: '/ajustes',       icon: <IcoSettings />,    roles: ['ADMIN'] },
 ];
 
 interface Props {
