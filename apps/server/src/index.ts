@@ -94,6 +94,8 @@ const apiLimiter = rateLimit({
 app.use('/api/auth', loginLimiter, authRoutes);
 app.use('/api/ecommerce/auth', loginLimiter, ecommerceAuthRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
+// T-18: servir imágenes subidas (uploads/productos/)
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/api/zonas-envio', zonasEnvioPublicRoutes);
 app.use('/api/productos', productosPublicosRoutes);
 app.use('/api/pedidos-online', pedidosOnlinePublicRoutes);
