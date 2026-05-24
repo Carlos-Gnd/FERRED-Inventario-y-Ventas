@@ -16,6 +16,7 @@ const TABLAS_PERMITIDAS = new Set([
   'movimientoInventario',
   'devolucion',
   'detalleDevolucion',
+  'configuracionNegocio',
 ]);
 
 const CAMPOS_ESCALARES: Record<string, string[]> = {
@@ -54,6 +55,8 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'id', 'ventaId', 'motivo', 'estado', 'aprobadoPor', 'creadoPor', 'fechaDevolucion',
   ],
   detalleDevolucion: ['id', 'devolucionId', 'productoId', 'cantidad'],
+  // SP4-A01: T-20.1 configuración del negocio — incluir en sync para que cambios offline lleguen a Postgres
+  configuracionNegocio: ['id', 'clave', 'valor', 'tipo'],
 };
 
 // DT-11: tipo mínimo para acceder a los modelos de Prisma de forma dinámica
@@ -92,6 +95,7 @@ export async function aplicarOperacion(
 
   if (op === 'CREATE') {
     if (tabla === 'producto') { await crearProductoDesdePendiente(payload); return; }
+    if (tabla === 'configuracionNegocio') { await upsertConfiguracion(payload); return; }
     const model = getModel(tabla);
     const data = limpiarPayload(tabla, payload);
     if (data.id) {
@@ -99,6 +103,11 @@ export async function aplicarOperacion(
     } else {
       await model.create({ data });
     }
+    return;
+  }
+
+  if (op === 'UPDATE' && tabla === 'configuracionNegocio') {
+    await upsertConfiguracion(payload);
     return;
   }
 
@@ -113,6 +122,16 @@ export async function aplicarOperacion(
   }
 
   throw new Error(`Operacion no soportada: ${op}`);
+}
+
+async function upsertConfiguracion(payload: Record<string, unknown>): Promise<void> {
+  const data = limpiarPayload('configuracionNegocio', payload);
+  if (!data.clave) throw new Error('configuracionNegocio sin clave en payload');
+  await prisma.configuracionNegocio.upsert({
+    where:  { clave: String(data.clave) },
+    update: { valor: data.valor as string },
+    create: { clave: String(data.clave), valor: String(data.valor ?? ''), tipo: String(data.tipo ?? 'TEXT') },
+  });
 }
 
 async function crearProductoDesdePendiente(payload: Record<string, unknown>): Promise<void> {
