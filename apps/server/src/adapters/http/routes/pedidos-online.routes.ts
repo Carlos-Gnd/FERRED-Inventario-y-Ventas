@@ -107,6 +107,7 @@ async function actualizarReservaPorEstado(
   tx: Prisma.TransactionClient,
   pedido: PedidoCompleto,
   estadoNuevo: EstadoPedidoOnline,
+  usuarioId?: number | null,
 ): Promise<void> {
   if (estadoNuevo !== 'CANCELADO' && estadoNuevo !== 'ENTREGADO') return;
 
@@ -118,6 +119,15 @@ async function actualizarReservaPorEstado(
   for (const detalle of detalles) {
     if (!Number.isInteger(detalle.cantidad) || detalle.cantidad <= 0) {
       throw new PedidoOnlineServiceError('El detalle del pedido tiene una cantidad invalida para inventario', 409);
+    }
+
+    // T-25.4: leer saldo antes de la actualización para el kardex (solo ENTREGADO descuenta stock)
+    let saldoAnterior = 0;
+    if (estadoNuevo === 'ENTREGADO') {
+      const stockActual = await tx.stockSucursal.findUnique({
+        where: { productoId_sucursalId: { productoId: detalle.productoId, sucursalId: pedido.sucursalId } },
+      });
+      saldoAnterior = stockActual?.cantidad ?? 0;
     }
 
     const resultado = estadoNuevo === 'CANCELADO'
@@ -151,6 +161,22 @@ async function actualizarReservaPorEstado(
           : 'No se pudo descontar el stock reservado del pedido',
         409,
       );
+    }
+
+    // T-25.4: registrar MovimientoInventario SALIDA_PEDIDO al confirmar entrega
+    if (estadoNuevo === 'ENTREGADO') {
+      await tx.movimientoInventario.create({
+        data: {
+          productoId:   detalle.productoId,
+          sucursalId:   pedido.sucursalId,
+          tipo:         'SALIDA_PEDIDO',
+          cantidad:     detalle.cantidad,
+          saldoAnterior,
+          saldoNuevo:   saldoAnterior - detalle.cantidad,
+          referencia:   `PEDIDO-${pedido.id}`,
+          usuarioId:    usuarioId ?? null,
+        },
+      });
     }
   }
 }
@@ -391,7 +417,7 @@ pedidosOnlineRoutes.patch(
         }
 
         if (estadoActual !== estadoNuevo) {
-          await actualizarReservaPorEstado(tx, actual, estadoNuevo);
+          await actualizarReservaPorEstado(tx, actual, estadoNuevo, req.usuario?.id);
         }
 
         return tx.pedidoOnline.update({
