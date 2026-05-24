@@ -9,6 +9,7 @@
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma }         from '../../db/prisma/prisma.client';
+import { Prisma }         from '@prisma/client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente, OfflineCache, SyncService } from '../../sync/sync.service';
@@ -272,7 +273,7 @@ inventarioRoutes.patch(
 
       if (!assertSameSucursal(req, res, sucursalId)) return;
 
-      const stock = await prisma.$transaction(async (tx: any) => {
+      const stock = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const s = await tx.stockSucursal.upsert({
           where:  { productoId_sucursalId: { productoId, sucursalId } },
           create: { productoId, sucursalId, cantidad: Math.max(0, cantidad), minimo },
@@ -330,7 +331,7 @@ inventarioRoutes.post(
         return res.status(400).json({ error: 'Origen y destino deben ser diferentes' });
       }
 
-      const [stockOrigen, stockDestino] = await prisma.$transaction(async (tx: any) => {
+      const [stockOrigen, stockDestino] = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const origen = await tx.stockSucursal.findUnique({
           where: { productoId_sucursalId: { productoId, sucursalId: origenId } },
         });
@@ -368,9 +369,10 @@ inventarioRoutes.post(
         origen:  stockOrigen,
         destino: stockDestino,
       });
-    } catch (err: any) {
-      if (err.message?.includes('Stock insuficiente')) {
-        return res.status(409).json({ error: err.message });
+    } catch (err: unknown) {
+      const msg = (err as Error).message ?? '';
+      if (msg.includes('Stock insuficiente')) {
+        return res.status(409).json({ error: msg });
       }
       return next(err);
     }
@@ -402,8 +404,8 @@ inventarioRoutes.get(
         orderBy: { nombre: 'asc' },
       });
 
-      const resultado = productos.map((p: any) => {
-        const sucursales = p.stocks.map((s: any) => ({
+      const resultado = productos.map((p) => {
+        const sucursales = p.stocks.map((s) => ({
           sucursalId:     s.sucursalId,
           sucursalNombre: s.sucursal.nombre,
           cantidad:       s.cantidad,
@@ -414,7 +416,7 @@ inventarioRoutes.get(
                                      'disponible',
         }));
 
-        const stockTotal = sucursales.reduce((acc: number, s: any) => acc + s.cantidad, 0);
+        const stockTotal = sucursales.reduce((acc: number, s) => acc + s.cantidad, 0);
 
         return {
           id:           p.id,
