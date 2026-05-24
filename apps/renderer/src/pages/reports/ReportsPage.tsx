@@ -242,41 +242,16 @@ export default function ReportsPage() {
     ? branchLabelById.get(Number(appliedFilters.branchId)) ?? `Sucursal #${appliedFilters.branchId}`
     : 'Todas las sucursales';
 
-<<<<<<< HEAD
-  const handleExportPdf = useCallback(() => {
-    exportSalesReportPdf({
-      ventas,
-      summary,
-      filters: {
-        startDate: appliedFilters.startDate,
-        endDate: appliedFilters.endDate,
-        branchName: exportBranchName,
-      },
-      generatedBy: visibleName,
-    });
-  }, [appliedFilters.endDate, appliedFilters.startDate, exportBranchName, summary, ventas, visibleName]);
-=======
   const exportFilters = useMemo(() => ({
     startDate: appliedFilters.startDate,
     endDate: appliedFilters.endDate,
     branchName: exportBranchName,
   }), [appliedFilters.endDate, appliedFilters.startDate, exportBranchName]);
->>>>>>> 4772acf7271e8cd858405762aca141f4736bb01b
 
   const handleExportExcel = useCallback(() => {
     generateSalesExcel({
       ventas,
       summary,
-<<<<<<< HEAD
-      filters: {
-        startDate: appliedFilters.startDate,
-        endDate: appliedFilters.endDate,
-        branchName: exportBranchName,
-      },
-      generatedBy: visibleName,
-    });
-  }, [appliedFilters.endDate, appliedFilters.startDate, exportBranchName, summary, ventas, visibleName]);
-=======
       filters: exportFilters,
       generatedBy: visibleName,
     });
@@ -290,7 +265,6 @@ export default function ReportsPage() {
       generatedBy: visibleName,
     });
   }, [exportFilters, summary, ventas, visibleName]);
->>>>>>> 4772acf7271e8cd858405762aca141f4736bb01b
 
   return (
     <div className="reports-page">

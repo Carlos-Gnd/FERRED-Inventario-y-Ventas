@@ -248,8 +248,6 @@ function drawFooter(doc: jsPDF) {
   }
 }
 
-<<<<<<< HEAD
-=======
 function drawTotals(doc: jsPDF, options: ExportSalesReportPdfOptions, finalY: number) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -274,8 +272,6 @@ function drawTotals(doc: jsPDF, options: ExportSalesReportPdfOptions, finalY: nu
   doc.setTextColor(BRAND.dark);
   doc.text(formatCurrency(options.summary.totalVentas), pageWidth - 18, totalsY + 14, { align: 'right' });
 }
-
->>>>>>> 4772acf7271e8cd858405762aca141f4736bb01b
 export function exportSalesReportPdf(options: ExportSalesReportPdfOptions) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' }) as JsPdfWithAutoTable;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -288,11 +284,7 @@ export function exportSalesReportPdf(options: ExportSalesReportPdfOptions) {
     startY: 110,
     head: [['Fecha', 'Factura', 'Cajero', 'Cliente', 'Sucursal', 'Productos', 'Total']],
     body: buildRows(options.ventas),
-<<<<<<< HEAD
-    margin: { left: 14, right: 14, bottom: 22 },
-=======
     margin: { top: 36, left: 14, right: 14, bottom: 22 },
->>>>>>> 4772acf7271e8cd858405762aca141f4736bb01b
     tableWidth: pageWidth - 28,
     styles: {
       font: 'helvetica',
@@ -329,25 +321,7 @@ export function exportSalesReportPdf(options: ExportSalesReportPdfOptions) {
   });
 
   const finalY = doc.lastAutoTable?.finalY ?? 110;
-<<<<<<< HEAD
-  const totalsY = Math.min(finalY + 10, doc.internal.pageSize.getHeight() - 34);
-
-  doc.setFillColor(BRAND.soft);
-  doc.setDrawColor(BRAND.border);
-  doc.roundedRect(pageWidth - 76, totalsY, 62, 18, 2, 2, 'FD');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(BRAND.muted);
-  doc.text('TOTAL GENERAL', pageWidth - 72, totalsY + 7);
-
-  doc.setFontSize(13);
-  doc.setTextColor(BRAND.dark);
-  doc.text(formatCurrency(options.summary.totalVentas), pageWidth - 18, totalsY + 14, { align: 'right' });
-
-=======
   drawTotals(doc, options, finalY);
->>>>>>> 4772acf7271e8cd858405762aca141f4736bb01b
   drawFooter(doc);
 
   const range = normalizeFilePart(resolveRangeLabel(options.filters));
