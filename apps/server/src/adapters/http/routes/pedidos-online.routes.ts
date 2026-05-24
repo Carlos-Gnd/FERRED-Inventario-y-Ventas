@@ -200,6 +200,7 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
         tipoUnidad: true,
         precioVenta: true,
         precioConIva: true,
+        imageUrl: true,
         categoria: { select: { id: true, nombre: true } },
         ofertas: {
           where: {
@@ -240,6 +241,7 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
         tipoUnidad: producto.tipoUnidad,
         precioVenta: producto.precioVenta,
         precioConIva: producto.precioConIva,
+        imageUrl: producto.imageUrl,
         precioOferta: oferta?.precioOferta ?? null,
         oferta,
         categoria: producto.categoria,
