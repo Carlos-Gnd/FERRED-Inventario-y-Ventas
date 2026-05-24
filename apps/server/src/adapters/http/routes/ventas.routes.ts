@@ -114,7 +114,9 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
 
     const factura = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Verificar stock DENTRO de la transacción para evitar race conditions
+      // T-25.2: guardar saldoAnterior por productoId para los movimientos de kardex
       const erroresStock: string[] = [];
+      const saldosAnteriores = new Map<number, number>();
       for (const item of items) {
         const stock = await tx.stockSucursal.findUnique({
           where: { productoId_sucursalId: { productoId: item.productoId, sucursalId } },
@@ -125,6 +127,8 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
             `"${nombre}" no tiene stock suficiente en esta sucursal. ` +
             `Disponible: ${stock?.cantidad ?? 0}, solicitado: ${item.cantidad}`
           );
+        } else {
+          saldosAnteriores.set(item.productoId, stock.cantidad);
         }
       }
       if (erroresStock.length > 0) {
@@ -155,6 +159,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
         })),
       });
 
+      // T-25.2: decrementar stock y registrar MovimientoInventario SALIDA_VENTA en la misma tx
       for (const item of items) {
         await tx.stockSucursal.update({
           where: {
@@ -164,6 +169,20 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
             },
           },
           data: { cantidad: { decrement: item.cantidad } },
+        });
+
+        const saldoAnterior = saldosAnteriores.get(item.productoId) ?? 0;
+        await tx.movimientoInventario.create({
+          data: {
+            productoId:      item.productoId,
+            sucursalId,
+            tipo:            'SALIDA_VENTA',
+            cantidad:        item.cantidad,
+            saldoAnterior,
+            saldoNuevo:      saldoAnterior - item.cantidad,
+            referencia:      `FACTURA-${nuevaFactura.id}`,
+            usuarioId:       usuarioId ?? null,
+          },
         });
       }
 
