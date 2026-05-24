@@ -7,9 +7,10 @@ import { Badge, Select, Toast, ConfirmDelete } from '../../components/ui';
 import type { Producto, Categoria, TipoUnidad } from '../../types';
 import { TIPO_UNIDAD_LABELS } from '../../types';
 import type { ToastData } from '../../components/ui';
+import { ProductoDropzone } from './ProductoDropzone';
 
 const UNIDAD_OPTIONS = Object.entries(TIPO_UNIDAD_LABELS).map(([v, l]) => ({ value: v, label: l }));
-const EMPTY = { nombre: '', categoriaId: '', codigoBarras: '', tipoUnidad: 'UNIDAD', precioCompra: '', porcentajeGanancia: '30', tieneIva: true, stockActual: '0', stockMinimo: '0' };
+const EMPTY = { nombre: '', categoriaId: '', codigoBarras: '', tipoUnidad: 'UNIDAD', precioCompra: '', porcentajeGanancia: '30', tieneIva: true, stockActual: '0', stockMinimo: '0', imageUrl: '' };
 
 function calcVenta(costo: number, ganancia: number, iva: boolean) {
   const venta = costo * (1 + ganancia / 100);
@@ -60,6 +61,8 @@ function ProductForm({ form, formErr, saving, categorias, onChange, onSave, onCa
 
       <Input label="Código de barras (opcional)" placeholder="Ej: 7501234567890"
         value={form.codigoBarras} onChange={v => onChange('codigoBarras', v)} />
+
+      <ProductoDropzone imageUrl={form.imageUrl} onChange={v => onChange('imageUrl', v)} />
 
       {/* Estructura de precios */}
       <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px' }}>
@@ -175,6 +178,7 @@ export default function ProductsPage() {
       tieneIva: selectedProd.tieneIva,
       stockActual: String(selectedProd.stockActual),
       stockMinimo: String(selectedProd.stockMinimo),
+      imageUrl: selectedProd.imageUrl ?? '',
     });
     setFormErr({});
     setModalEdit(true);
@@ -206,6 +210,7 @@ export default function ProductsPage() {
       tieneIva: form.tieneIva,
       stockActual: Number(form.stockActual),
       stockMinimo: Number(form.stockMinimo),
+      imageUrl: form.imageUrl || null,
     };
     try {
       if (modalNew) {
