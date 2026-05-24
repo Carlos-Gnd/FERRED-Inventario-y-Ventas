@@ -233,7 +233,7 @@
       `).run(id, sucursalId, data.stockActual ?? 0, data.stockMinimo ?? 0);
     }
 
-    // Usamos el formato de log más completo (el de Nelson) para la sincronización
+    // Usamos el formato de log más completo para la sincronización
     logPendienteSqlite('producto', 'CREATE', {
       localId: id,
       sucursalId: sucursalId ?? null,

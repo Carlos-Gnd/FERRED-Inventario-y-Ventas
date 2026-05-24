@@ -16,7 +16,7 @@ export function errorMiddleware(
   res: Response,
   _next: NextFunction
 ) {
-  // DT-13: propagar statusCode desde AppError en vez de siempre 500
+  // propagar statusCode desde AppError en vez de siempre 500
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({ error: err.message });
   }
