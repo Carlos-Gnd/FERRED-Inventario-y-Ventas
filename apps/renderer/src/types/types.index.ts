@@ -58,6 +58,7 @@ export interface Producto {
   tieneIva:           boolean;
   stockActual:        number;
   stockMinimo:        number;
+  imageUrl:           string | null;
   activo:             boolean;
   categoriaId:        number | null;
   categoria:          { id: number; nombre: string } | null;

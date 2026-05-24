@@ -27,6 +27,7 @@ const schema = z.object({
   tieneIva: z.boolean().optional().default(true),
   stockActual: z.number().int().min(0).optional().default(0),
   stockMinimo: z.number().int().min(0).optional().default(0),
+  imageUrl: z.string().nullable().optional(),
 });
 
 // DT-11: interface en lugar de any para el parámetro de precios

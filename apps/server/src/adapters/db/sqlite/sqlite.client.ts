@@ -77,6 +77,7 @@
       p.tiene_iva AS tieneIva,
       p.stock_actual AS stockActual,
       p.stock_minimo AS stockMinimo,
+      p.image_url AS imageUrl,
       p.activo
     FROM productos p
     LEFT JOIN categorias c ON c.id = p.categoria_id
@@ -253,6 +254,7 @@
       tieneIva: Boolean(data.tieneIva ?? true),
       stockActual: data.stockActual ?? 0,
       stockMinimo: data.stockMinimo ?? 0,
+      imageUrl: data.imageUrl ?? null,
       activo: true,
     });
   }
@@ -344,6 +346,7 @@
         tiene_iva AS tieneIva,
         stock_actual AS stockActual,
         stock_minimo AS stockMinimo,
+        image_url AS imageUrl,
         activo
       FROM productos
       WHERE activo = ?
@@ -682,6 +685,7 @@
       tieneIva: Boolean(row.tieneIva),
       stockActual: Number(row.stockActual ?? 0),
       stockMinimo: Number(row.stockMinimo ?? 0),
+      imageUrl: row.imageUrl ?? null,
       activo: Boolean(row.activo),
     };
   }
