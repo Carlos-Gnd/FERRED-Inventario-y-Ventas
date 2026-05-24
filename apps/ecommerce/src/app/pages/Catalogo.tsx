@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
+import { obtenerPrecioFinal } from '../components/OfertaBadge';
 import { useEcommerce } from '../context/EcommerceContext';
 
 export function Catalogo() {
@@ -19,8 +20,8 @@ export function Catalogo() {
       return true;
     });
 
-    if (sortBy === 'precio-asc') return [...base].sort((a, b) => a.precioConIva - b.precioConIva);
-    if (sortBy === 'precio-desc') return [...base].sort((a, b) => b.precioConIva - a.precioConIva);
+    if (sortBy === 'precio-asc') return [...base].sort((a, b) => obtenerPrecioFinal(a) - obtenerPrecioFinal(b));
+    if (sortBy === 'precio-desc') return [...base].sort((a, b) => obtenerPrecioFinal(b) - obtenerPrecioFinal(a));
     return [...base].sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [products, selectedCategory, inStock, sortBy]);
 

@@ -1,6 +1,7 @@
 import { ShoppingCart } from 'lucide-react';
 import { Link } from 'react-router';
 import type { Product } from '../types';
+import { OfertaBadge, OfertaPrice, tieneOfertaVigente } from './OfertaBadge';
 
 type ProductCardProps = {
   product?: Product;
@@ -52,11 +53,13 @@ export function ProductCard(props: ProductCardProps) {
   const stock = product?.stockDisponible ?? props.stock ?? 0;
   const category = product?.categoria?.nombre ?? props.category ?? 'Sin categoria';
   const image = props.image ?? getProductImage(nombre, category, id);
+  const hasOffer = product ? tieneOfertaVigente(product) : false;
 
   return (
     <div className="bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-[#E5E2DA] flex flex-col h-full">
       <Link to={`/producto/${id}`} className="flex-shrink-0">
-        <div className="aspect-square bg-[#F5F2EB] overflow-hidden">
+        <div className="aspect-square bg-[#F5F2EB] overflow-hidden relative">
+          {hasOffer && <OfertaBadge className="absolute left-2 top-2 z-10" />}
           <img src={image} alt={nombre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
         </div>
       </Link>
@@ -71,7 +74,7 @@ export function ProductCard(props: ProductCardProps) {
 
         <div className="mt-2 sm:mt-3 md:mt-4 flex items-center justify-between flex-grow">
           <div>
-            <p className="text-sm sm:text-lg md:text-2xl font-bold text-[#D97706]">${price.toFixed(2)}</p>
+            {product ? <OfertaPrice product={product} /> : <p className="text-sm sm:text-lg md:text-2xl font-bold text-[#D97706]">${price.toFixed(2)}</p>}
             <p className={`text-xs ${stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
               {stock > 0 ? `Stock: ${stock}` : 'Sin stock'}
             </p>
