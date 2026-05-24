@@ -17,6 +17,9 @@ export async function createPaymentIntent(
   pedidoId: number,
   monto:    number,
 ): Promise<PaymentIntentResult> {
+  if (!Number.isFinite(monto) || monto <= 0) {
+    throw new Error('El monto debe ser mayor a cero');
+  }
   const pi = await stripe.paymentIntents.create({
     amount:   Math.round(monto * 100), // Stripe usa centavos
     currency: 'usd',

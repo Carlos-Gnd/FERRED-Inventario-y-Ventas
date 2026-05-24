@@ -5,6 +5,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma }         from '../../db/prisma/prisma.client';
+import { Prisma }         from '@prisma/client';
 import { obtenerRecepcionDetalleSqlite, obtenerRecepcionesSqlite } from '../../db/sqlite/sqlite.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { logPendiente, OfflineCache } from '../../sync/sync.service';
@@ -36,7 +37,8 @@ const RecepcionSchema = z.object({
 });
 
 // ── GET /api/proveedores ──────────────────────────────────────
-proveedorRoutes.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+// SP4-B01: roleMiddleware requerido — proveedores no son datos públicos
+proveedorRoutes.get('/', roleMiddleware('ADMIN', 'BODEGA', 'CAJERO'), async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const proveedores = await prisma.proveedor.findMany({
       where:   { activo: true },
@@ -138,7 +140,7 @@ proveedorRoutes.post(
         items.reduce((acc, i) => acc + i.cantidad * i.costoUnit, 0).toFixed(2),
       );
 
-      const recepcion = await prisma.$transaction(async (tx: any) => {
+      const recepcion = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const nueva = await tx.recepcionMercancia.create({
           data: {
             proveedorId,
@@ -172,9 +174,12 @@ proveedorRoutes.post(
       });
 
       // Sincronizar stockTotal y cache fuera de la tx
+      let advertenciaSyncStock: string | undefined;
       try {
         await Promise.all(items.map(i => sincronizarStockTotal(i.productoId)));
       } catch (syncErr) {
+        // SP4-M03: el stock total falló al sincronizar; la recepción ya fue creada — advertir al cliente
+        advertenciaSyncStock = 'Recepción registrada, pero el stock total no pudo sincronizarse. Se reconciliará automáticamente.';
         console.error('[recepcion] Error sincronizando stockTotal:', syncErr);
       }
       OfflineCache.invalidate(`stock:${sucursalId}`);
@@ -194,7 +199,7 @@ proveedorRoutes.post(
         },
       });
 
-      return res.status(201).json({ ok: true, recepcion: completa });
+      return res.status(201).json({ ok: true, recepcion: completa, advertencia: advertenciaSyncStock });
     } catch (err) { return next(err); }
   },
 );
@@ -220,14 +225,14 @@ proveedorRoutes.get('/recepciones', async (req: Request, res: Response, next: Ne
       take:    100,
     });
 
-    return res.json(recepciones.map(({ detalles, ...recepcion }: any) => ({
+    return res.json(recepciones.map(({ detalles, ...recepcion }) => ({
       ...recepcion,
       cantidadItems: detalles.reduce(
         (sum: number, detalle: { cantidad: number }) => sum + Number(detalle.cantidad ?? 0),
         0,
       ),
     })));
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (debeUsarSqlite(err)) {
       const sucursalId = req.usuario?.rol !== 'ADMIN' ? req.usuario?.sucursalId : undefined;
       return res.json(obtenerRecepcionesSqlite(sucursalId));
@@ -258,7 +263,7 @@ proveedorRoutes.get('/recepciones/:id', async (req: Request, res: Response, next
     }
 
     return res.json(recepcion);
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (debeUsarSqlite(err)) {
       const recepcion = obtenerRecepcionDetalleSqlite(Number(req.params.id));
       if (!recepcion) return res.status(404).json({ error: 'Recepción no encontrada' });
