@@ -35,7 +35,7 @@ import { SnapshotService }  from './adapters/sync/snapshot.service';
 import { syncRoutes }           from './adapters/http/routes/sync.routes';
 import { reportesRoutes }       from './adapters/http/routes/reportes.routes';
 import { stripeWebhookRoutes }  from './adapters/http/routes/webhook.routes';
-import { ajustesRoutes }        from './adapters/http/routes/ajustes.routes';
+import { ajustesPublicRoutes, ajustesRoutes } from './adapters/http/routes/ajustes.routes';
 import { initSqlite }           from './adapters/db/sqlite/sqlite.client';
 import { contarPendientes }     from './adapters/sync/sync.local';
 
@@ -98,6 +98,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 // T-18: servir imágenes subidas (uploads/productos/)
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/api/zonas-envio', zonasEnvioPublicRoutes);
+app.use('/api/ajustes-publicos', ajustesPublicRoutes);
 app.use('/api/productos', productosPublicosRoutes);
 app.use('/api/pedidos-online', pedidosOnlinePublicRoutes);
 app.use('/api/pedidos-online', apiLimiter, pagosOnlineRoutes);

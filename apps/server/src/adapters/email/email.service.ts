@@ -1,6 +1,7 @@
 // T-19.5 / T-03.2: Servicio de correo compartido — alertas de stock y confirmaciones de pago.
 import nodemailer from 'nodemailer';
 import { env } from '../../config/env';
+import { prisma } from '../db/prisma/prisma.client';
 
 export function crearTransporte() {
   if (env.smtp.host && env.smtp.user && env.smtp.pass) {
@@ -13,6 +14,15 @@ export function crearTransporte() {
   }
   console.warn('[Email] SMTP no configurado — modo simulado activo');
   return null;
+}
+
+export async function obtenerCorreoRemitente(): Promise<string> {
+  const config = await prisma.configuracionNegocio.findUnique({
+    where: { clave: 'correo_remitente' },
+    select: { valor: true },
+  }).catch(() => null);
+
+  return config?.valor || env.smtp.user || 'no-reply@ferred.com.sv';
 }
 
 function escapeHtml(text: string): string {
@@ -82,8 +92,9 @@ export async function enviarEmailConfirmacionPago(params: ConfirmacionPagoParams
     </div>`;
 
   try {
+    const correoRemitente = await obtenerCorreoRemitente();
     await transporte.sendMail({
-      from:    `"FERRED" <${env.smtp.user}>`,
+      from:    `"FERRED" <${correoRemitente}>`,
       to:      params.clienteEmail,
       subject: `Confirmacion de pago — Pedido #${params.pedidoId}`,
       html,
