@@ -19,6 +19,7 @@ import { ventasRoutes }     from './adapters/http/routes/ventas.routes';
 import { dteRoutes }        from './adapters/http/routes/dte.routes';
 import { proveedorRoutes }  from './adapters/http/routes/proveedor.routes';
 import { cajaRoutes } from './adapters/http/routes/caja.routes';
+import { gastosRoutes, tiposGastoRoutes } from './adapters/http/routes/gastos.routes';
 import { pagosRoutes }      from './adapters/http/routes/pagos.routes';
 import { pagosOnlineRoutes } from './adapters/http/routes/pagos-online.routes';
 import {
@@ -112,6 +113,8 @@ app.use('/api/ofertas',    ofertaRoutes);
 app.use('/api/inventario', inventarioRoutes);
 app.use('/api/ventas',     ventasRoutes);
 app.use('/api/caja',        cajaRoutes);
+app.use('/api/gastos',      gastosRoutes);
+app.use('/api/tipos-gasto', tiposGastoRoutes);
 app.use('/api/dte',        dteRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/sync',       syncRoutes);
