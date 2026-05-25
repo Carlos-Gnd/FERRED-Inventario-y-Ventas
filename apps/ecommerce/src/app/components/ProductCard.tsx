@@ -3,6 +3,8 @@ import { Link } from 'react-router';
 import type { Product } from '../types';
 import { OfertaBadge, OfertaPrice, tieneOfertaVigente } from './OfertaBadge';
 
+const API_ORIGIN = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001/api').replace(/\/api\/?$/, '');
+
 type ProductCardProps = {
   product?: Product;
   id?: string;
@@ -16,33 +18,24 @@ type ProductCardProps = {
   onAddToCart?: (product: Product) => void;
 };
 
-const PRODUCT_IMAGES = {
-  drill: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=700&auto=format&fit=crop',
-  handTools: 'https://sv.epaenlinea.com/media/catalog/product/cache/5de4529773a62b1ec261a5eaed8abd55/f/1/f1e18d22-e3c1-46fd-ba95-07654787229d.jpg',
-  electrical: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=700&auto=format&fit=crop',
-  hardware: 'https://images.unsplash.com/photo-1530124566582-a618bc2615dc?w=700&auto=format&fit=crop',
-  paint: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=700&auto=format&fit=crop',
-  construction: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?w=700&auto=format&fit=crop',
-};
+export const PRODUCT_PLACEHOLDER_IMAGE =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+      <rect width="600" height="600" fill="#F5F2EB"/>
+      <rect x="96" y="96" width="408" height="408" rx="32" fill="#FFF9EF" stroke="#D8D3C8" stroke-width="4"/>
+      <path d="M210 347h180l-47-62-42 47-28-34-63 49Z" fill="#D97706" opacity=".9"/>
+      <circle cx="236" cy="242" r="31" fill="#2B2D31" opacity=".85"/>
+      <text x="300" y="430" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#2B2D31">FERRED</text>
+      <text x="300" y="468" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#5F6368">Imagen no disponible</text>
+    </svg>
+  `);
 
-const FALLBACK_IMAGES = [
-  PRODUCT_IMAGES.handTools,
-  PRODUCT_IMAGES.hardware,
-  PRODUCT_IMAGES.electrical,
-  PRODUCT_IMAGES.construction,
-];
-
-export function getProductImage(nombre: string, category: string, id: number) {
-  const text = `${nombre} ${category}`.toLowerCase();
-
-  if (text.includes('taladro') || text.includes('drill')) return PRODUCT_IMAGES.drill;
-  if (text.includes('martillo') || text.includes('hammer')) return PRODUCT_IMAGES.handTools;
-  if (text.includes('gancho') || text.includes('tornillo') || text.includes('clavo')) return PRODUCT_IMAGES.hardware;
-  if (text.includes('electr') || text.includes('cable') || text.includes('volt')) return PRODUCT_IMAGES.electrical;
-  if (text.includes('pint') || text.includes('brocha')) return PRODUCT_IMAGES.paint;
-  if (text.includes('cement') || text.includes('constru')) return PRODUCT_IMAGES.construction;
-
-  return FALLBACK_IMAGES[Math.abs(id) % FALLBACK_IMAGES.length];
+export function getProductImage(imageUrl?: string | null) {
+  if (!imageUrl) return PRODUCT_PLACEHOLDER_IMAGE;
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('data:')) return imageUrl;
+  if (imageUrl.startsWith('/')) return `${API_ORIGIN}${imageUrl}`;
+  return imageUrl;
 }
 
 export function ProductCard(props: ProductCardProps) {
@@ -52,7 +45,7 @@ export function ProductCard(props: ProductCardProps) {
   const price = product?.precioConIva ?? props.price ?? 0;
   const stock = product?.stockDisponible ?? props.stock ?? 0;
   const category = product?.categoria?.nombre ?? props.category ?? 'Sin categoria';
-  const image = props.image ?? getProductImage(nombre, category, id);
+  const image = props.image ?? getProductImage(product?.imageUrl);
   const hasOffer = product ? tieneOfertaVigente(product) : false;
 
   return (
@@ -60,7 +53,12 @@ export function ProductCard(props: ProductCardProps) {
       <Link to={`/producto/${id}`} className="flex-shrink-0">
         <div className="aspect-square bg-[#F5F2EB] overflow-hidden relative">
           {hasOffer && <OfertaBadge className="absolute left-2 top-2 z-10" />}
-          <img src={image} alt={nombre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+          <img
+            src={image}
+            alt={nombre}
+            loading="lazy"
+            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          />
         </div>
       </Link>
 

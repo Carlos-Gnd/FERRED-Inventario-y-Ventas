@@ -31,14 +31,14 @@ export function Carrito() {
             <div className="space-y-5">
               {cartItems.map((item) => {
                 const category = item.product.categoria?.nombre ?? 'Sin categoria';
-                const image = getProductImage(item.product.nombre, category, item.product.id);
+                const image = getProductImage(item.product.imageUrl);
                 const lineTotal = item.product.precioConIva * item.quantity;
 
                 return (
                   <article key={item.product.id} className="bg-white rounded-xl shadow-md p-4 sm:p-5">
                     <div className="grid grid-cols-[96px_1fr_auto] gap-4 sm:gap-5 items-start">
                       <Link to={`/producto/${item.product.id}`} className="block w-24 h-24 rounded-lg overflow-hidden bg-[#F5F2EB]">
-                        <img src={image} alt={item.product.nombre} className="w-full h-full object-cover" />
+                        <img src={image} alt={item.product.nombre} loading="lazy" className="w-full h-full object-cover" />
                       </Link>
 
                       <div className="min-w-0">
