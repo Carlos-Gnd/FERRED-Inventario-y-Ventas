@@ -44,6 +44,35 @@
   border-color: rgba(239, 68, 68, 0.28);
 }
 
+.reports-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 86%, var(--bg-base) 14%);
+  border: 1px solid var(--border);
+}
+
+.reports-tab {
+  height: 34px;
+  min-width: 92px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.reports-tab--active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .reports-header__title {
   display: flex;
   align-items: center;
@@ -364,6 +393,61 @@
   min-width: 1080px;
   border-collapse: collapse;
   table-layout: fixed;
+}
+
+.reports-table--expenses {
+  min-width: 760px;
+}
+
+.reports-expense-chart {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-bottom: 1px solid rgba(112, 131, 175, 0.2);
+}
+
+.reports-expense-bar {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(180px, 1fr) minmax(96px, auto);
+  align-items: center;
+  gap: 14px;
+}
+
+.reports-expense-bar__label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reports-expense-bar__label strong {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.reports-expense-bar__label span {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.reports-expense-bar__track {
+  height: 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elevated) 72%, #ffffff 28%);
+  overflow: hidden;
+}
+
+.reports-expense-bar__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #13ba68);
+}
+
+.reports-expense-bar__value {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--text-primary);
 }
 
 .reports-table thead th {
@@ -738,6 +822,14 @@
   color: #857867;
 }
 
+.theme-light .reports-tabs {
+  background: #f6f1e9;
+}
+
+.theme-light .reports-expense-bar__track {
+  background: #ebe4d8;
+}
+
 @media (max-width: 1120px) {
   .reports-stats {
     grid-template-columns: 1fr;
@@ -785,5 +877,13 @@
 
   .reports-pagination {
     flex-direction: column;
+  }
+
+  .reports-expense-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-expense-bar__value {
+    text-align: left;
   }
 }

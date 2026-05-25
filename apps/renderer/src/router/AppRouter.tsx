@@ -17,6 +17,7 @@ import TransfersPage       from '../pages/transfers/TransfersPage';
 import StockPage           from '../pages/stock/StockPage';
 import VentasPage          from '../pages/ventas/VentasPage';
 import ReportsPage         from '../pages/reports/ReportsPage';
+import ExpensesPage        from '../pages/expenses/ExpensesPage';
 import CajaPage from '../pages/caja/CajaPage';
 import CajaHistorialPage from '../pages/caja/historial/CajaHistorialPage';
 import PedidosOnlinePage   from '../pages/pedidos-online/PedidosOnlinePage';
@@ -60,6 +61,7 @@ export function AppRouter() {
           <Route path="usuarios"      element={<RoleGuard roles={['ADMIN']}><UsersPage /></RoleGuard>} />
           <Route path="categorias"    element={<RoleGuard roles={['ADMIN']}><CategoriesPage /></RoleGuard>} />
           <Route path="reportes"      element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ReportsPage /></RoleGuard>} />
+          <Route path="gastos"        element={<RoleGuard roles={['ADMIN']}><ExpensesPage /></RoleGuard>} />
           <Route path="historial-recepciones" element={<RoleGuard roles={['ADMIN', 'BODEGA']}><ReceptionHistoryPage /></RoleGuard>} />
           <Route path="ajustes"       element={<RoleGuard roles={['ADMIN']}><AjustesPage /></RoleGuard>} />
           <Route path="transferencias" element={<RoleGuard roles={['ADMIN']}><TransfersPage /></RoleGuard>} />

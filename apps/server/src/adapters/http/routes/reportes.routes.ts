@@ -59,6 +59,32 @@ function buildWhere(
   };
 }
 
+const ReporteGastosQuerySchema = z.object({
+  fechaInicio: z.string().date('fechaInicio debe ser YYYY-MM-DD').optional(),
+  fechaFin:    z.string().date('fechaFin debe ser YYYY-MM-DD').optional(),
+  sucursalId:  z.coerce.number().int().positive().optional(),
+  tipoGastoId: z.coerce.number().int().positive().optional(),
+});
+
+function buildGastosWhere(params: z.infer<typeof ReporteGastosQuerySchema>) {
+  return {
+    ...(params.sucursalId ? { sucursalId: params.sucursalId } : {}),
+    ...(params.tipoGastoId ? { tipoGastoId: params.tipoGastoId } : {}),
+    ...(params.fechaInicio || params.fechaFin
+      ? {
+          fecha: {
+            ...(params.fechaInicio ? { gte: parseFecha(params.fechaInicio) } : {}),
+            ...(params.fechaFin ? { lte: parseFecha(params.fechaFin, true) } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
+function redondearMonto(valor: number) {
+  return Number(valor.toFixed(2));
+}
+
 // ── T-05.1: GET /api/reportes/ventas ────────────────────────────
 // Lista de ventas (facturas) con detalles, filtrada por fecha/sucursal/cajero.
 reportesRoutes.get(
@@ -179,6 +205,79 @@ reportesRoutes.get(
         .map(([fecha, total]) => ({ fecha, total: Number(total.toFixed(2)) }));
 
       return res.json({ totalVentas, cantidadVentas, promedioVenta, ventasPorDia });
+    } catch (err) { return next(err); }
+  },
+);
+
+// ── T-24.3: GET /api/reportes/gastos ───────────────────────────────
+// Totales de gastos con los mismos filtros de fecha/sucursal para no tocar reportes de ventas.
+reportesRoutes.get(
+  '/gastos',
+  roleMiddleware('ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const parsed = ReporteGastosQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Parametros invalidos',
+          detalle: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const gastos = await prisma.gasto.findMany({
+        where: buildGastosWhere(parsed.data),
+        select: {
+          id: true,
+          monto: true,
+          descripcion: true,
+          fecha: true,
+          tipoGasto: { select: { id: true, nombre: true } },
+          sucursal: { select: { id: true, nombre: true } },
+          usuario: { select: { id: true, nombre: true } },
+        },
+        orderBy: { fecha: 'asc' },
+      });
+
+      const porCategoria = new Map<number, { tipoGastoId: number; tipoGasto: string; total: number; cantidad: number }>();
+      const porDia = new Map<string, number>();
+      let suma = 0;
+
+      for (const gasto of gastos) {
+        suma += gasto.monto;
+
+        const categoria = porCategoria.get(gasto.tipoGasto.id) ?? {
+          tipoGastoId: gasto.tipoGasto.id,
+          tipoGasto: gasto.tipoGasto.nombre,
+          total: 0,
+          cantidad: 0,
+        };
+        categoria.total += gasto.monto;
+        categoria.cantidad += 1;
+        porCategoria.set(gasto.tipoGasto.id, categoria);
+
+        const fecha = gasto.fecha.toISOString().slice(0, 10);
+        porDia.set(fecha, (porDia.get(fecha) ?? 0) + gasto.monto);
+      }
+
+      return res.json({
+        totalGastos: redondearMonto(suma),
+        cantidadGastos: gastos.length,
+        gastosPorCategoria: Array.from(porCategoria.values())
+          .map((item) => ({ ...item, total: redondearMonto(item.total) }))
+          .sort((a, b) => b.total - a.total),
+        gastosPorDia: Array.from(porDia.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([fecha, total]) => ({ fecha, total: redondearMonto(total) })),
+        gastos: gastos.map((gasto) => ({
+          id: gasto.id,
+          fecha: gasto.fecha,
+          descripcion: gasto.descripcion,
+          monto: gasto.monto,
+          tipoGasto: gasto.tipoGasto,
+          sucursal: gasto.sucursal,
+          usuario: gasto.usuario,
+        })),
+      });
     } catch (err) { return next(err); }
   },
 );
