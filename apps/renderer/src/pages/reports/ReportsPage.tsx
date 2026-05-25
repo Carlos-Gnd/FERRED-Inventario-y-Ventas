@@ -5,6 +5,7 @@ import { useThemeStore } from '../../store/themeStore';
 import { Modal } from '../../components/ui/Modal';
 import { exportSalesReportPdf } from '../pdf-exporter/sales-report-pdf';
 import { generateSalesExcel } from '../xlsxExporter/generateSalesExcel';
+import { generateExpensesExcel } from '../xlsxExporter/generateExpensesExcel';
 import './ReportsPage.css';
 
 interface BranchOption {
@@ -39,6 +40,24 @@ interface ReportesVentasResumen {
   cantidadVentas: number;
   promedioVenta: number;
   ventasPorDia: Array<{ fecha: string; total: number }>;
+}
+
+interface GastoReporte {
+  id: number;
+  fecha: string;
+  descripcion: string | null;
+  monto: number;
+  tipoGasto: { id: number; nombre: string };
+  sucursal: { id: number; nombre: string };
+  usuario?: { id: number; nombre: string };
+}
+
+interface ReportesGastosResumen {
+  totalGastos: number;
+  cantidadGastos: number;
+  gastosPorCategoria: Array<{ tipoGastoId: number; tipoGasto: string; total: number; cantidad: number }>;
+  gastosPorDia: Array<{ fecha: string; total: number }>;
+  gastos: GastoReporte[];
 }
 
 interface BranchesResponseItem {
@@ -87,6 +106,17 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function formatExpenseDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('es-SV', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
 function buildResumen(items: ReportItem[]) {
   if (items.length === 0) return 'Sin productos';
   const names = items.slice(0, 2).map(item => item.producto);
@@ -101,11 +131,19 @@ export default function ReportsPage() {
   const isAdmin = usuario?.rol === 'ADMIN';
 
   const [ventas, setVentas] = useState<VentaReporte[]>([]);
+  const [activeTab, setActiveTab] = useState<'ventas' | 'gastos'>('ventas');
   const [summary, setSummary] = useState<ReportesVentasResumen>({
     totalVentas: 0,
     cantidadVentas: 0,
     promedioVenta: 0,
     ventasPorDia: [],
+  });
+  const [gastosSummary, setGastosSummary] = useState<ReportesGastosResumen>({
+    totalGastos: 0,
+    cantidadGastos: 0,
+    gastosPorCategoria: [],
+    gastosPorDia: [],
+    gastos: [],
   });
   const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,9 +209,12 @@ export default function ReportsPage() {
     if (appliedFilters.branchId) params.sucursalId = appliedFilters.branchId;
 
     try {
-      const [ventasRes, resumenRes] = await Promise.all([
+      const [ventasRes, resumenRes, gastosRes] = await Promise.all([
         api.get<{ total: number; ventas: VentaReporte[] }>('/reportes/ventas', { params }),
         api.get<ReportesVentasResumen>('/reportes/ventas/resumen', { params }),
+        isAdmin
+          ? api.get<ReportesGastosResumen>('/reportes/gastos', { params })
+          : Promise.resolve({ data: { totalGastos: 0, cantidadGastos: 0, gastosPorCategoria: [], gastosPorDia: [], gastos: [] } }),
       ]);
 
       setVentas(ventasRes.data.ventas ?? []);
@@ -185,6 +226,7 @@ export default function ReportsPage() {
           ventasPorDia: [],
         },
       );
+      setGastosSummary(gastosRes.data);
     } catch (err) {
       setVentas([]);
       setSummary({
@@ -193,6 +235,7 @@ export default function ReportsPage() {
         promedioVenta: 0,
         ventasPorDia: [],
       });
+      setGastosSummary({ totalGastos: 0, cantidadGastos: 0, gastosPorCategoria: [], gastosPorDia: [], gastos: [] });
       setLoadError(
         isOfflineError(err)
           ? 'Sin conexion. No se pudieron cargar los reportes de ventas.'
@@ -201,7 +244,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [appliedFilters.endDate, appliedFilters.branchId, appliedFilters.startDate]);
+  }, [appliedFilters.endDate, appliedFilters.branchId, appliedFilters.startDate, isAdmin]);
 
   useEffect(() => {
     void loadBranches();
@@ -266,6 +309,20 @@ export default function ReportsPage() {
     });
   }, [exportFilters, summary, ventas, visibleName]);
 
+  const maxGastoCategoria = useMemo(
+    () => Math.max(1, ...gastosSummary.gastosPorCategoria.map((item) => item.total)),
+    [gastosSummary.gastosPorCategoria],
+  );
+
+  const handleExportGastosExcel = useCallback(() => {
+    generateExpensesExcel({
+      gastos: gastosSummary.gastos,
+      summary: gastosSummary,
+      filters: exportFilters,
+      generatedBy: visibleName,
+    });
+  }, [exportFilters, gastosSummary, visibleName]);
+
   return (
     <div className="reports-page">
       <section className="reports-header">
@@ -296,6 +353,154 @@ export default function ReportsPage() {
 
       {loadError ? <div className="reports-alert reports-alert--error">{loadError}</div> : null}
 
+      <div className="reports-tabs" role="tablist" aria-label="Tipo de reporte">
+        <button
+          type="button"
+          className={activeTab === 'ventas' ? 'reports-tab reports-tab--active' : 'reports-tab'}
+          onClick={() => setActiveTab('ventas')}
+        >
+          Ventas
+        </button>
+        {isAdmin ? (
+          <button
+            type="button"
+            className={activeTab === 'gastos' ? 'reports-tab reports-tab--active' : 'reports-tab'}
+            onClick={() => setActiveTab('gastos')}
+          >
+            Gastos
+          </button>
+        ) : null}
+      </div>
+
+      {activeTab === 'gastos' ? (
+        <>
+          <section className="reports-stats">
+            <article className="reports-stat-card">
+              <div className="reports-stat-card__label">Gastos registrados</div>
+              <div className="reports-stat-card__value reports-stat-card__value--accent">
+                <strong>{loading ? '...' : formatNumber(gastosSummary.cantidadGastos)}</strong>
+              </div>
+            </article>
+
+            <article className="reports-stat-card">
+              <div className="reports-stat-card__label">Total gastos</div>
+              <div className="reports-stat-card__value">
+                <strong>{loading ? '...' : formatCurrency(gastosSummary.totalGastos)}</strong>
+              </div>
+            </article>
+
+            <article className="reports-stat-card">
+              <div className="reports-stat-card__label">Categorias</div>
+              <div className="reports-stat-card__value">
+                <strong>{loading ? '...' : formatNumber(gastosSummary.gastosPorCategoria.length)}</strong>
+              </div>
+            </article>
+          </section>
+
+          <section className="reports-filters">
+            <div className="reports-field-group">
+              <label className="reports-field-group__label">Rango de fechas</label>
+              <div className="reports-date-fields">
+                <input className="reports-input" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+                <input className="reports-input" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+              </div>
+            </div>
+
+            <div className="reports-field-group">
+              <label className="reports-field-group__label">Sucursal</label>
+              <div className="reports-select-wrap">
+                <select
+                  className="reports-select"
+                  value={branchFilter}
+                  disabled={!isAdmin && branchOptionsToRender.length <= 1}
+                  onChange={(event) => setBranchFilter(event.target.value)}
+                >
+                  <option value={ALL_BRANCHES}>Todas las sucursales</option>
+                  {branchOptionsToRender.map((branch) => (
+                    <option key={branch.id} value={String(branch.id)}>{branch.nombre}</option>
+                  ))}
+                </select>
+                <span className="reports-select-caret" aria-hidden="true">{'\u25BE'}</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="reports-filter-button"
+              onClick={() => setAppliedFilters({ startDate, endDate, branchId: branchFilter })}
+            >
+              Filtrar gastos
+            </button>
+          </section>
+
+          <section className="reports-list-card">
+            <div className="reports-list-card__header">
+              <div>
+                <h2 className="reports-list-card__title">Gastos por categoria</h2>
+                <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Totales operativos filtrados por fecha y sucursal.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="reports-export-button"
+                onClick={handleExportGastosExcel}
+                disabled={loading || gastosSummary.gastos.length === 0}
+              >
+                <span>{'\u2193'}</span>
+                Exportar Excel
+              </button>
+            </div>
+
+            <div className="reports-expense-chart">
+              {loading ? (
+                <div className="reports-empty-state">Cargando gastos...</div>
+              ) : gastosSummary.gastosPorCategoria.length === 0 ? (
+                <div className="reports-empty-state">No hay gastos con los filtros actuales.</div>
+              ) : gastosSummary.gastosPorCategoria.map((item) => (
+                <div key={item.tipoGastoId} className="reports-expense-bar">
+                  <div className="reports-expense-bar__label">
+                    <strong>{item.tipoGasto}</strong>
+                    <span>{item.cantidad} registros</span>
+                  </div>
+                  <div className="reports-expense-bar__track">
+                    <span style={{ width: `${Math.max(8, (item.total / maxGastoCategoria) * 100)}%` }} />
+                  </div>
+                  <div className="reports-expense-bar__value">{formatCurrency(item.total)}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="reports-table-wrap">
+              <table className="reports-table reports-table--expenses">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Descripcion</th>
+                    <th>Sucursal</th>
+                    <th>Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gastosSummary.gastos.length === 0 ? (
+                    <tr><td colSpan={5} className="reports-empty-state">No hay gastos para mostrar.</td></tr>
+                  ) : gastosSummary.gastos.slice(0, 80).map((gasto) => (
+                    <tr key={gasto.id}>
+                      <td>{formatExpenseDate(gasto.fecha)}</td>
+                      <td><span className="reports-chip">{gasto.tipoGasto.nombre}</span></td>
+                      <td>{gasto.descripcion ?? 'Sin descripcion'}</td>
+                      <td>{gasto.sucursal.nombre}</td>
+                      <td className="reports-cell-qty">{formatCurrency(gasto.monto)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
       <section className="reports-stats">
         <article className="reports-stat-card">
           <div className="reports-stat-card__label">Ventas registradas</div>
@@ -520,6 +725,8 @@ export default function ReportsPage() {
           </div>
         </div>
       </section>
+        </>
+      )}
 
       <Modal
         open={!!selectedVenta}
