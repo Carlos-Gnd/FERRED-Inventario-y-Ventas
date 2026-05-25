@@ -5,6 +5,7 @@ export interface Product {
   tipoUnidad: string;
   precioVenta: number;
   precioConIva: number;
+  imageUrl: string | null;
   precioOferta?: number | null;
   oferta?: {
     id: number;
