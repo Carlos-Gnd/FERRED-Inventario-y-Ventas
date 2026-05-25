@@ -48,6 +48,18 @@ async function generarNumeroControl(sucursalId: number, facturaId: number): Prom
   return `DTE-01-${estab}P001-${seq}`;
 }
 
+async function obtenerConfigNegocio(claves: string[]): Promise<Record<string, string>> {
+  const configs = await prisma.configuracionNegocio.findMany({
+    where: { clave: { in: claves } },
+    select: { clave: true, valor: true },
+  });
+
+  return configs.reduce<Record<string, string>>((acc, config) => {
+    acc[config.clave] = config.valor;
+    return acc;
+  }, {});
+}
+
 // T-08A.1: Construir el JSON completo del DTE
 export async function construirJsonDTE(facturaId: number): Promise<{
   codigoGeneracion: string;
@@ -71,6 +83,7 @@ export async function construirJsonDTE(facturaId: number): Promise<{
   const numeroControl    = factura.numeroControl    ?? await generarNumeroControl(factura.sucursalId!, factura.id);
   const fechaEmision     = factura.creadoEn.toISOString().split('T')[0];
   const horaEmision      = factura.creadoEn.toISOString().split('T')[1].substring(0, 8);
+  const configNegocio    = await obtenerConfigNegocio(['NIT', 'NRC', 'correo_remitente']);
 
   const cuerpoDocumento = (factura.detalles as DetalleVentaDte[]).map((det, idx) => ({
     numItem:      idx + 1,
@@ -106,8 +119,8 @@ export async function construirJsonDTE(facturaId: number): Promise<{
     },
     documentoRelacionado: null,
     emisor: {
-      nit:                 '00000000000000',
-      nrc:                 '0000000',
+      nit:                 configNegocio.NIT ?? '',
+      nrc:                 configNegocio.NRC ?? '',
       nombre:              'FERRED Inventario y Ventas',
       codActividad:        '47592',
       descActividad:       'Venta al por menor de articulos de ferreteria',
@@ -119,7 +132,7 @@ export async function construirJsonDTE(facturaId: number): Promise<{
         complemento:  factura.sucursal?.direccion ?? 'San Miguel, El Salvador',
       },
       telefono:        factura.sucursal?.telefono ?? '00000000',
-      correo:          'info@ferred.com.sv',
+      correo:          configNegocio.correo_remitente ?? '',
       codEstableMH:    null,
       codEstable:      null,
       codPuntoVentaMH: null,

@@ -4,7 +4,7 @@
  * T-03.2: Envio de correo con Nodemailer
  */
 import { prisma } from '../db/prisma/prisma.client';
-import { crearTransporte } from '../email/email.service';
+import { crearTransporte, obtenerCorreoRemitente } from '../email/email.service';
 
 const INTERVALO_MS = 60 * 60 * 1000;  // 60 minutos
 const ANTI_SPAM_MS = 60 * 60 * 1000;  // no re-alertar en 1 hora
@@ -186,8 +186,9 @@ async function checkStock(): Promise<void> {
 
       const { subject, html } = construirHtmlCorreo(productosInfo, sucursalNombre, tieneCriticos);
 
+      const correoRemitente = await obtenerCorreoRemitente();
       await transporte.sendMail({
-        from:    `"FERRED Sistema" <${process.env.SMTP_USER}>`,
+        from:    `"FERRED Sistema" <${correoRemitente}>`,
         to:      emailBodeguero,
         subject,
         html,

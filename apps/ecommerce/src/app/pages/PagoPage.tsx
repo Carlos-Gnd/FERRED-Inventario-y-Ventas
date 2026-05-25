@@ -24,6 +24,11 @@ const MAX_FILE_SIZE_MB = 2;
 
 type MetodoPago = 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA';
 type EstadoPago = 'idle' | 'loading' | 'success' | 'error';
+type DatosTransferencia = {
+  banco: string;
+  cuentaBancaria: string;
+  titularCuenta: string;
+};
 
 // ── Iconos SVG inline ─────────────────────────────────────────────────────
 const IcoCash = () => (
@@ -106,6 +111,7 @@ export function PagoPage() {
   const [previewUrl, setPreviewUrl]   = useState<string | null>(null);
   const [dragOver, setDragOver]       = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [datosTransferencia, setDatosTransferencia] = useState<DatosTransferencia | null>(null);
   const fileInputRef                  = useRef<HTMLInputElement>(null);
 
   const irACompraExitosa = useCallback(() => {
@@ -129,6 +135,13 @@ export function PagoPage() {
       .catch(() => setErrorMsg('No se pudo cargar el pedido'))
       .finally(() => setLoadingPedido(false));
   }, [pedidoId, token]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/ajustes-publicos/pago`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: DatosTransferencia | null) => setDatosTransferencia(data))
+      .catch(() => setDatosTransferencia(null));
+  }, []);
 
   // ── Inicializar Stripe + crear PaymentIntent al seleccionar TARJETA ──
   useEffect(() => {
@@ -369,6 +382,7 @@ export function PagoPage() {
                   previewUrl={previewUrl}
                   dragOver={dragOver}
                   uploadError={uploadError}
+                  datosTransferencia={datosTransferencia}
                   onReferencia={setReferencia}
                   onDrop={onDrop}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -529,13 +543,14 @@ function EfectivoForm({ total }: { total: number }) {
 
 function TransferenciaForm({
   referencia, archivo, previewUrl, dragOver, uploadError,
-  onReferencia, onDrop, onDragOver, onDragLeave, onFileChange, onRemoveFile, fileInputRef,
+  datosTransferencia, onReferencia, onDrop, onDragOver, onDragLeave, onFileChange, onRemoveFile, fileInputRef,
 }: {
   referencia: string;
   archivo: File | null;
   previewUrl: string | null;
   dragOver: boolean;
   uploadError: string | null;
+  datosTransferencia: DatosTransferencia | null;
   onReferencia: (v: string) => void;
   onDrop: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
@@ -544,6 +559,10 @@ function TransferenciaForm({
   onRemoveFile: () => void;
   fileInputRef: React.RefObject<HTMLInputElement>;
 }) {
+  const banco = datosTransferencia?.banco || 'Banco pendiente de configurar';
+  const cuenta = datosTransferencia?.cuentaBancaria || 'Cuenta pendiente';
+  const titular = datosTransferencia?.titularCuenta || 'Titular pendiente';
+
   return (
     <div>
       <h3 className="font-bold text-[#2B2D31] text-lg mb-4">Transferencia bancaria</h3>
@@ -552,7 +571,7 @@ function TransferenciaForm({
         <span className="text-amber-600 flex-shrink-0 mt-0.5"><IcoInfo /></span>
         <div className="text-sm text-amber-800">
           <p className="font-semibold mb-1">Datos para transferir</p>
-          <p>Banco: <strong>Agrícola</strong> · Cuenta: <strong>3000-123456-7</strong> · Titular: <strong>FERRED S.A.</strong></p>
+          <p>Banco: <strong>{banco}</strong> · Cuenta: <strong>{cuenta}</strong> · Titular: <strong>{titular}</strong></p>
           <p className="mt-1">Una vez realizada, sube el comprobante abajo. Tu pedido quedará en revisión.</p>
         </div>
       </div>

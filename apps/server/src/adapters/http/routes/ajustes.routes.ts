@@ -10,6 +10,27 @@ import { prisma }         from '../../db/prisma/prisma.client';
 import { roleMiddleware } from '../middleware/role.middleware';
 
 export const ajustesRoutes = Router();
+export const ajustesPublicRoutes = Router();
+
+ajustesPublicRoutes.get('/pago', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const configs = await prisma.configuracionNegocio.findMany({
+      where: { clave: { in: ['banco', 'cuenta_bancaria', 'titular_cuenta'] } },
+      select: { clave: true, valor: true },
+    });
+
+    const mapa: Record<string, string> = {};
+    for (const c of configs) mapa[c.clave] = c.valor;
+
+    return res.json({
+      banco:           mapa.banco ?? '',
+      cuentaBancaria: mapa.cuenta_bancaria ?? '',
+      titularCuenta:  mapa.titular_cuenta ?? '',
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
 
 ajustesRoutes.use(roleMiddleware('ADMIN'));
 
