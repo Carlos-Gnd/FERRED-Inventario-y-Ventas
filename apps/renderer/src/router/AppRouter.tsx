@@ -18,6 +18,7 @@ import StockPage           from '../pages/stock/StockPage';
 import VentasPage          from '../pages/ventas/VentasPage';
 import ReportsPage         from '../pages/reports/ReportsPage';
 import ExpensesPage        from '../pages/expenses/ExpensesPage';
+import KardexPage          from '../pages/kardex/KardexPage';
 import CajaPage from '../pages/caja/CajaPage';
 import CajaHistorialPage from '../pages/caja/historial/CajaHistorialPage';
 import PedidosOnlinePage   from '../pages/pedidos-online/PedidosOnlinePage';
@@ -70,6 +71,7 @@ export function AppRouter() {
           {/* Rutas para ADMIN y BODEGA */}
           <Route path="productos"     element={<RoleGuard roles={['ADMIN','BODEGA']}><ProductsPage /></RoleGuard>} />
           <Route path="stock"         element={<RoleGuard roles={['ADMIN','BODEGA']}><StockPage /></RoleGuard>} />
+          <Route path="kardex"        element={<RoleGuard roles={['ADMIN','BODEGA']}><KardexPage /></RoleGuard>} />
           <Route path="recepcion"     element={<RoleGuard roles={['ADMIN','BODEGA']}><InventoryReceptionPage /></RoleGuard>} />
 
           {/* Rutas para ADMIN y CAJERO */}
