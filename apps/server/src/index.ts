@@ -64,6 +64,8 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:4173',
   'http://127.0.0.1:5176',
   'null', // Electron renderer en producción (file:// origin)
+  // SP4-B03: orígenes adicionales desde env (útil para staging sin redeploy)
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : []),
 ];
 
 app.use(cors({
