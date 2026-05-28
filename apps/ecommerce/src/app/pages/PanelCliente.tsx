@@ -85,7 +85,7 @@ export function PanelCliente() {
           <aside className="lg:col-span-1">
             <div className="bg-white rounded-xl p-6 shadow-md">
               <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#E5E2DA]">
-                <div className="w-16 h-16 bg-[#D97706] rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                <div className="size-16 bg-[#D97706] rounded-full flex items-center justify-center text-white text-2xl font-bold">
                   {initials}
                 </div>
                 <div className="min-w-0">
@@ -102,6 +102,7 @@ export function PanelCliente() {
                 ].map(({ tab, icon: Icon, label }) => (
                   <button
                     key={tab}
+                    type="button"
                     onClick={() => setActiveTab(tab as typeof activeTab)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
                       activeTab === tab
@@ -114,6 +115,7 @@ export function PanelCliente() {
                   </button>
                 ))}
                 <button
+                  type="button"
                   onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-[#5F6368] hover:bg-[#F5F2EB]"
                 >
@@ -132,7 +134,7 @@ export function PanelCliente() {
               <div>
                 <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Historial de Pedidos</h2>
 
-                {loadingOrders && <p className="text-[#5F6368]">Cargando pedidos...</p>}
+                {loadingOrders && <p className="text-[#5F6368]">Cargando pedidos…</p>}
                 {ordersError   && <p className="text-red-600">{ordersError}</p>}
 
                 {!loadingOrders && !ordersError && orders.length === 0 && (
@@ -151,7 +153,7 @@ export function PanelCliente() {
 
                           {/* Info del pedido */}
                           <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center flex-shrink-0">
+                            <div className="size-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center flex-shrink-0">
                               <Package className="text-[#D97706]" size={24} />
                             </div>
                             <div>
@@ -228,7 +230,7 @@ export function PanelCliente() {
                 <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Dirección</h2>
                 <div className="bg-white rounded-xl p-6 shadow-md">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center">
+                    <div className="size-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center">
                       <MapPin className="text-[#D97706]" size={24} />
                     </div>
                     <div>

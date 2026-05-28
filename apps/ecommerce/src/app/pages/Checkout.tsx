@@ -1,18 +1,175 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Building2, ChevronRight, CreditCard, Home, MapPin, Truck, User } from 'lucide-react';
+import { Building2, ChevronRight, CreditCard, MapPin, Truck, User } from 'lucide-react';
 import { useEcommerce } from '../context/EcommerceContext';
 import { useAuth } from '../context/AuthContext';
+import type { ZonaEnvio } from '../types';
 
 const checkoutSteps = [
   { label: 'Datos\nPersonales', icon: User },
-  { label: 'Direccion', icon: MapPin },
+  { label: 'Dirección', icon: MapPin },
   { label: 'Entrega', icon: Truck },
   { label: 'Pago', icon: CreditCard },
 ];
 
 type CheckoutStep = 0 | 1 | 2 | 3;
 
+// ── Sub-componente para el contenido de cada paso ─────────────────────────
+type StepContentProps = {
+  step: CheckoutStep;
+  firstName: string; setFirstName: (v: string) => void;
+  lastName: string; setLastName: (v: string) => void;
+  telefono: string; setTelefono: (v: string) => void;
+  clienteEmail?: string;
+  calle: string; setCalle: (v: string) => void;
+  ciudad: string; setCiudad: (v: string) => void;
+  codigoPostal: string; setCodigoPostal: (v: string) => void;
+  referencias: string; setReferencias: (v: string) => void;
+  tipoEntrega: 'RETIRO' | 'ENVIO'; setTipoEntrega: (v: 'RETIRO' | 'ENVIO') => void;
+  zonaEnvioId: number | null; setZonaEnvioId: (v: number | null) => void;
+  zonasEnvio: ZonaEnvio[];
+  selectedSucursalId: number;
+  loading: boolean;
+  goNext: () => void;
+  goBack: () => void;
+  handleSubmit: () => void;
+};
+
+function StepContent({
+  step, firstName, setFirstName, lastName, setLastName, telefono, setTelefono, clienteEmail,
+  calle, setCalle, ciudad, setCiudad, codigoPostal, setCodigoPostal, referencias, setReferencias,
+  tipoEntrega, setTipoEntrega, zonaEnvioId, setZonaEnvioId, zonasEnvio, selectedSucursalId,
+  loading, goNext, goBack, handleSubmit,
+}: StepContentProps) {
+  if (step === 0) {
+    return (
+      <>
+        <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Datos Personales</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <Field label="Nombre">
+            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="checkout-input" aria-label="Nombre" />
+          </Field>
+          <Field label="Apellido">
+            <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="checkout-input" aria-label="Apellido" />
+          </Field>
+        </div>
+        <Field label="Email" className="mb-5">
+          <input value={clienteEmail ?? ''} readOnly className="checkout-input bg-[#F5F2EB] text-[#5F6368]" aria-label="Correo electrónico" />
+        </Field>
+        <Field label="Teléfono" className="mb-8">
+          <input value={telefono} onChange={(e) => setTelefono(e.target.value)} className="checkout-input" aria-label="Teléfono" />
+        </Field>
+        <PrimaryButton onClick={goNext}>Continuar</PrimaryButton>
+      </>
+    );
+  }
+
+  if (step === 1) {
+    return (
+      <>
+        <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Dirección de Entrega</h2>
+        <Field label="Calle y Número" className="mb-5">
+          <input value={calle} onChange={(e) => setCalle(e.target.value)} className="checkout-input" aria-label="Calle y número" />
+        </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <Field label="Ciudad">
+            <input value={ciudad} onChange={(e) => setCiudad(e.target.value)} className="checkout-input" aria-label="Ciudad" />
+          </Field>
+          <Field label="Código Postal">
+            <input value={codigoPostal} onChange={(e) => setCodigoPostal(e.target.value)} className="checkout-input" aria-label="Código postal" />
+          </Field>
+        </div>
+        <Field label="Referencias" className="mb-8">
+          <textarea value={referencias} onChange={(e) => setReferencias(e.target.value)} rows={4} className="checkout-input resize-y" aria-label="Referencias adicionales" />
+        </Field>
+        <StepButtons onBack={goBack} onNext={goNext} />
+      </>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <>
+        <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Entrega</h2>
+        <h3 className="text-lg font-bold text-[#2B2D31] mb-4 flex items-center gap-2">
+          <MapPin className="text-[#D97706]" size={20} /> Sucursal de origen
+        </h3>
+        <div className="space-y-3 mb-6">
+          <SelectableCard selected>
+            <div>
+              <p className="font-bold text-[#2B2D31]">
+                FERRED Centro <span className="ml-2 rounded bg-green-500 px-2 py-1 text-xs text-white">Recomendado</span>
+              </p>
+              <p className="text-sm text-[#5F6368] mt-1">Sucursal #{selectedSucursalId}</p>
+            </div>
+          </SelectableCard>
+          <SelectableCard>
+            <div>
+              <p className="font-bold text-[#2B2D31]">FERRED Norte</p>
+              <p className="text-sm text-[#5F6368] mt-1">Sucursal alterna</p>
+            </div>
+          </SelectableCard>
+        </div>
+
+        <h3 className="text-lg font-bold text-[#2B2D31] mb-4">Método de entrega</h3>
+        <div className="space-y-3 mb-8">
+          <button type="button" onClick={() => setTipoEntrega('RETIRO')} className="w-full text-left">
+            <SelectableCard selected={tipoEntrega === 'RETIRO'}>
+              <div className="flex items-center justify-between gap-4 w-full">
+                <div className="flex items-center gap-2">
+                  <Building2 className="text-[#D97706]" size={20} />
+                  <span className="font-bold text-[#2B2D31]">Recoger en sucursal</span>
+                </div>
+                <span className="font-bold text-green-600">Gratis</span>
+              </div>
+            </SelectableCard>
+          </button>
+          <button type="button" onClick={() => setTipoEntrega('ENVIO')} className="w-full text-left">
+            <SelectableCard selected={tipoEntrega === 'ENVIO'}>
+              <div className="flex items-center justify-between gap-4 w-full">
+                <div className="flex items-center gap-2">
+                  <Truck className="text-[#D97706]" size={20} />
+                  <div>
+                    <p className="font-bold text-[#2B2D31]">Envío a domicilio</p>
+                    <p className="text-sm text-[#5F6368]">3-5 días hábiles</p>
+                  </div>
+                </div>
+                <span className="font-bold text-[#D97706]">
+                  {zonasEnvio.length > 0 ? `$${(zonasEnvio.find((z) => z.id === zonaEnvioId)?.costoEnvio ?? zonasEnvio[0].costoEnvio).toFixed(2)}` : '$0.00'}
+                </span>
+              </div>
+            </SelectableCard>
+          </button>
+        </div>
+
+        {tipoEntrega === 'ENVIO' && (
+          <Field label="Zona de envío" className="mb-8">
+            <select value={zonaEnvioId ?? ''} onChange={(e) => setZonaEnvioId(Number(e.target.value))} className="checkout-input" aria-label="Zona de envío">
+              <option value="" disabled>Selecciona una zona…</option>
+              {zonasEnvio.map((zona) => (
+                <option key={zona.id} value={zona.id}>{zona.nombre} - ${zona.costoEnvio.toFixed(2)}</option>
+              ))}
+            </select>
+          </Field>
+        )}
+
+        <StepButtons onBack={goBack} onNext={goNext} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Pago</h2>
+      <div className="mb-8 rounded-xl border border-[#D8D3C8] bg-[#F9F8F6] p-4 text-sm text-[#5F6368]">
+        El método de pago se selecciona y procesa en la siguiente pantalla segura.
+      </div>
+      <StepButtons onBack={goBack} onNext={handleSubmit} nextLabel={loading ? 'Procesando…' : 'Ir a pagar'} disabled={loading} />
+    </>
+  );
+}
+
+// ── Componente principal ──────────────────────────────────────────────────
 export function Checkout() {
   const navigate = useNavigate();
   const { cartItems, subtotal, zonasEnvio, createOrder, clearCart, selectedSucursalId } = useEcommerce();
@@ -62,11 +219,11 @@ export function Checkout() {
       return;
     }
     if (step === 1 && tipoEntrega === 'ENVIO' && !calle.trim()) {
-      setError('Ingresa una direccion de entrega');
+      setError('Ingresa una dirección de entrega');
       return;
     }
     if (step === 2 && tipoEntrega === 'ENVIO' && !zonaEnvioId) {
-      setError('Selecciona una zona de envio');
+      setError('Selecciona una zona de envío');
       return;
     }
     setStep((current) => Math.min(3, current + 1) as CheckoutStep);
@@ -101,136 +258,6 @@ export function Checkout() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const renderStepContent = () => {
-    if (step === 0) {
-      return (
-        <>
-          <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Datos Personales</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-            <Field label="Nombre">
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="checkout-input" />
-            </Field>
-            <Field label="Apellido">
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="checkout-input" />
-            </Field>
-          </div>
-          <Field label="Email" className="mb-5">
-            <input value={cliente?.email ?? ''} readOnly className="checkout-input bg-[#F5F2EB] text-[#5F6368]" />
-          </Field>
-          <Field label="Telefono" className="mb-8">
-            <input value={telefono} onChange={(e) => setTelefono(e.target.value)} className="checkout-input" />
-          </Field>
-          <PrimaryButton onClick={goNext}>Continuar</PrimaryButton>
-        </>
-      );
-    }
-
-    if (step === 1) {
-      return (
-        <>
-          <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Direccion de Entrega</h2>
-          <Field label="Calle y Numero" className="mb-5">
-            <input value={calle} onChange={(e) => setCalle(e.target.value)} className="checkout-input" />
-          </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-            <Field label="Ciudad">
-              <input value={ciudad} onChange={(e) => setCiudad(e.target.value)} className="checkout-input" />
-            </Field>
-            <Field label="Codigo Postal">
-              <input value={codigoPostal} onChange={(e) => setCodigoPostal(e.target.value)} className="checkout-input" />
-            </Field>
-          </div>
-          <Field label="Referencias" className="mb-8">
-            <textarea value={referencias} onChange={(e) => setReferencias(e.target.value)} rows={4} className="checkout-input resize-y" />
-          </Field>
-          <StepButtons onBack={goBack} onNext={goNext} />
-        </>
-      );
-    }
-
-    if (step === 2) {
-      return (
-        <>
-          <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Entrega</h2>
-          <h3 className="text-lg font-bold text-[#2B2D31] mb-4 flex items-center gap-2">
-            <MapPin className="text-[#D97706]" size={20} /> Sucursal de origen
-          </h3>
-          <div className="space-y-3 mb-6">
-            <SelectableCard selected>
-              <div>
-                <p className="font-bold text-[#2B2D31]">
-                  FERRED Centro <span className="ml-2 rounded bg-green-500 px-2 py-1 text-xs text-white">Recomendado</span>
-                </p>
-                <p className="text-sm text-[#5F6368] mt-1">Sucursal #{selectedSucursalId}</p>
-              </div>
-            </SelectableCard>
-            <SelectableCard>
-              <div>
-                <p className="font-bold text-[#2B2D31]">FERRED Norte</p>
-                <p className="text-sm text-[#5F6368] mt-1">Sucursal alterna</p>
-              </div>
-            </SelectableCard>
-          </div>
-
-          <h3 className="text-lg font-bold text-[#2B2D31] mb-4">Metodo de entrega</h3>
-          <div className="space-y-3 mb-8">
-            <button type="button" onClick={() => setTipoEntrega('RETIRO')} className="w-full text-left">
-              <SelectableCard selected={tipoEntrega === 'RETIRO'}>
-                <div className="flex items-center justify-between gap-4 w-full">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="text-[#D97706]" size={20} />
-                    <span className="font-bold text-[#2B2D31]">Recoger en sucursal</span>
-                  </div>
-                  <span className="font-bold text-green-600">Gratis</span>
-                </div>
-              </SelectableCard>
-            </button>
-            <button type="button" onClick={() => setTipoEntrega('ENVIO')} className="w-full text-left">
-              <SelectableCard selected={tipoEntrega === 'ENVIO'}>
-                <div className="flex items-center justify-between gap-4 w-full">
-                  <div className="flex items-center gap-2">
-                    <Truck className="text-[#D97706]" size={20} />
-                    <div>
-                      <p className="font-bold text-[#2B2D31]">Envio a domicilio</p>
-                      <p className="text-sm text-[#5F6368]">3-5 dias habiles</p>
-                    </div>
-                  </div>
-                  <span className="font-bold text-[#D97706]">
-                    {zonasEnvio.length > 0 ? `$${(zonasEnvio.find((z) => z.id === zonaEnvioId)?.costoEnvio ?? zonasEnvio[0].costoEnvio).toFixed(2)}` : '$0.00'}
-                  </span>
-                </div>
-              </SelectableCard>
-            </button>
-          </div>
-
-          {tipoEntrega === 'ENVIO' && (
-            <Field label="Zona de envio" className="mb-8">
-              <select value={zonaEnvioId ?? ''} onChange={(e) => setZonaEnvioId(Number(e.target.value))} className="checkout-input">
-                <option value="" disabled>Selecciona una zona...</option>
-                {zonasEnvio.map((zona) => (
-                  <option key={zona.id} value={zona.id}>{zona.nombre} - ${zona.costoEnvio.toFixed(2)}</option>
-                ))}
-              </select>
-            </Field>
-          )}
-
-          <StepButtons onBack={goBack} onNext={goNext} />
-        </>
-      );
-    }
-
-    return (
-      <>
-        <h2 className="text-2xl font-bold text-[#2B2D31] mb-6">Pago</h2>
-        <div className="mb-8 rounded-xl border border-[#D8D3C8] bg-[#F9F8F6] p-4 text-sm text-[#5F6368]">
-          El metodo de pago se selecciona y procesa en la siguiente pantalla segura.
-        </div>
-
-        <StepButtons onBack={goBack} onNext={handleSubmit} nextLabel={loading ? 'Procesando...' : 'Ir a pagar'} disabled={loading} />
-      </>
-    );
   };
 
   return (
@@ -269,7 +296,7 @@ export function Checkout() {
                       {index < checkoutSteps.length - 1 && (
                         <div className={`hidden sm:block absolute left-[66%] right-[-34%] top-5 h-1 ${index < step ? 'bg-[#D97706]' : 'bg-[#E5E2DA]'}`} />
                       )}
-                      <div className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center ${active ? 'bg-[#D97706] text-white' : 'bg-[#E5E2DA] text-[#5F6368]'}`}>
+                      <div className={`relative z-10 size-12 rounded-full flex items-center justify-center ${active ? 'bg-[#D97706] text-white' : 'bg-[#E5E2DA] text-[#5F6368]'}`}>
                         <Icon size={20} />
                       </div>
                       <span className={`whitespace-pre-line text-xs sm:text-sm font-semibold ${active ? 'text-[#2B2D31]' : 'text-[#5F6368]'}`}>
@@ -282,7 +309,25 @@ export function Checkout() {
             </div>
 
             <section className="bg-white rounded-xl p-6 sm:p-8 shadow-md">
-              {renderStepContent()}
+              <StepContent
+                step={step}
+                firstName={firstName} setFirstName={setFirstName}
+                lastName={lastName} setLastName={setLastName}
+                telefono={telefono} setTelefono={setTelefono}
+                clienteEmail={cliente?.email}
+                calle={calle} setCalle={setCalle}
+                ciudad={ciudad} setCiudad={setCiudad}
+                codigoPostal={codigoPostal} setCodigoPostal={setCodigoPostal}
+                referencias={referencias} setReferencias={setReferencias}
+                tipoEntrega={tipoEntrega} setTipoEntrega={setTipoEntrega}
+                zonaEnvioId={zonaEnvioId} setZonaEnvioId={setZonaEnvioId}
+                zonasEnvio={zonasEnvio}
+                selectedSucursalId={selectedSucursalId}
+                loading={loading}
+                goNext={goNext}
+                goBack={goBack}
+                handleSubmit={handleSubmit}
+              />
               {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
             </section>
           </div>
@@ -295,7 +340,7 @@ export function Checkout() {
                 <span>${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-[#5F6368]">Envio</span>
+                <span className="text-[#5F6368]">Envío</span>
                 <span className={costoEnvio === 0 ? 'text-green-700 font-semibold' : ''}>
                   {costoEnvio === 0 ? 'Gratis' : `$${costoEnvio.toFixed(2)}`}
                 </span>
@@ -343,7 +388,7 @@ function StepButtons({
   return (
     <div className="grid grid-cols-[96px_1fr] gap-4">
       <button type="button" onClick={onBack} className="border border-[#D8D3C8] rounded-xl py-3 font-semibold text-[#2B2D31] hover:bg-[#F5F2EB]">
-        Atras
+        Atrás
       </button>
       <button type="button" onClick={onNext} disabled={disabled} className="bg-[#D97706] text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 hover:bg-[#B45309] disabled:bg-[#E5E2DA] disabled:text-[#5F6368] transition-colors">
         {nextLabel} {!disabled && <ChevronRight size={18} />}
@@ -362,4 +407,3 @@ function SelectableCard({ selected = false, children }: { selected?: boolean; ch
     </div>
   );
 }
-

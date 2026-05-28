@@ -13,7 +13,7 @@ export function PedidoExito() {
   return (
     <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg bg-white rounded-xl shadow-xl px-8 py-10 text-center">
-        <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-5">
+        <div className="size-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-5">
           <CheckCircle className="text-green-600" size={42} />
         </div>
 

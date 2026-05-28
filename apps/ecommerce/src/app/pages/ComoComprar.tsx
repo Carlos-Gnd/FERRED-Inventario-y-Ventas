@@ -15,7 +15,7 @@ export function ComoComprar() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Paso 1: Navega */}
           <div className="bg-white rounded-xl p-8 shadow-md">
-            <div className="w-16 h-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-4">
+            <div className="size-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-4">
               <MousePointer className="text-white" size={32} />
             </div>
             <h3 className="text-xl font-bold text-[#2B2D31] mb-4">Navega</h3>
@@ -33,7 +33,7 @@ export function ComoComprar() {
 
           {/* Paso 2: Agrega */}
           <div className="bg-white rounded-xl p-8 shadow-md">
-            <div className="w-16 h-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-4">
+            <div className="size-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-4">
               <ShoppingCart className="text-white" size={32} />
             </div>
             <h3 className="text-xl font-bold text-[#2B2D31] mb-4">Agrega</h3>
@@ -55,7 +55,7 @@ export function ComoComprar() {
 
           {/* Paso 3: Inicia tu pago */}
           <div className="bg-white rounded-xl p-8 shadow-md">
-            <div className="w-16 h-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-4">
+            <div className="size-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-4">
               <CreditCard className="text-white" size={32} />
             </div>
             <h3 className="text-xl font-bold text-[#2B2D31] mb-4">Inicia tu pago</h3>
@@ -73,7 +73,7 @@ export function ComoComprar() {
 
           {/* Paso 4: Modalidad de entrega */}
           <div className="bg-white rounded-xl p-8 shadow-md">
-            <div className="w-16 h-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-4">
+            <div className="size-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-4">
               <Store className="text-white" size={32} />
             </div>
             <h3 className="text-xl font-bold text-[#2B2D31] mb-4">Modalidad de entrega</h3>
@@ -159,7 +159,7 @@ export function ComoComprar() {
             Compra en línea y retira donde te quede más conveniente.<br />
             19 sucursales en todo el país a tu disposición.
           </p>
-          <button className="bg-[#D97706] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#B45309] transition-colors">
+          <button type="button" className="bg-[#D97706] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#B45309] transition-colors">
             Ver Mapa de Tiendas
           </button>
         </div>
