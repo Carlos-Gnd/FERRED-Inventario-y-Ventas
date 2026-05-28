@@ -256,7 +256,11 @@ inventarioRoutes.patch(
       const sucursalId = Number(req.body.sucursalId);
       const cantidad   = Number(req.body.cantidad);
       const minimo     = Number(req.body.minimo ?? 0);
-      const motivo     = req.body.motivo as string | undefined;
+      const motivo          = req.body.motivo as string | undefined;
+      const tipoMovimiento  = req.body.tipoMovimiento as string | undefined;
+      const cantidadIngresada = req.body.cantidadIngresada !== undefined
+        ? Number(req.body.cantidadIngresada)
+        : undefined;
 
       // BUG-NUEVO-C: validar productoId antes de usarlo
       if (!Number.isFinite(productoId) || productoId < 1) {
@@ -274,6 +278,11 @@ inventarioRoutes.patch(
       if (!assertSameSucursal(req, res, sucursalId)) return;
 
       const stock = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const stockPrevio = await tx.stockSucursal.findUnique({
+          where: { productoId_sucursalId: { productoId, sucursalId } },
+        });
+        const saldoAnterior = stockPrevio?.cantidad ?? 0;
+
         const s = await tx.stockSucursal.upsert({
           where:  { productoId_sucursalId: { productoId, sucursalId } },
           create: { productoId, sucursalId, cantidad: Math.max(0, cantidad), minimo },
@@ -287,6 +296,24 @@ inventarioRoutes.patch(
         await tx.producto.update({
           where: { id: productoId },
           data:  { stockActual: resultado._sum.cantidad ?? 0 },
+        });
+
+        // T-25.3: registrar movimiento de inventario
+        const tipoMov = tipoMovimiento === 'RECEPCION' ? 'ENTRADA' : 'AJUSTE';
+        const cantMov = cantidadIngresada !== undefined && Number.isFinite(cantidadIngresada)
+          ? cantidadIngresada
+          : Math.abs(cantidad - saldoAnterior);
+        await tx.movimientoInventario.create({
+          data: {
+            productoId,
+            sucursalId,
+            tipo:         tipoMov,
+            cantidad:     cantMov,
+            saldoAnterior,
+            saldoNuevo:   cantidad,
+            referencia:   motivo ?? tipoMov,
+            usuarioId:    req.usuario?.id ?? null,
+          },
         });
 
         return s;
