@@ -311,7 +311,7 @@ inventarioRoutes.patch(
             cantidad:     cantMov,
             saldoAnterior,
             saldoNuevo:   cantidad,
-            referencia:   motivo ?? tipoMov,
+            referencia:   tipoMovimiento === 'RECEPCION' ? `RECEPCION-AJUSTE--` : (motivo ?? tipoMov),
             usuarioId:    req.usuario?.id ?? null,
           },
         });

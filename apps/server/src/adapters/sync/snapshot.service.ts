@@ -116,7 +116,7 @@ export async function bootstrapSnapshot(sucursalId: number): Promise<SnapshotCou
     for (const p of productos) {
       stmtProd.run(
         p.id, p.categoriaId ?? null, p.nombre, p.codigoBarras ?? null,
-        p.tipoUnidad ?? 'UNIDAD', p.precioCompra ?? 0, p.porcentajeGanancia ?? 0,
+        p.tipoUnidad ?? 'UND', p.precioCompra ?? 0, p.porcentajeGanancia ?? 0,
         p.precioVenta ?? 0, p.precioConIva ?? 0, p.tieneIva ? 1 : 0,
         p.stockActual, p.stockMinimo, p.activo ? 1 : 0,
         p.updatedAt.toISOString(),
@@ -300,7 +300,7 @@ export async function refreshSnapshot(sucursalId: number): Promise<SnapshotCount
     for (const p of productos) {
       stmtProd.run(
         p.id, p.categoriaId ?? null, p.nombre, p.codigoBarras ?? null,
-        p.tipoUnidad ?? 'UNIDAD', p.precioCompra ?? 0, p.porcentajeGanancia ?? 0,
+        p.tipoUnidad ?? 'UND', p.precioCompra ?? 0, p.porcentajeGanancia ?? 0,
         p.precioVenta ?? 0, p.precioConIva ?? 0, p.tieneIva ? 1 : 0,
         p.stockActual, p.stockMinimo, p.activo ? 1 : 0,
         p.updatedAt.toISOString(),

@@ -29,7 +29,7 @@ export function Home() {
                   Ver Catálogo
                   <ChevronRight size={18} />
                 </Link>
-                <button className="border-2 border-white text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors text-sm sm:text-base">
+                <button type="button" className="border-2 border-white text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors text-sm sm:text-base">
                   Promociones
                 </button>
               </div>
@@ -85,7 +85,7 @@ export function Home() {
               <ChevronRight size={18} />
             </Link>
           </div>
-          {loadingProducts && <p className="text-[#5F6368]">Cargando productos...</p>}
+          {loadingProducts && <p className="text-[#5F6368]">Cargando productos…</p>}
           {productsError && <p className="text-red-600">{productsError}</p>}
           {!loadingProducts && !productsError && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6">

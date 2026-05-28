@@ -37,6 +37,15 @@ model Categoria {
   @@map("categorias")
 }
 
+model UnidadMedida {
+  codigo      String    @id
+  nombre      String
+  descripcion String?
+  activo      Boolean   @default(true)
+  productos   Producto[]
+  @@map("unidades_medida")
+}
+
 model Usuario {
   id             Int      @id @default(autoincrement())
   sucursalId     Int?     @map("sucursal_id")
@@ -77,6 +86,7 @@ model Producto {
   creadoEn           DateTime @default(now()) @map("creado_en")
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
   categoria          Categoria?    @relation(fields: [categoriaId], references: [id])
+  unidadMedida       UnidadMedida? @relation(fields: [tipoUnidad], references: [codigo])
   detallesVenta         DetalleVenta[]
   stocks                StockSucursal[]
   detallesRecepcion     DetalleRecepcion[]

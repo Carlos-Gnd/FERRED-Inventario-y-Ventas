@@ -1,9 +1,8 @@
 import { ShoppingCart } from 'lucide-react';
 import { Link } from 'react-router';
 import type { Product } from '../types';
-import { OfertaBadge, OfertaPrice, tieneOfertaVigente } from './OfertaBadge';
-
-const API_ORIGIN = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001/api').replace(/\/api\/?$/, '');
+import { OfertaBadge, OfertaPrice } from './OfertaBadge';
+import { tieneOfertaVigente, getProductImage } from '../utils/product.utils';
 
 type ProductCardProps = {
   product?: Product;
@@ -13,30 +12,8 @@ type ProductCardProps = {
   image?: string;
   stock?: number;
   category?: string;
-  brand?: string;
-  description?: string;
   onAddToCart?: (product: Product) => void;
 };
-
-export const PRODUCT_PLACEHOLDER_IMAGE =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
-      <rect width="600" height="600" fill="#F5F2EB"/>
-      <rect x="96" y="96" width="408" height="408" rx="32" fill="#FFF9EF" stroke="#D8D3C8" stroke-width="4"/>
-      <path d="M210 347h180l-47-62-42 47-28-34-63 49Z" fill="#D97706" opacity=".9"/>
-      <circle cx="236" cy="242" r="31" fill="#2B2D31" opacity=".85"/>
-      <text x="300" y="430" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#2B2D31">FERRED</text>
-      <text x="300" y="468" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#5F6368">Imagen no disponible</text>
-    </svg>
-  `);
-
-export function getProductImage(imageUrl?: string | null) {
-  if (!imageUrl) return PRODUCT_PLACEHOLDER_IMAGE;
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('data:')) return imageUrl;
-  if (imageUrl.startsWith('/')) return `${API_ORIGIN}${imageUrl}`;
-  return imageUrl;
-}
 
 export function ProductCard(props: ProductCardProps) {
   const { product, onAddToCart } = props;
@@ -79,10 +56,11 @@ export function ProductCard(props: ProductCardProps) {
           </div>
 
           <button
+            type="button"
             onClick={() => product && onAddToCart?.(product)}
             disabled={stock === 0 || !product}
             className="bg-[#D97706] text-white p-1.5 sm:p-2 md:p-3 rounded-lg sm:rounded-xl hover:bg-[#B45309] transition-colors disabled:bg-[#E5E2DA] disabled:cursor-not-allowed flex-shrink-0"
-            title={stock === 0 ? 'Sin stock' : 'Agregar al carrito'}
+            aria-label={stock === 0 ? 'Sin stock' : `Agregar ${nombre} al carrito`}
           >
             <ShoppingCart size={16} className="sm:w-4 sm:h-4 md:w-5 md:h-5" />
           </button>

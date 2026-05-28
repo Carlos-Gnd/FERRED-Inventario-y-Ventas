@@ -56,7 +56,11 @@ const schema = z.object({
   nombre: z.string().min(2),
   categoriaId: z.number().int().positive().optional(),
   codigoBarras: z.string().optional(),
-  tipoUnidad: z.enum(['UNIDAD', 'CAJA', 'PESO', 'MEDIDA', 'LOTE']).optional(),
+  tipoUnidad: z.enum([
+    'UND','CAJA','PAQ','BOLSA','JUEGO','KIT','PAR','SACO','TUBO','ROLLO',
+    'PLACA','LATA','DOC','CIEN','MIL','M','M2','PULG','PIE','YD',
+    'LB','KG','GR','GAL','LT','BARRIL',
+  ]).optional(),
   precioCompra: z.number().min(0).optional(),
   porcentajeGanancia: z.number().min(0).optional(),
   precioVenta: z.number().min(0).optional(),

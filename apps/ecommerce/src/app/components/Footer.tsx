@@ -1,4 +1,5 @@
 import { Mail, Phone, MapPin } from 'lucide-react';
+import { Link } from 'react-router';
 
 export function Footer() {
   return (
@@ -17,11 +18,11 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4 text-base md:text-lg">Categorías</h4>
             <ul className="space-y-2 text-[#E5E2DA] text-sm md:text-base">
-              <li><a href="#" className="hover:text-[#D97706] transition-colors">Herramientas</a></li>
-              <li><a href="#" className="hover:text-[#D97706] transition-colors">Construcción</a></li>
-              <li><a href="#" className="hover:text-[#D97706] transition-colors">Electricidad</a></li>
-              <li><a href="#" className="hover:text-[#D97706] transition-colors">Fontanería</a></li>
-              <li><a href="#" className="hover:text-[#D97706] transition-colors">Pinturas</a></li>
+              <li><Link to="/catalogo" className="hover:text-[#D97706] transition-colors">Herramientas</Link></li>
+              <li><Link to="/catalogo" className="hover:text-[#D97706] transition-colors">Construcción</Link></li>
+              <li><Link to="/catalogo" className="hover:text-[#D97706] transition-colors">Electricidad</Link></li>
+              <li><Link to="/catalogo" className="hover:text-[#D97706] transition-colors">Fontanería</Link></li>
+              <li><Link to="/catalogo" className="hover:text-[#D97706] transition-colors">Pinturas</Link></li>
             </ul>
           </div>
 

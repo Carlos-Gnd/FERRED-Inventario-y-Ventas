@@ -30,7 +30,7 @@ export function AcercaDeNosotros() {
         {/* Misión y Visión */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="w-16 h-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-6">
+            <div className="size-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-6">
               <Target className="text-white" size={32} />
             </div>
             <h3 className="text-3xl font-bold text-[#2B2D31] mb-4">Nuestra Misión</h3>
@@ -44,7 +44,7 @@ export function AcercaDeNosotros() {
           </div>
 
           <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="w-16 h-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-6">
+            <div className="size-16 bg-[#D97706] rounded-xl flex items-center justify-center mb-6">
               <Eye className="text-white" size={32} />
             </div>
             <h3 className="text-3xl font-bold text-[#2B2D31] mb-4">Nuestra Visión</h3>
@@ -65,7 +65,7 @@ export function AcercaDeNosotros() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-20 h-20 bg-[#D97706] rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="size-20 bg-[#D97706] rounded-full flex items-center justify-center mx-auto mb-4">
                 <Award className="text-white" size={40} />
               </div>
               <h4 className="text-xl font-bold text-[#2B2D31] mb-3">Calidad</h4>
@@ -76,7 +76,7 @@ export function AcercaDeNosotros() {
             </div>
 
             <div className="text-center">
-              <div className="w-20 h-20 bg-[#D97706] rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="size-20 bg-[#D97706] rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="text-white" size={40} />
               </div>
               <h4 className="text-xl font-bold text-[#2B2D31] mb-3">Servicio</h4>
@@ -87,7 +87,7 @@ export function AcercaDeNosotros() {
             </div>
 
             <div className="text-center">
-              <div className="w-20 h-20 bg-[#D97706] rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="size-20 bg-[#D97706] rounded-full flex items-center justify-center mx-auto mb-4">
                 <Shield className="text-white" size={40} />
               </div>
               <h4 className="text-xl font-bold text-[#2B2D31] mb-3">Confianza</h4>
@@ -106,10 +106,10 @@ export function AcercaDeNosotros() {
             Descubre nuestro catálogo completo de herramientas y materiales profesionales
           </p>
           <div className="flex gap-4 justify-center">
-            <button className="bg-[#D97706] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#B45309] transition-colors">
+            <button type="button" className="bg-[#D97706] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#B45309] transition-colors">
               Ver Catálogo
             </button>
-            <button className="bg-white text-[#2B2D31] px-8 py-3 rounded-xl font-semibold hover:bg-[#F5F2EB] transition-colors">
+            <button type="button" className="bg-white text-[#2B2D31] px-8 py-3 rounded-xl font-semibold hover:bg-[#F5F2EB] transition-colors">
               Visitar Sucursal
             </button>
           </div>

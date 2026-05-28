@@ -1,33 +1,20 @@
-// Módulo de Ventas / POS
-// Componente: CantidadInput (T-09B.2)
-// Adapta el campo de cantidad según el tipo de unidad del producto:
-//   - UNIDAD | CAJA | LOTE → enteros, sin decimales
-//   - PESO   | MEDIDA      → decimales (2 lugares), muestra la unidad (lb, m, etc.)
-
 import { useRef, useState } from 'react';
 import type { TipoUnidad } from '../../../types';
 
 export interface CantidadInputProps {
-  /** Tipo de unidad del producto */
   tipoUnidad: TipoUnidad;
-  /** Símbolo de la unidad para peso/medida (ej: 'kg', 'm', 'lb', 'ml') */
   unidadSimbolo?: string;
-  /** Valor actual de la cantidad */
   valor: number;
-  /** Callback cuando cambia el valor */
   onChange: (nuevoValor: number) => void;
-  /** Cantidad mínima permitida (default: 1) */
   min?: number;
-  /** Cantidad máxima permitida (stock disponible) */
   max?: number;
-  /** Deshabilitar el input */
   disabled?: boolean;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+const UNIDADES_DECIMALES = new Set<TipoUnidad>(['M','M2','PULG','PIE','YD','LB','KG','GR','GAL','LT']);
 
 function esDecimal(tipo: TipoUnidad): boolean {
-  return tipo === 'PESO' || tipo === 'MEDIDA';
+  return UNIDADES_DECIMALES.has(tipo);
 }
 
 function stepDe(tipo: TipoUnidad): number {
@@ -40,13 +27,8 @@ function formatearValor(valor: number, tipo: TipoUnidad): string {
 }
 
 function etiquetaTipo(tipo: TipoUnidad, simbolo?: string): string {
-  switch (tipo) {
-    case 'UNIDAD': return 'und.';
-    case 'CAJA':   return 'caja(s)';
-    case 'LOTE':   return 'lote(s)';
-    case 'PESO':   return simbolo ?? 'lb';
-    case 'MEDIDA': return simbolo ?? 'm';
-  }
+  if (simbolo) return simbolo;
+  return tipo.toLowerCase();
 }
 
 // ── Componente ───────────────────────────────────────────────────────────────

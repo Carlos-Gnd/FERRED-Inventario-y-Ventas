@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
-import { getProductImage } from '../components/ProductCard';
+import { getProductImage } from '../utils/product.utils';
 import { useEcommerce } from '../context/EcommerceContext';
 
 export function Carrito() {
@@ -37,7 +37,7 @@ export function Carrito() {
                 return (
                   <article key={item.product.id} className="bg-white rounded-xl shadow-md p-4 sm:p-5">
                     <div className="grid grid-cols-[96px_1fr_auto] gap-4 sm:gap-5 items-start">
-                      <Link to={`/producto/${item.product.id}`} className="block w-24 h-24 rounded-lg overflow-hidden bg-[#F5F2EB]">
+                      <Link to={`/producto/${item.product.id}`} className="block size-24 rounded-lg overflow-hidden bg-[#F5F2EB]">
                         <img src={image} alt={item.product.nombre} loading="lazy" className="w-full h-full object-cover" />
                       </Link>
 
@@ -49,6 +49,7 @@ export function Carrito() {
 
                         <div className="inline-flex items-center border border-[#E5E2DA] rounded-full overflow-hidden mt-5">
                           <button
+                            type="button"
                             onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
                             className="w-9 h-8 flex items-center justify-center text-[#5F6368] hover:bg-[#F5F2EB]"
                             aria-label="Reducir cantidad"
@@ -57,6 +58,7 @@ export function Carrito() {
                           </button>
                           <span className="w-9 h-8 flex items-center justify-center text-sm font-semibold">{item.quantity}</span>
                           <button
+                            type="button"
                             onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                             className="w-9 h-8 flex items-center justify-center text-[#5F6368] hover:bg-[#F5F2EB]"
                             aria-label="Aumentar cantidad"
@@ -68,6 +70,7 @@ export function Carrito() {
 
                       <div className="flex flex-col items-end gap-6">
                         <button
+                          type="button"
                           onClick={() => removeFromCart(item.product.id)}
                           className="text-red-500 hover:text-red-700"
                           aria-label="Eliminar producto"
@@ -104,7 +107,7 @@ export function Carrito() {
               <Link to="/checkout" className="w-full bg-[#D97706] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#B45309] transition-colors">
                 Proceder al Pago <ArrowRight size={18} />
               </Link>
-              <div className="bg-[#F5F2EB] text-[#5F6368] text-xs text-center rounded-lg px-4 py-4 mt-5">
+              <div className="bg-[#F5F2EB] text-[#5F6368] text-xs text-center rounded-lg p-4 mt-5">
                 Aceptamos todas las tarjetas de credito y debito
               </div>
             </aside>

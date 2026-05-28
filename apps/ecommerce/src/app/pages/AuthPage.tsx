@@ -80,6 +80,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
               required
               minLength={2}
               placeholder="Nombre completo"
+              aria-label="Nombre completo"
               className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
             />
           )}
@@ -89,7 +90,8 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
             onChange={(e) => setEmail(e.target.value)}
             type="email"
             required
-            placeholder="Correo electronico"
+            placeholder="Correo electrónico"
+            aria-label="Correo electrónico"
             className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
           />
 
@@ -99,7 +101,8 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
             type="password"
             required
             minLength={isRegistro ? 8 : 1}
-            placeholder="Contrasena"
+            placeholder="Contraseña"
+            aria-label="Contraseña"
             className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
           />
 
@@ -108,14 +111,16 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
               <input
                 value={telefono}
                 onChange={(e) => setTelefono(e.target.value)}
-                placeholder="Telefono"
+                placeholder="Teléfono"
+                aria-label="Teléfono"
                 className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
               />
               <textarea
                 value={direccion}
                 onChange={(e) => setDireccion(e.target.value)}
                 rows={3}
-                placeholder="Direccion"
+                placeholder="Dirección"
+                aria-label="Dirección"
                 className="w-full px-4 py-3 border border-[#E5E2DA] rounded-xl"
               />
             </>
@@ -124,6 +129,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           {error && <p className="text-red-600 text-sm">{error}</p>}
 
           <button
+            type="submit"
             disabled={loading}
             className="w-full bg-[#D97706] text-white py-3 rounded-xl font-semibold disabled:bg-[#E5E2DA] disabled:text-[#5F6368]"
           >

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { crearPedidoOnline, getProductosPublicos, getZonasEnvio } from '../services/ecommerceApi';
 import { useAuth } from './AuthContext';
@@ -32,26 +32,20 @@ export function EcommerceProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return [];
+    try { return JSON.parse(raw) as CartItem[]; }
+    catch { localStorage.removeItem(CART_STORAGE_KEY); return []; }
+  });
   const [zonasEnvio, setZonasEnvio] = useState<ZonaEnvio[]>([]);
   const [loadingZonas, setLoadingZonas] = useState(false);
-
-  useEffect(() => {
-    const raw = localStorage.getItem(CART_STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as CartItem[];
-      setCartItems(parsed);
-    } catch {
-      localStorage.removeItem(CART_STORAGE_KEY);
-    }
-  }, []);
 
   useEffect(() => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
   }, [cartItems]);
 
-  const refreshProducts = async () => {
+  const refreshProducts = useCallback(async () => {
     setLoadingProducts(true);
     setProductsError(null);
     try {
@@ -63,11 +57,11 @@ export function EcommerceProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoadingProducts(false);
     }
-  };
+  }, [selectedSucursalId]);
 
   useEffect(() => {
     void refreshProducts();
-  }, [selectedSucursalId]);
+  }, [refreshProducts]);
 
   useEffect(() => {
     const loadZonas = async () => {
@@ -142,8 +136,7 @@ export function EcommerceProvider({ children }: { children: React.ReactNode }) {
         return crearPedidoOnline(payload, token);
       },
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedSucursalId, products, loadingProducts, productsError, cartItems, cartCount, subtotal, zonasEnvio, loadingZonas, token],
+    [selectedSucursalId, products, loadingProducts, productsError, refreshProducts, cartItems, cartCount, subtotal, zonasEnvio, loadingZonas, token],
   );
 
   return <EcommerceContext.Provider value={value}>{children}</EcommerceContext.Provider>;
