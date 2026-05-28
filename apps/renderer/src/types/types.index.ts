@@ -36,14 +36,39 @@ export interface Categoria {
 }
 
 // ─── PRODUCTO ────────────────────────────────────────────────
-export type TipoUnidad = 'UNIDAD' | 'CAJA' | 'PESO' | 'MEDIDA' | 'LOTE';
+export type TipoUnidad =
+  | 'UND' | 'CAJA' | 'PAQ' | 'BOLSA' | 'JUEGO' | 'KIT' | 'PAR'
+  | 'SACO' | 'TUBO' | 'ROLLO' | 'PLACA' | 'LATA' | 'DOC' | 'CIEN' | 'MIL'
+  | 'M' | 'M2' | 'PULG' | 'PIE' | 'YD'
+  | 'LB' | 'KG' | 'GR' | 'GAL' | 'LT' | 'BARRIL';
 
 export const TIPO_UNIDAD_LABELS: Record<TipoUnidad, string> = {
-  UNIDAD: 'Unidades',
+  UND:    'Unidades',
   CAJA:   'Cajas',
-  PESO:   'Libras',
-  MEDIDA: 'Metros',
-  LOTE:   'Lote',
+  PAQ:    'Paquetes',
+  BOLSA:  'Bolsas',
+  JUEGO:  'Juegos/conjuntos',
+  KIT:    'Kits',
+  PAR:    'Pares',
+  SACO:   'Sacos',
+  TUBO:   'Tubos',
+  ROLLO:  'Rollos',
+  PLACA:  'Placas',
+  LATA:   'Latas',
+  DOC:    'Docenas',
+  CIEN:   'Cientos',
+  MIL:    'Millares',
+  M:      'Metros',
+  M2:     'Metros²',
+  PULG:   'Pulgadas',
+  PIE:    'Pies',
+  YD:     'Yardas',
+  LB:     'Libras',
+  KG:     'Kilogramos',
+  GR:     'Gramos',
+  GAL:    'Galones',
+  LT:     'Litros',
+  BARRIL: 'Barriles',
 };
 
 export interface Producto {

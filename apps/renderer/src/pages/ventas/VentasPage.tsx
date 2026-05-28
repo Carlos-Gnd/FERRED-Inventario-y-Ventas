@@ -63,7 +63,7 @@ function normalizarProducto(raw: any, sucursalId: number | null): ProductoPOS {
     precioVenta:  raw.precioVenta || 0,
     precioConIva: raw.precioConIva || raw.precioVenta || 0,
     tieneIva:     raw.tieneIva ?? true,
-    tipoUnidad:   (raw.tipoUnidad as TipoUnidad) ?? 'UNIDAD',
+    tipoUnidad:   (raw.tipoUnidad as TipoUnidad) ?? 'UND',
     stockActual,
     categoria:    raw.categoria?.nombre ?? 'Sin categoría',
   };

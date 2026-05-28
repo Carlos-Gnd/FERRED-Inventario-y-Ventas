@@ -26,13 +26,23 @@ interface AxiosErrorConRespuesta {
   message:   string;
 }
 
-// Mapa tipoUnidad -> codigo catalogo Hacienda
+// Mapa tipoUnidad -> codigo catalogo Hacienda (Tabla 14)
 function uniMedidaCode(tipoUnidad: string | null): number {
-  switch ((tipoUnidad ?? 'UNIDAD').toUpperCase()) {
-    case 'PESO':   return 32;  // Kilogramo
-    case 'MEDIDA': return 52;  // Metro
-    case 'LOTE':   return 26;  // Caja
-    default:       return 59;  // Unidad
+  switch ((tipoUnidad ?? 'UND').toUpperCase()) {
+    case 'KG':    return 32;  // Kilogramo
+    case 'LB':    return 30;  // Libra
+    case 'GR':    return 33;  // Gramo
+    case 'M':     return 52;  // Metro
+    case 'M2':    return 53;  // Metro cuadrado
+    case 'PULG':  return 54;  // Pulgada
+    case 'PIE':   return 55;  // Pie
+    case 'YD':    return 56;  // Yarda
+    case 'GAL':   return 40;  // Galón
+    case 'LT':    return 41;  // Litro
+    case 'CAJA':  return 26;  // Caja
+    case 'SACO':  return 24;  // Saco
+    case 'ROLLO': return 23;  // Rollo
+    default:      return 59;  // Unidad (UND, PAQ, BOLSA, JUEGO, KIT, PAR, TUBO, PLACA, LATA, DOC, CIEN, MIL, BARRIL)
   }
 }
 

@@ -10,7 +10,7 @@ import type { ToastData } from '../../components/ui';
 import { ProductoDropzone } from './ProductoDropzone';
 
 const UNIDAD_OPTIONS = Object.entries(TIPO_UNIDAD_LABELS).map(([v, l]) => ({ value: v, label: l }));
-const EMPTY = { nombre: '', categoriaId: '', codigoBarras: '', tipoUnidad: 'UNIDAD', precioCompra: '', porcentajeGanancia: '30', tieneIva: true, stockActual: '0', stockMinimo: '0', imageUrl: '' };
+const EMPTY = { nombre: '', categoriaId: '', codigoBarras: '', tipoUnidad: 'UND', precioCompra: '', porcentajeGanancia: '30', tieneIva: true, stockActual: '0', stockMinimo: '0', imageUrl: '' };
 
 function calcVenta(costo: number, ganancia: number, iva: boolean) {
   const venta = costo * (1 + ganancia / 100);
@@ -172,7 +172,7 @@ export default function ProductsPage() {
       nombre: selectedProd.nombre,
       categoriaId: String(selectedProd.categoriaId ?? ''),
       codigoBarras: selectedProd.codigoBarras ?? '',
-      tipoUnidad: selectedProd.tipoUnidad ?? 'UNIDAD',
+      tipoUnidad: selectedProd.tipoUnidad ?? 'UND',
       precioCompra: String(selectedProd.precioCompra ?? ''),
       porcentajeGanancia: String(selectedProd.porcentajeGanancia ?? '30'),
       tieneIva: selectedProd.tieneIva,

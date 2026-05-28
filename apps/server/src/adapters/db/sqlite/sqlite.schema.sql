@@ -29,12 +29,19 @@ CREATE TABLE IF NOT EXISTS usuarios (
 );
 
 
+CREATE TABLE IF NOT EXISTS unidades_medida (
+  codigo      TEXT PRIMARY KEY,
+  nombre      TEXT NOT NULL,
+  descripcion TEXT,
+  activo      INTEGER NOT NULL DEFAULT 1
+);
+
 CREATE TABLE IF NOT EXISTS productos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   categoria_id INTEGER,
   nombre TEXT NOT NULL,
   codigo_barras TEXT UNIQUE,
-  tipo_unidad TEXT NOT NULL DEFAULT 'UNIDAD',
+  tipo_unidad TEXT REFERENCES unidades_medida(codigo) ON UPDATE CASCADE ON DELETE SET NULL,
   precio_compra REAL NOT NULL DEFAULT 0,
   porcentaje_ganancia REAL NOT NULL DEFAULT 0,
   precio_venta REAL NOT NULL DEFAULT 0,
