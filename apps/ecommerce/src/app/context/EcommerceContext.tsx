@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { crearPedidoOnline, getProductosPublicos, getZonasEnvio } from '../services/ecommerceApi';
 import { useAuth } from './AuthContext';
 import type { CartItem, PedidoPayload, Product, ZonaEnvio } from '../types';
@@ -94,6 +95,7 @@ export function EcommerceProvider({ children }: { children: React.ReactNode }) {
       };
       return copy;
     });
+    toast.success(`${product.nombre} agregado al carrito`);
   };
 
   const removeFromCart = (productId: number) => {
@@ -118,27 +120,31 @@ export function EcommerceProvider({ children }: { children: React.ReactNode }) {
   );
   const cartCount = useMemo(() => cartItems.reduce((acc, item) => acc + item.quantity, 0), [cartItems]);
 
-  const value: EcommerceContextType = {
-    selectedSucursalId,
-    setSelectedSucursalId,
-    products,
-    loadingProducts,
-    productsError,
-    refreshProducts,
-    cartItems,
-    addToCart,
-    removeFromCart,
-    updateQuantity,
-    clearCart,
-    cartCount,
-    subtotal,
-    zonasEnvio,
-    loadingZonas,
-    createOrder: async (payload) => {
-      if (!token) throw new Error('Inicia sesion para confirmar tu pedido');
-      return crearPedidoOnline(payload, token);
-    },
-  };
+  const value = useMemo<EcommerceContextType>(
+    () => ({
+      selectedSucursalId,
+      setSelectedSucursalId,
+      products,
+      loadingProducts,
+      productsError,
+      refreshProducts,
+      cartItems,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      cartCount,
+      subtotal,
+      zonasEnvio,
+      loadingZonas,
+      createOrder: async (payload) => {
+        if (!token) throw new Error('Inicia sesión para confirmar tu pedido');
+        return crearPedidoOnline(payload, token);
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedSucursalId, products, loadingProducts, productsError, cartItems, cartCount, subtotal, zonasEnvio, loadingZonas, token],
+  );
 
   return <EcommerceContext.Provider value={value}>{children}</EcommerceContext.Provider>;
 }

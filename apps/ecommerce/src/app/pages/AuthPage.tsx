@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 
 type AuthMode = 'login' | 'registro';
@@ -21,8 +22,22 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setLoading(true);
     setError(null);
+
+    if (!email.includes('@') || !email.includes('.')) {
+      setError('Ingresa un correo electrónico válido');
+      return;
+    }
+    if (isRegistro && nombre.trim().length < 2) {
+      setError('Ingresa tu nombre completo (mínimo 2 caracteres)');
+      return;
+    }
+    if (isRegistro && password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+
+    setLoading(true);
     try {
       if (isRegistro) {
         await register({
@@ -32,12 +47,14 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           telefono: telefono || undefined,
           direccion: direccion || undefined,
         });
+        toast.success('¡Cuenta creada con éxito! Bienvenido a FERRED.');
       } else {
         await login({ email, password });
+        toast.success('¡Bienvenido de vuelta!');
       }
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo completar la autenticacion');
+      setError(err instanceof Error ? err.message : 'No se pudo completar la autenticación');
     } finally {
       setLoading(false);
     }

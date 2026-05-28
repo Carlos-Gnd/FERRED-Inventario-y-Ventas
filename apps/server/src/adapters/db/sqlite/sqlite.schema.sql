@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS productos (
   stock_actual INTEGER NOT NULL DEFAULT 0,
   stock_minimo INTEGER NOT NULL DEFAULT 0,
   activo INTEGER NOT NULL DEFAULT 1,
+  image_url TEXT,
   creado_en TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

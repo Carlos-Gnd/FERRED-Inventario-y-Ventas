@@ -85,8 +85,8 @@ const IcoInfo = () => (
 );
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-const fmt = (n: number) =>
-  new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(n);
+const _fmtInstance = new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' });
+const fmt = (n: number) => _fmtInstance.format(n);
 
 // ── Componente principal ──────────────────────────────────────────────────
 export function PagoPage() {

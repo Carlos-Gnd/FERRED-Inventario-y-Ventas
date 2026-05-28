@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Routes, Route, useLocation } from 'react-router';
+import { BrowserRouter, Navigate, Routes, Route, useLocation, Link } from 'react-router';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
@@ -12,7 +12,8 @@ import { ComoComprar } from './pages/ComoComprar';
 import { Sucursales } from './pages/Sucursales';
 import { AcercaDeNosotros } from './pages/AcercaDeNosotros';
 import { AuthPage } from './pages/AuthPage';
-import { useAuth } from './context/AuthContext';import { PagoPage } from './pages/PagoPage';
+import { useAuth } from './context/AuthContext';
+import { PagoPage } from './pages/PagoPage';
 
 
 function RequireCliente({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,16 @@ export default function App() {
             <Route path="/sucursales" element={<Sucursales />} />
             <Route path="/acerca-de-nosotros" element={<AcercaDeNosotros />} />
             <Route path="/pago/:pedidoId" element={<RequireCliente><PagoPage /></RequireCliente>} />
+            <Route path="*" element={
+              <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-4">
+                <span className="text-7xl font-bold text-[#D97706]">404</span>
+                <h1 className="text-2xl font-bold text-[#2B2D31]">Página no encontrada</h1>
+                <p className="text-[#5F6368]">La dirección que buscas no existe o fue movida.</p>
+                <Link to="/" className="mt-2 bg-[#D97706] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#B45309] transition-colors">
+                  Volver al inicio
+                </Link>
+              </div>
+            } />
           </Routes>
         </main>
         <Footer />
