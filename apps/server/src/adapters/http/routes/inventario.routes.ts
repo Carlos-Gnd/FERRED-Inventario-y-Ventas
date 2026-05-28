@@ -447,36 +447,50 @@ inventarioRoutes.get(
   roleMiddleware('ADMIN', 'BODEGA'),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
-      const productos = await prisma.producto.findMany({
-        where:   { activo: true },
-        select: {
-          id:           true,
-          nombre:       true,
-          codigoBarras: true,
-          tipoUnidad:   true,
-          stockMinimo:  true,
-          precioVenta:  true,
-          categoria:    { select: { nombre: true } },
-          stocks: {
-            include: {
-              sucursal: { select: { id: true, nombre: true } },
+      const [productos, todasSucursales] = await Promise.all([
+        prisma.producto.findMany({
+          where:   { activo: true },
+          select: {
+            id:           true,
+            nombre:       true,
+            codigoBarras: true,
+            tipoUnidad:   true,
+            stockMinimo:  true,
+            precioVenta:  true,
+            categoria:    { select: { nombre: true } },
+            stocks: {
+              include: {
+                sucursal: { select: { id: true, nombre: true } },
+              },
             },
           },
-        },
-        orderBy: { nombre: 'asc' },
-      });
+          orderBy: { nombre: 'asc' },
+        }),
+        prisma.sucursal.findMany({
+          select: { id: true, nombre: true },
+          orderBy: { id: 'asc' },
+        }),
+      ]);
 
       const resultado = productos.map((p) => {
-        const sucursales = p.stocks.map((s) => ({
-          sucursalId:     s.sucursalId,
-          sucursalNombre: s.sucursal.nombre,
-          cantidad:       s.cantidad,
-          minimo:         s.minimo,
-          estado:
-            s.cantidad === 0       ? 'critico'    :
-            s.cantidad <= s.minimo ? 'bajo'        :
-                                     'disponible',
-        }));
+        const stockPorSucursal = new Map(p.stocks.map((stock) => [stock.sucursalId, stock]));
+
+        const sucursales = todasSucursales.map((sucursal) => {
+          const stock = stockPorSucursal.get(sucursal.id);
+          const cantidad = stock?.cantidad ?? 0;
+          const minimo = stock?.minimo ?? 0;
+
+          return {
+            sucursalId:     sucursal.id,
+            sucursalNombre: sucursal.nombre,
+            cantidad,
+            minimo,
+            estado:
+              cantidad === 0      ? 'critico'    :
+              cantidad <= minimo  ? 'bajo'       :
+                                    'disponible',
+          };
+        });
 
         const stockTotal = sucursales.reduce((acc: number, s) => acc + s.cantidad, 0);
 
