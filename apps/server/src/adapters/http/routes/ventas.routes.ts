@@ -52,18 +52,20 @@ function toWeekdayLabel(date: Date): string {
   return WEEKDAY_LABELS[date.getDay()] ?? 'N/A';
 }
 
+const UNIDADES_DECIMALES = new Set(['M','M2','PULG','PIE','YD','LB','KG','GR','GAL','LT']);
+
 function validarCantidadPorUnidad(
   cantidad: number,
   tipoUnidad: string | null,
   nombreProducto: string,
 ): string | null {
-  const tipo = tipoUnidad?.toUpperCase() ?? 'UNIDAD';
+  const tipo = tipoUnidad?.toUpperCase() ?? 'UND';
 
-  if ((tipo === 'UNIDAD' || tipo === 'LOTE') && !Number.isInteger(cantidad)) {
-    return `"${nombreProducto}" se vende por ${tipo} — la cantidad debe ser un número entero (recibido: ${cantidad})`;
+  if (!UNIDADES_DECIMALES.has(tipo) && !Number.isInteger(cantidad)) {
+    return `"${nombreProducto}" se vende por unidades enteras (tipo: ${tipo}, recibido: ${cantidad})`;
   }
-  if ((tipo === 'PESO' || tipo === 'MEDIDA') && cantidad <= 0) {
-    return `"${nombreProducto}" se vende por ${tipo} — la cantidad debe ser mayor a 0`;
+  if (UNIDADES_DECIMALES.has(tipo) && cantidad <= 0) {
+    return `"${nombreProducto}" requiere una cantidad mayor a 0 (tipo: ${tipo})`;
   }
   return null;
 }

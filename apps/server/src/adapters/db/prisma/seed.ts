@@ -35,6 +35,38 @@ async function main() {
   }
   console.log('✓ 6 categorías');
 
+  for (const u of [
+    { codigo: 'UND',    nombre: 'Producto por unidades', descripcion: 'Artículos individuales (martillos, alicates, brochas).' },
+    { codigo: 'CAJA',   nombre: 'Cajas',                 descripcion: 'Productos empaquetados en cajas cerradas (cerámica, clavos por caja).' },
+    { codigo: 'PAQ',    nombre: 'Paquetes',              descripcion: 'Empaques sellados de múltiples unidades menores.' },
+    { codigo: 'BOLSA',  nombre: 'Bolsas',                descripcion: 'Productos empacados en bolsas plásticas o de papel.' },
+    { codigo: 'JUEGO',  nombre: 'Juegos o conjuntos',    descripcion: 'Artículos que se venden juntos y funcionan en conjunto (juego de llaves).' },
+    { codigo: 'KIT',    nombre: 'Kits',                  descripcion: 'Conjunto de piezas para ensamble o reparación específica.' },
+    { codigo: 'PAR',    nombre: 'Pares',                 descripcion: 'Artículos de uso dual (guantes, botas de seguridad).' },
+    { codigo: 'SACO',   nombre: 'Sacos',                 descripcion: 'Materiales pesados a granel (cemento, arena, cal).' },
+    { codigo: 'TUBO',   nombre: 'Tubos',                 descripcion: 'Piezas cilíndricas estructurales o de fontanería (PVC, hierro).' },
+    { codigo: 'ROLLO',  nombre: 'Rollos',                descripcion: 'Materiales continuos enrollados (cables, mangueras, alambre).' },
+    { codigo: 'PLACA',  nombre: 'Placas',                descripcion: 'Láminas planas de construcción (tabla yeso, fibrocemento).' },
+    { codigo: 'LATA',   nombre: 'Latas',                 descripcion: 'Envases metálicos o plásticos, usualmente para químicos o pinturas.' },
+    { codigo: 'DOC',    nombre: 'Docenas',               descripcion: 'Agrupación de 12 unidades (bisagras, tiradores).' },
+    { codigo: 'CIEN',   nombre: 'Cientos',               descripcion: 'Agrupación de 100 unidades, venta al por mayor (tornillos, arandelas).' },
+    { codigo: 'MIL',    nombre: 'Millares',              descripcion: 'Agrupación de 1000 unidades (ladrillos, bloques).' },
+    { codigo: 'M',      nombre: 'Metros',                descripcion: 'Medida de longitud estándar para cortes (cables sueltos, lazos).' },
+    { codigo: 'M2',     nombre: 'Metros cuadrados',      descripcion: 'Medida de área para recubrimientos (pisos, láminas de techo).' },
+    { codigo: 'PULG',   nombre: 'Pulgadas',              descripcion: 'Medida de longitud o diámetro (madera, tuberías).' },
+    { codigo: 'PIE',    nombre: 'Pies',                  descripcion: 'Medida de longitud tradicional (tablas de madera).' },
+    { codigo: 'YD',     nombre: 'Yardas',                descripcion: 'Medida de longitud para mallas o zarandas.' },
+    { codigo: 'LB',     nombre: 'Libras',                descripcion: 'Medida de peso estándar (clavos a granel, alambre de amarre).' },
+    { codigo: 'KG',     nombre: 'Kilogramos',            descripcion: 'Medida de peso métrica (aditivos, pegamentos en polvo).' },
+    { codigo: 'GR',     nombre: 'Gramos',                descripcion: 'Medida de peso para cantidades pequeñas (químicos específicos).' },
+    { codigo: 'GAL',    nombre: 'Galones',               descripcion: 'Medida de volumen estándar para líquidos (pinturas, solventes).' },
+    { codigo: 'LT',     nombre: 'Litros',                descripcion: 'Medida de volumen métrica (impermeabilizantes, lubricantes).' },
+    { codigo: 'BARRIL', nombre: 'Barriles',              descripcion: 'Medida de volumen de gran capacidad (selladores industriales, agua).' },
+  ]) {
+    await prisma.unidadMedida.upsert({ where: { codigo: u.codigo }, update: {}, create: u });
+  }
+  console.log('✓ 26 unidades de medida');
+
   const seedUsers = [
     {
       nombre: process.env.SEED_ADMIN_NAME  ?? 'Alex Johnson',

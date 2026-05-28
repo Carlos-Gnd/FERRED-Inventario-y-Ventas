@@ -5,6 +5,7 @@ import { prisma } from '../db/prisma/prisma.client';
 const TABLAS_PERMITIDAS = new Set([
   'producto',
   'categoria',
+  'unidadMedida',
   'usuario',
   'stockSucursal',
   'facturaDte',
@@ -26,6 +27,7 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
     'stockMinimo', 'activo', 'imageUrl', 'creadoEn', 'updatedAt',
   ],
   categoria: ['id', 'nombre', 'descripcion', 'activo', 'updatedAt'],
+  unidadMedida: ['codigo', 'nombre', 'descripcion', 'activo'],
   // BUG-A03: campo correcto en Prisma es 'contrasenaHash', no 'passwordHash'
   usuario: ['id', 'nombre', 'email', 'contrasenaHash', 'rol', 'sucursalId', 'activo', 'updatedAt'],
   stockSucursal: ['id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'stockReservado', 'actualizadoEn', 'updatedAt'],
@@ -96,6 +98,7 @@ export async function aplicarOperacion(
   if (op === 'CREATE') {
     if (tabla === 'producto') { await crearProductoDesdePendiente(payload); return; }
     if (tabla === 'configuracionNegocio') { await upsertConfiguracion(payload); return; }
+    if (tabla === 'unidadMedida') { await upsertUnidadMedida(payload); return; }
     const model = getModel(tabla);
     const data = limpiarPayload(tabla, payload);
     if (data.id) {
@@ -108,6 +111,10 @@ export async function aplicarOperacion(
 
   if (op === 'UPDATE' && tabla === 'configuracionNegocio') {
     await upsertConfiguracion(payload);
+    return;
+  }
+  if (op === 'UPDATE' && tabla === 'unidadMedida') {
+    await upsertUnidadMedida(payload);
     return;
   }
 
@@ -131,6 +138,21 @@ async function upsertConfiguracion(payload: Record<string, unknown>): Promise<vo
     where:  { clave: String(data.clave) },
     update: { valor: data.valor as string },
     create: { clave: String(data.clave), valor: String(data.valor ?? ''), tipo: String(data.tipo ?? 'TEXT') },
+  });
+}
+
+async function upsertUnidadMedida(payload: Record<string, unknown>): Promise<void> {
+  const data = limpiarPayload('unidadMedida', payload);
+  if (!data.codigo) throw new Error('unidadMedida sin codigo en payload');
+  await prisma.unidadMedida.upsert({
+    where:  { codigo: String(data.codigo) },
+    update: { nombre: String(data.nombre ?? ''), descripcion: data.descripcion as string | undefined },
+    create: {
+      codigo:      String(data.codigo),
+      nombre:      String(data.nombre ?? ''),
+      descripcion: data.descripcion as string | undefined,
+      activo:      data.activo !== false,
+    },
   });
 }
 
