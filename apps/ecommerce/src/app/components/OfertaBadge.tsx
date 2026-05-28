@@ -1,19 +1,10 @@
 import type { Product } from '../types';
+import { tieneOfertaVigente, obtenerPrecioFinal } from '../utils/product.utils';
 
 type OfertaPriceProps = {
   product: Pick<Product, 'precioConIva' | 'precioOferta' | 'oferta'>;
   size?: 'card' | 'detail';
 };
-
-export function tieneOfertaVigente(product: Pick<Product, 'precioOferta' | 'oferta'>) {
-  return Number(product.precioOferta ?? product.oferta?.precioOferta ?? 0) > 0;
-}
-
-export function obtenerPrecioFinal(product: Pick<Product, 'precioConIva' | 'precioOferta' | 'oferta'>) {
-  return tieneOfertaVigente(product)
-    ? Number(product.precioOferta ?? product.oferta?.precioOferta)
-    : Number(product.precioConIva ?? 0);
-}
 
 export function OfertaBadge({ className = '' }: { className?: string }) {
   return (

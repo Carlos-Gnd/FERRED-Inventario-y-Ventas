@@ -268,7 +268,7 @@ export function PagoPage() {
         titulo={metodo === 'TRANSFERENCIA' ? '¡Comprobante enviado!' : '¡Pago procesado!'}
         descripcion={metodo === 'TRANSFERENCIA'
           ? 'Tu comprobante está en revisión. Te notificaremos cuando sea aprobado.'
-          : 'Tu pago fue procesado correctamente. Redirigiendo...'}
+          : 'Tu pago fue procesado correctamente. Redirigiendo…'}
         onAction={irACompraExitosa}
         actionLabel="Continuar"
       />
@@ -290,7 +290,7 @@ export function PagoPage() {
   if (loadingPedido) {
     return (
       <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center">
-        <p className="text-[#5F6368]">Cargando pedido...</p>
+        <p className="text-[#5F6368]">Cargando pedido…</p>
       </div>
     );
   }
@@ -357,7 +357,7 @@ export function PagoPage() {
               {metodo === 'TARJETA' && (
                 intentLoading ? (
                   <div className="flex items-center justify-center py-10">
-                    <p className="text-[#5F6368] text-sm">Iniciando pasarela de pago...</p>
+                    <p className="text-[#5F6368] text-sm">Iniciando pasarela de pago…</p>
                   </div>
                 ) : stripePromise && clientSecret ? (
                   <Elements stripe={stripePromise} options={{ clientSecret }}>
@@ -410,7 +410,7 @@ export function PagoPage() {
                 className="w-full bg-[#D97706] text-white py-4 rounded-xl font-bold text-base hover:bg-[#B45309] disabled:bg-[#E5E2DA] disabled:text-[#5F6368] transition-colors"
               >
                 {estado === 'loading'
-                  ? 'Procesando...'
+                  ? 'Procesando…'
                   : metodo === 'EFECTIVO'
                   ? 'Confirmar pago en efectivo'
                   : 'Enviar comprobante'}
@@ -513,7 +513,7 @@ function TarjetaStripeForm({
         disabled={loading || !stripe || !elements}
         className="w-full bg-[#D97706] text-white py-4 rounded-xl font-bold text-base hover:bg-[#B45309] disabled:bg-[#E5E2DA] disabled:text-[#5F6368] transition-colors"
       >
-        {loading ? 'Procesando...' : 'Pagar con tarjeta'}
+        {loading ? 'Procesando…' : 'Pagar con tarjeta'}
       </button>
     </div>
   );
@@ -581,6 +581,7 @@ function TransferenciaForm({
         <input
           type="text"
           placeholder="Ej: REF-20260509-001"
+          aria-label="Número de referencia de transferencia"
           value={referencia}
           onChange={(e) => onReferencia(e.target.value)}
           className="w-full border border-[#D8D3C8] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#D97706]"
@@ -595,10 +596,14 @@ function TransferenciaForm({
 
         {!archivo ? (
           <div
+            role="button"
+            tabIndex={0}
             onDrop={onDrop}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+            aria-label="Subir comprobante de pago"
             className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors ${
               dragOver ? 'border-[#D97706] bg-[#FFF7ED]' : 'border-[#D8D3C8] bg-[#F9F8F6] hover:border-[#D97706] hover:bg-[#FFF7ED]'
             }`}
@@ -612,6 +617,7 @@ function TransferenciaForm({
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png"
+              aria-label="Seleccionar comprobante de pago"
               className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileChange(f); }}
             />

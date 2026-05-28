@@ -35,7 +35,9 @@ export function Navbar() {
               <h1 className="text-2xl font-bold tracking-tight">FERRED</h1>
             </Link>
             <button
+              type="button"
               onClick={toggleMenu}
+              aria-label={isOpen ? 'Cerrar menú' : 'Abrir menú'}
               className="lg:hidden text-[#F5F2EB] hover:text-[#D97706] transition-colors"
             >
               {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -62,7 +64,8 @@ export function Navbar() {
                 <Search size={18} className="text-[#E5E2DA] flex-shrink-0" />
                 <input
                   type="text"
-                  placeholder="Buscar..."
+                  placeholder="Buscar…"
+                  aria-label="Buscar productos"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-transparent border-none outline-none ml-2 text-[#F5F2EB] placeholder-[#E5E2DA] w-full text-sm"
@@ -98,6 +101,7 @@ export function Navbar() {
             </Link>
             {isAuthenticated && (
               <button
+                type="button"
                 onClick={logout}
                 className="hidden sm:inline text-xs text-[#E5E2DA] hover:text-[#D97706] transition-colors"
               >
@@ -117,7 +121,7 @@ export function Navbar() {
                   <Search size={18} className="text-[#E5E2DA]" />
                   <input
                     type="text"
-                    placeholder="Buscar productos..."
+                    placeholder="Buscar productos…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="bg-transparent border-none outline-none ml-2 text-[#F5F2EB] placeholder-[#E5E2DA] w-full text-sm"

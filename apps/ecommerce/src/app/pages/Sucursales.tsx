@@ -45,7 +45,7 @@ export function Sucursales() {
 
               <div className="space-y-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="size-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center flex-shrink-0">
                     <MapPin className="text-[#D97706]" size={24} />
                   </div>
                   <div>
@@ -55,7 +55,7 @@ export function Sucursales() {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="size-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center flex-shrink-0">
                     <Phone className="text-[#D97706]" size={24} />
                   </div>
                   <div>
@@ -65,7 +65,7 @@ export function Sucursales() {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="size-12 bg-[#F5F2EB] rounded-xl flex items-center justify-center flex-shrink-0">
                     <Clock className="text-[#D97706]" size={24} />
                   </div>
                   <div>
@@ -75,7 +75,7 @@ export function Sucursales() {
                 </div>
               </div>
 
-              <button className="mt-6 w-full bg-[#D97706] text-white py-3 rounded-xl font-semibold hover:bg-[#B45309] transition-colors">
+              <button type="button" className="mt-6 w-full bg-[#D97706] text-white py-3 rounded-xl font-semibold hover:bg-[#B45309] transition-colors">
                 Cómo llegar
               </button>
             </div>
@@ -89,7 +89,7 @@ export function Sucursales() {
           <p className="text-[#5F6368] mb-6">
             Contamos con envío a domicilio a todo el país. Compra en línea y recibe tus productos donde estés.
           </p>
-          <button className="bg-[#2B2D31] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#5F6368] transition-colors">
+          <button type="button" className="bg-[#2B2D31] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#5F6368] transition-colors">
             Comprar en línea
           </button>
         </div>

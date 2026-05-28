@@ -21,7 +21,7 @@ function RequireCliente({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loadingAuth } = useAuth();
 
   if (loadingAuth) {
-    return <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center text-[#5F6368]">Cargando...</div>;
+    return <div className="min-h-screen bg-[#F5F2EB] flex items-center justify-center text-[#5F6368]">Cargando…</div>;
   }
 
   if (!isAuthenticated) {
