@@ -24,7 +24,8 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
   producto: [
     'id', 'categoriaId', 'nombre', 'codigoBarras', 'tipoUnidad', 'precioCompra',
     'porcentajeGanancia', 'precioVenta', 'precioConIva', 'tieneIva', 'stockActual',
-    'stockMinimo', 'activo', 'imageUrl', 'creadoEn', 'updatedAt',
+    'stockMinimo', 'activo', 'disponibleEcommerce', 'caracteristicas', 'imageUrl',
+    'creadoEn', 'updatedAt',
   ],
   categoria: ['id', 'nombre', 'descripcion', 'activo', 'updatedAt'],
   unidadMedida: ['codigo', 'nombre', 'descripcion', 'activo'],

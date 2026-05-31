@@ -77,6 +77,8 @@
       p.tiene_iva AS tieneIva,
       p.stock_actual AS stockActual,
       p.stock_minimo AS stockMinimo,
+      p.disponible_ecommerce AS disponibleEcommerce,
+      p.caracteristicas,
       p.image_url AS imageUrl,
       p.activo
     FROM productos p
@@ -206,8 +208,9 @@
       INSERT INTO productos (
         categoria_id, nombre, codigo_barras, tipo_unidad,
         precio_compra, porcentaje_ganancia, precio_venta, precio_con_iva,
-        tiene_iva, stock_actual, stock_minimo, activo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        tiene_iva, stock_actual, stock_minimo, activo,
+        disponible_ecommerce, caracteristicas
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       data.categoriaId ?? null,
       data.nombre,
@@ -220,7 +223,9 @@
       (data.tieneIva ?? true) ? 1 : 0,
       data.stockActual ?? 0,
       data.stockMinimo ?? 0,
-      1
+      1,
+      (data.disponibleEcommerce ?? false) ? 1 : 0,
+      data.caracteristicas ? JSON.stringify(data.caracteristicas) : null
     );
 
     const id = Number(result.lastInsertRowid);
@@ -254,6 +259,8 @@
       tieneIva: Boolean(data.tieneIva ?? true),
       stockActual: data.stockActual ?? 0,
       stockMinimo: data.stockMinimo ?? 0,
+      disponibleEcommerce: data.disponibleEcommerce ?? false,
+      caracteristicas: data.caracteristicas ?? null,
       imageUrl: data.imageUrl ?? null,
       activo: true,
     });
@@ -346,6 +353,8 @@
         tiene_iva AS tieneIva,
         stock_actual AS stockActual,
         stock_minimo AS stockMinimo,
+        disponible_ecommerce AS disponibleEcommerce,
+        caracteristicas,
         image_url AS imageUrl,
         activo
       FROM productos
@@ -577,6 +586,8 @@
     ensureColumn(db, 'usuarios',      'last_synced_at', 'TEXT');       // T-07F.3
     ensureColumn(db, 'usuarios',      'updated_at',     'TEXT');       // DT-NUEVA-B
     ensureColumn(db, 'productos',     'image_url',      'TEXT');       // T-22.1
+    ensureColumn(db, 'productos',     'disponible_ecommerce', 'INTEGER NOT NULL DEFAULT 0');
+    ensureColumn(db, 'productos',     'caracteristicas', 'TEXT');
 
     db.prepare(`UPDATE categorias   SET updated_at = datetime('now')                  WHERE updated_at IS NULL`).run();
     db.prepare(`UPDATE productos    SET updated_at = COALESCE(creado_en, datetime('now')) WHERE updated_at IS NULL`).run();
@@ -685,8 +696,21 @@
       tieneIva: Boolean(row.tieneIva),
       stockActual: Number(row.stockActual ?? 0),
       stockMinimo: Number(row.stockMinimo ?? 0),
+      disponibleEcommerce: Boolean(row.disponibleEcommerce),
+      caracteristicas: parseCaracteristicas(row.caracteristicas),
       imageUrl: row.imageUrl ?? null,
       activo: Boolean(row.activo),
     };
+  }
+
+  // caracteristicas se guarda como TEXT (JSON serializado) en SQLite, pero también
+  // puede llegar ya como objeto (path de creación). Normaliza a objeto u null.
+  function parseCaracteristicas(value: unknown): Record<string, unknown> | null {
+    if (value == null) return null;
+    if (typeof value === 'object') return value as Record<string, unknown>;
+    if (typeof value === 'string') {
+      try { return JSON.parse(value); } catch { return null; }
+    }
+    return null;
   }
 

@@ -14,11 +14,12 @@ interface InputProps {
   rows?:        number;     // si > 0 → textarea
   min?:         string | number;
   max?:         string | number;
+  help?:        ReactNode;  // ícono de ayuda junto al label (ej: <HelpTip />)
 }
 
 export function Input({
   label, value, onChange, type = 'text',
-  placeholder, error, icon, suffix, disabled = false, style, rows, min, max,
+  placeholder, error, icon, suffix, disabled = false, style, rows, min, max, help,
 }: InputProps) {
   const [focused, setFocused] = useState(false);
 
@@ -45,8 +46,10 @@ export function Input({
           fontSize: '10px', fontWeight: 600,
           color: 'var(--text-muted)',
           letterSpacing: '0.12em', textTransform: 'uppercase',
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
         }}>
           {label}
+          {help}
         </label>
       )}
 

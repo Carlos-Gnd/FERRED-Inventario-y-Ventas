@@ -82,6 +82,8 @@ model Producto {
   stockActual        Int      @default(0) @map("stock_actual")
   stockMinimo        Int      @default(0) @map("stock_minimo")
   activo             Boolean  @default(true)
+  disponibleEcommerce Boolean @default(false) @map("disponible_ecommerce")
+  caracteristicas    Json?
   imageUrl           String?  @map("image_url")
   creadoEn           DateTime @default(now()) @map("creado_en")
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")

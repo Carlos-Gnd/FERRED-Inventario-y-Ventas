@@ -3,14 +3,23 @@ import { api } from '../../services/api.client';
 import { Button } from '../../components/ui/Button';
 import { Input }  from '../../components/ui/Input';
 import { Modal }  from '../../components/ui/Modal';
-import { Badge, Select, Toast, ConfirmDelete } from '../../components/ui';
+import { Badge, Select, Toast, ConfirmDelete, HelpTip } from '../../components/ui';
 import type { Producto, Categoria, TipoUnidad } from '../../types';
 import { TIPO_UNIDAD_LABELS } from '../../types';
 import type { ToastData } from '../../components/ui';
 import { ProductoDropzone } from './ProductoDropzone';
 
 const UNIDAD_OPTIONS = Object.entries(TIPO_UNIDAD_LABELS).map(([v, l]) => ({ value: v, label: l }));
-const EMPTY = { nombre: '', categoriaId: '', codigoBarras: '', tipoUnidad: 'UND', precioCompra: '', porcentajeGanancia: '30', tieneIva: true, stockActual: '0', stockMinimo: '0', imageUrl: '' };
+const EMPTY = { nombre: '', categoriaId: '', codigoBarras: '', tipoUnidad: 'UND', precioCompra: '', porcentajeGanancia: '30', tieneIva: true, stockActual: '0', stockMinimo: '0', disponibleEcommerce: false, imageUrl: '' };
+
+// Fila del editor clave-valor de características dinámicas
+interface CaracteristicaRow { clave: string; valor: string; }
+
+// Sugerencias de atributos comunes en ferretería (autocompletado del input de clave)
+const CARACTERISTICA_SUGERENCIAS = [
+  'Color', 'Material', 'Dimensiones', 'Peso', 'Voltaje', 'Potencia (W)',
+  'Marca', 'Modelo', 'Garantía', 'Presentación', 'Rosca/Calibre', 'País de origen',
+];
 
 function calcVenta(costo: number, ganancia: number, iva: boolean) {
   const venta = costo * (1 + ganancia / 100);
@@ -28,12 +37,14 @@ interface ProductFormProps {
   formErr: Record<string, string>;
   saving: boolean;
   categorias: Categoria[];
+  caracteristicas: CaracteristicaRow[];
   onChange: (key: keyof typeof EMPTY, value: string | boolean) => void;
+  onCaracteristicasChange: (rows: CaracteristicaRow[]) => void;
   onSave: () => void;
   onCancel: () => void;
 }
 
-function ProductForm({ form, formErr, saving, categorias, onChange, onSave, onCancel }: ProductFormProps) {
+function ProductForm({ form, formErr, saving, categorias, caracteristicas, onChange, onCaracteristicasChange, onSave, onCancel }: ProductFormProps) {
   const catOptions = [{ value: '', label: 'Sin categoría' }, ...categorias.map(c => ({ value: String(c.id), label: c.nombre }))];
   const previewPrices = calcVenta(Number(form.precioCompra) || 0, Number(form.porcentajeGanancia) || 0, form.tieneIva);
 
@@ -56,7 +67,8 @@ function ProductForm({ form, formErr, saving, categorias, onChange, onSave, onCa
         <Select label="Categoría" options={catOptions} value={form.categoriaId}
           onChange={v => onChange('categoriaId', v)} />
         <Input label="Stock mínimo" type="number" min="0" placeholder="0"
-          value={form.stockMinimo} onChange={v => onChange('stockMinimo', v)} />
+          value={form.stockMinimo} onChange={v => onChange('stockMinimo', v)}
+          help={<HelpTip text="Umbral de alerta: cuando el stock llega a este valor o menos, el producto se marca como 'por revisar' / crítico en el inventario." />} />
       </div>
 
       <Input label="Código de barras (opcional)" placeholder="Ej: 7501234567890"
@@ -73,14 +85,16 @@ function ProductForm({ form, formErr, saving, categorias, onChange, onSave, onCa
           <Input label="Costo base ($)" type="number" min="0" placeholder="0.00"
             value={form.precioCompra} onChange={v => onChange('precioCompra', v)} />
           <Input label="Ganancia %" type="number" min="0" placeholder="30"
-            value={form.porcentajeGanancia} onChange={v => onChange('porcentajeGanancia', v)} />
+            value={form.porcentajeGanancia} onChange={v => onChange('porcentajeGanancia', v)}
+            help={<HelpTip text="Margen sobre el costo base. El precio de venta se calcula automáticamente: costo × (1 + ganancia/100), y luego se le suma el IVA si está activado." />} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
           <input type="checkbox" id="iva-check" checked={form.tieneIva}
             onChange={e => onChange('tieneIva', e.target.checked)}
             style={{ accentColor: 'var(--accent)' }} />
-          <label htmlFor="iva-check" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <label htmlFor="iva-check" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             Incluir IVA (13%)
+            <HelpTip text="Si está activo, al precio de venta se le suma el 13% de IVA. Desactivalo para productos exentos de impuesto." />
           </label>
         </div>
         <div style={{
@@ -95,6 +109,52 @@ function ProductForm({ form, formErr, saving, categorias, onChange, onSave, onCa
             ${form.tieneIva ? previewPrices.conIva.toFixed(2) : previewPrices.venta.toFixed(2)}
           </span>
         </div>
+      </div>
+
+      {/* Disponibilidad en la tienda online */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <input type="checkbox" id="ecommerce-check" checked={form.disponibleEcommerce}
+          onChange={e => onChange('disponibleEcommerce', e.target.checked)}
+          style={{ accentColor: 'var(--accent)' }} />
+        <label htmlFor="ecommerce-check" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          Disponible en la tienda online (ecommerce)
+          <HelpTip text="Si está activo, el producto aparece en el catálogo de la tienda online (siempre que tenga stock). Si no, solo se vende en el punto de venta." />
+        </label>
+      </div>
+
+      {/* Características adicionales (atributos dinámicos clave-valor) */}
+      <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: caracteristicas.length ? '10px' : '0' }}>
+          <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            Características adicionales
+            <HelpTip text="Atributos opcionales del producto como pares clave-valor (ej: Color → Rojo, Voltaje → 110V). Se muestran en el detalle del producto en la tienda online." />
+          </p>
+          <Button variant="ghost" type="button"
+            onClick={() => onCaracteristicasChange([...caracteristicas, { clave: '', valor: '' }])}
+            style={{ fontSize: '11px', padding: '4px 10px' }}>
+            + Agregar atributo
+          </Button>
+        </div>
+        <datalist id="caracteristica-sugerencias">
+          {CARACTERISTICA_SUGERENCIAS.map(s => <option key={s} value={s} />)}
+        </datalist>
+        {caracteristicas.map((row, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+            <input list="caracteristica-sugerencias" placeholder="Atributo (ej: Voltaje)"
+              value={row.clave}
+              onChange={e => onCaracteristicasChange(caracteristicas.map((r, j) => j === i ? { ...r, clave: e.target.value } : r))}
+              style={{ padding: '8px 10px', fontSize: '13px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text-primary)' }} />
+            <input placeholder="Valor (ej: 110V)"
+              value={row.valor}
+              onChange={e => onCaracteristicasChange(caracteristicas.map((r, j) => j === i ? { ...r, valor: e.target.value } : r))}
+              style={{ padding: '8px 10px', fontSize: '13px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text-primary)' }} />
+            <button type="button" title="Quitar"
+              onClick={() => onCaracteristicasChange(caracteristicas.filter((_, j) => j !== i))}
+              style={{ padding: '6px 10px', fontSize: '13px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--danger)', cursor: 'pointer' }}>
+              ✕
+            </button>
+          </div>
+        ))}
       </div>
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
@@ -123,6 +183,7 @@ export default function ProductsPage() {
   const [saving,      setSaving]      = useState(false);
   const [formErr,     setFormErr]     = useState<Record<string, string>>({});
   const [form,        setForm]        = useState({ ...EMPTY });
+  const [caracteristicas, setCaracteristicas] = useState<CaracteristicaRow[]>([]);
 
   // Usamos ref para el search debounce — evita re-renders innecesarios
   const buscarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -165,7 +226,7 @@ export default function ProductsPage() {
 
   const selectedProd = productos.find(p => p.id === selected);
 
-  function openNew()  { setForm({ ...EMPTY }); setFormErr({}); setModalNew(true); }
+  function openNew()  { setForm({ ...EMPTY }); setCaracteristicas([]); setFormErr({}); setModalNew(true); }
   function openEdit() {
     if (!selectedProd) return;
     setForm({
@@ -178,8 +239,15 @@ export default function ProductsPage() {
       tieneIva: selectedProd.tieneIva,
       stockActual: String(selectedProd.stockActual),
       stockMinimo: String(selectedProd.stockMinimo),
+      disponibleEcommerce: selectedProd.disponibleEcommerce ?? false,
       imageUrl: selectedProd.imageUrl ?? '',
     });
+    // Hidratar el editor clave-valor desde el objeto de características
+    setCaracteristicas(
+      selectedProd.caracteristicas
+        ? Object.entries(selectedProd.caracteristicas).map(([clave, valor]) => ({ clave, valor: String(valor) }))
+        : []
+    );
     setFormErr({});
     setModalEdit(true);
   }
@@ -200,6 +268,12 @@ export default function ProductsPage() {
   async function handleSave() {
     if (!validate()) return;
     setSaving(true);
+    // Serializar las filas clave-valor a un objeto, ignorando filas sin clave.
+    const caracteristicasObj = caracteristicas.reduce<Record<string, string>>((acc, { clave, valor }) => {
+      const k = clave.trim();
+      if (k) acc[k] = valor;
+      return acc;
+    }, {});
     const payload = {
       nombre: form.nombre,
       codigoBarras: form.codigoBarras || undefined,
@@ -210,6 +284,8 @@ export default function ProductsPage() {
       tieneIva: form.tieneIva,
       stockActual: Number(form.stockActual),
       stockMinimo: Number(form.stockMinimo),
+      disponibleEcommerce: form.disponibleEcommerce,
+      caracteristicas: caracteristicasObj,
       imageUrl: form.imageUrl || null,
     };
     try {
@@ -339,12 +415,14 @@ export default function ProductsPage() {
       <Modal open={modalNew} onClose={() => setModalNew(false)} title="Nuevo Producto" subtitle="Registro de inventario FERRED" maxWidth={600}
         icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>}>
         <ProductForm form={form} formErr={formErr} saving={saving} categorias={categorias}
+          caracteristicas={caracteristicas} onCaracteristicasChange={setCaracteristicas}
           onChange={handleFormChange} onSave={handleSave} onCancel={() => setModalNew(false)} />
       </Modal>
 
       <Modal open={modalEdit} onClose={() => setModalEdit(false)} title="Modificar Producto" subtitle="Edición de datos" maxWidth={600}
         icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>}>
         <ProductForm form={form} formErr={formErr} saving={saving} categorias={categorias}
+          caracteristicas={caracteristicas} onCaracteristicasChange={setCaracteristicas}
           onChange={handleFormChange} onSave={handleSave} onCancel={() => setModalEdit(false)} />
       </Modal>
 
