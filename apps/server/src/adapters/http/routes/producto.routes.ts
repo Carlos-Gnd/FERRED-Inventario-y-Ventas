@@ -85,6 +85,18 @@ function calcularPrecios<T extends DatosPrecio>(data: T): T {
   const compra    = Number(data.precioCompra);
   const ganancia  = Number(data.porcentajeGanancia);
 
+  // Modo "precio final": si llega un precioVenta explícito, se respeta tal cual y se
+  // deriva el precio con IVA desde él (en vez de calcularlo a partir de costo + margen).
+  if (data.precioVenta !== undefined && !isNaN(Number(data.precioVenta))) {
+    const venta = Number(data.precioVenta);
+    data.precioVenta  = Math.round(venta * 100) / 100;
+    data.precioConIva = data.tieneIva
+      ? Math.round(venta * 1.13 * 100) / 100
+      : data.precioVenta;
+    return data;
+  }
+
+  // Modo margen: el precio de venta se calcula desde el costo y el porcentaje de ganancia.
   if (data.precioCompra !== undefined && data.porcentajeGanancia !== undefined
       && !isNaN(compra) && !isNaN(ganancia) && compra >= 0 && ganancia >= 0) {
     const precioVenta = compra * (1 + ganancia / 100);

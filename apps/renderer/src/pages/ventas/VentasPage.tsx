@@ -145,29 +145,33 @@ export default function VentasPage() {
   // Focus automatico en barcode al montar
   useEffect(() => { barcodeRef.current?.focus(); }, []);
 
-  // T-02A.3: Busqueda manual con debounce 300ms via API
+  // T-02A.3: Busqueda manual con debounce 300ms via API.
+  // Con búsqueda vacía cargamos una lista de productos disponibles para navegar (sin teclear).
   useEffect(() => {
     if (busqTimer.current) clearTimeout(busqTimer.current);
-    if (!busqueda.trim()) { setResultados([]); setBuscando(false); return; }
+    const termino = busqueda.trim();
 
     setBuscando(true);
+    // Sin término no hace falta debounce (carga inicial / lista por defecto).
+    const delay = termino ? 300 : 0;
     busqTimer.current = setTimeout(async () => {
       try {
-        const params: Record<string, string> = { buscar: busqueda.trim() };
+        const params: Record<string, string> = {};
+        if (termino) params.buscar = termino;
         if (sucursalId) params.sucursalId = String(sucursalId);
 
         const { data } = await api.get('/productos', { params });
         const productos: ProductoPOS[] = (data as any[])
-          .slice(0, 10)
+          .slice(0, termino ? 10 : 24)
           .map(p => normalizarProducto(p, sucursalId));
         setResultados(productos);
       } catch {
         setResultados([]);
-        showToast('Error al buscar productos', 'error');
+        if (termino) showToast('Error al buscar productos', 'error');
       } finally {
         setBuscando(false);
       }
-    }, 300);
+    }, delay);
   }, [busqueda, sucursalId]);
 
   // T-02A.5: Agregar producto al carrito con validacion de stock real
@@ -196,8 +200,9 @@ export default function VentasPage() {
       return [...prev, { producto: prod, cantidad: 1, subtotal: calcLinea(prod, 1) }];
     });
     setProdSelec(prod);
+    // Limpiar la búsqueda recarga la lista de productos disponibles (el efecto repuebla
+    // `resultados`); no la vaciamos a mano para que el cajero siga navegando.
     setBusqueda('');
-    setResultados([]);
     setBarcode('');
     setTimeout(() => barcodeRef.current?.focus(), 50);
   }, []);
@@ -407,7 +412,7 @@ export default function VentasPage() {
             borderRadius: '10px', padding: '14px', flex: 1,
           }}>
             <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-subtle)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Busqueda manual
+              {busqueda.trim() ? 'Busqueda manual' : 'Productos disponibles'}
             </p>
             <Input
               value={busqueda}

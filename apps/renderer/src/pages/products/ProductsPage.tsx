@@ -10,7 +10,7 @@ import type { ToastData } from '../../components/ui';
 import { ProductoDropzone } from './ProductoDropzone';
 
 const UNIDAD_OPTIONS = Object.entries(TIPO_UNIDAD_LABELS).map(([v, l]) => ({ value: v, label: l }));
-const EMPTY = { nombre: '', categoriaId: '', codigoBarras: '', tipoUnidad: 'UND', precioCompra: '', porcentajeGanancia: '30', tieneIva: true, stockActual: '0', stockMinimo: '0', disponibleEcommerce: false, imageUrl: '' };
+const EMPTY = { nombre: '', categoriaId: '', codigoBarras: '', tipoUnidad: 'UND', precioCompra: '', porcentajeGanancia: '30', tieneIva: true, stockActual: '0', stockMinimo: '0', disponibleEcommerce: false, imageUrl: '', modoPrecio: 'margen', precioVentaInput: '' };
 
 // Fila del editor clave-valor de características dinámicas
 interface CaracteristicaRow { clave: string; valor: string; }
@@ -46,7 +46,16 @@ interface ProductFormProps {
 
 function ProductForm({ form, formErr, saving, categorias, caracteristicas, onChange, onCaracteristicasChange, onSave, onCancel }: ProductFormProps) {
   const catOptions = [{ value: '', label: 'Sin categoría' }, ...categorias.map(c => ({ value: String(c.id), label: c.nombre }))];
-  const previewPrices = calcVenta(Number(form.precioCompra) || 0, Number(form.porcentajeGanancia) || 0, form.tieneIva);
+  const costo = Number(form.precioCompra) || 0;
+  const modoFinal = form.modoPrecio === 'final';
+  // En modo "precio final" el usuario fija el precio de venta; en modo margen se calcula desde el costo.
+  const ventaBase = modoFinal ? (Number(form.precioVentaInput) || 0) : costo * (1 + (Number(form.porcentajeGanancia) || 0) / 100);
+  const previewPrices = {
+    venta: Math.round(ventaBase * 100) / 100,
+    conIva: form.tieneIva ? Math.round(ventaBase * 1.13 * 100) / 100 : Math.round(ventaBase * 100) / 100,
+  };
+  // Margen implícito cuando se fija el precio final (para mostrar rentabilidad).
+  const margenImplicito = costo > 0 ? Math.round(((ventaBase / costo) - 1) * 1000) / 10 : 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -81,12 +90,33 @@ function ProductForm({ form, formErr, saving, categorias, caracteristicas, onCha
         <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
           Estructura de precios
         </p>
+        {/* Toggle de modo de precio */}
+        <div style={{ display: 'inline-flex', gap: '4px', padding: '3px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: '7px', marginBottom: '12px' }}>
+          {([['margen', 'Por margen %'], ['final', 'Precio final']] as const).map(([modo, label]) => (
+            <button key={modo} type="button" onClick={() => onChange('modoPrecio', modo)}
+              style={{
+                padding: '5px 12px', borderRadius: '5px', border: 'none', cursor: 'pointer',
+                fontSize: '11px', fontWeight: 600, fontFamily: 'inherit',
+                background: form.modoPrecio === modo ? 'var(--accent)' : 'transparent',
+                color: form.modoPrecio === modo ? '#fff' : 'var(--text-muted)',
+              }}>
+              {label}
+            </button>
+          ))}
+          <HelpTip text="Por margen %: el precio de venta se calcula desde el costo. Precio final: vos fijás el precio de venta directamente y se muestra el margen resultante." side="right" />
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
           <Input label="Costo base ($)" type="number" min="0" placeholder="0.00"
             value={form.precioCompra} onChange={v => onChange('precioCompra', v)} />
-          <Input label="Ganancia %" type="number" min="0" placeholder="30"
-            value={form.porcentajeGanancia} onChange={v => onChange('porcentajeGanancia', v)}
-            help={<HelpTip text="Margen sobre el costo base. El precio de venta se calcula automáticamente: costo × (1 + ganancia/100), y luego se le suma el IVA si está activado." />} />
+          {modoFinal ? (
+            <Input label="Precio de venta ($)" type="number" min="0" placeholder="0.00"
+              value={form.precioVentaInput} onChange={v => onChange('precioVentaInput', v)}
+              help={<HelpTip text={costo > 0 ? `Margen implícito sobre el costo: ${margenImplicito}%` : 'Ingresá el costo base para ver el margen implícito.'} />} />
+          ) : (
+            <Input label="Ganancia %" type="number" min="0" placeholder="30"
+              value={form.porcentajeGanancia} onChange={v => onChange('porcentajeGanancia', v)}
+              help={<HelpTip text="Margen sobre el costo base. El precio de venta se calcula automáticamente: costo × (1 + ganancia/100), y luego se le suma el IVA si está activado." />} />
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
           <input type="checkbox" id="iva-check" checked={form.tieneIva}
@@ -241,6 +271,8 @@ export default function ProductsPage() {
       stockMinimo: String(selectedProd.stockMinimo),
       disponibleEcommerce: selectedProd.disponibleEcommerce ?? false,
       imageUrl: selectedProd.imageUrl ?? '',
+      modoPrecio: 'margen',
+      precioVentaInput: String(selectedProd.precioVenta ?? ''),
     });
     // Hidratar el editor clave-valor desde el objeto de características
     setCaracteristicas(
@@ -274,13 +306,17 @@ export default function ProductsPage() {
       if (k) acc[k] = valor;
       return acc;
     }, {});
+    // Modo "precio final": se envía precioVenta directo (el backend lo respeta y deriva el con-IVA).
+    // Modo margen: se envía porcentajeGanancia y el backend calcula el precioVenta.
+    const modoFinal = form.modoPrecio === 'final';
     const payload = {
       nombre: form.nombre,
       codigoBarras: form.codigoBarras || undefined,
       tipoUnidad: form.tipoUnidad as TipoUnidad,
       categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
       precioCompra: form.precioCompra ? Number(form.precioCompra) : undefined,
-      porcentajeGanancia: form.porcentajeGanancia ? Number(form.porcentajeGanancia) : undefined,
+      porcentajeGanancia: modoFinal ? undefined : (form.porcentajeGanancia ? Number(form.porcentajeGanancia) : undefined),
+      precioVenta: modoFinal ? Number(form.precioVentaInput) : undefined,
       tieneIva: form.tieneIva,
       stockActual: Number(form.stockActual),
       stockMinimo: Number(form.stockMinimo),
