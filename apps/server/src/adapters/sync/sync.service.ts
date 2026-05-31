@@ -11,6 +11,11 @@ export { onConnectivityChange, OfflineCache };
 
 const INTERVAL_MS = 30_000;
 const MAX_INTENTOS = 5;
+// Tolerancia a fallos transitorios de conectividad: solo marcamos offline tras varios
+// fallos consecutivos de `SELECT 1`, para que un blip puntual del pooler no haga parpadear
+// la app a "sin conexión" cuando en realidad sí hay red.
+const FALLOS_PARA_OFFLINE = 3;
+let fallosConsecutivos = 0;
 
 export async function logPendiente(
   tabla: string,
@@ -53,10 +58,16 @@ export const SyncService = {
   async checkConnectivity(): Promise<boolean> {
     try {
       await prisma.$queryRaw`SELECT 1`;
+      // Éxito → online inmediato y reseteo del contador de fallos.
+      fallosConsecutivos = 0;
       setOnline(true);
       return true;
     } catch {
-      setOnline(false);
+      // Solo declaramos offline tras varios fallos seguidos (tolerancia a blips del pooler).
+      fallosConsecutivos += 1;
+      if (fallosConsecutivos >= FALLOS_PARA_OFFLINE) {
+        setOnline(false);
+      }
       return false;
     }
   },

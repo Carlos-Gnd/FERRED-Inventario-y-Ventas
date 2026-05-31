@@ -26,26 +26,36 @@ export function useNetworkStatus() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const statusRef = useRef(status);
   const pingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Tolerancia: solo mostramos "sin conexión" tras varios pings fallidos seguidos,
+  // así un timeout puntual no hace parpadear la UI a offline cuando sí hay red.
+  const failCountRef = useRef(0);
+  const FAILS_BEFORE_OFFLINE = 2;
+  const PING_TIMEOUT = 8000;
 
   // Ping real al servidor
   const checkServer = useCallback(async () => {
     try {
       if (!isAuthenticated) {
         await api.get('/health', {
-          timeout: 4000,
+          timeout: PING_TIMEOUT,
           baseURL: '',
         });
+        failCountRef.current = 0;
         setStatus('online');
         return;
       }
 
-      const { data } = await api.get('/inventario/status', { timeout: 4000 });
+      const { data } = await api.get('/inventario/status', { timeout: PING_TIMEOUT });
+      failCountRef.current = 0;
+      // El backend ya aplica su propia tolerancia antes de reportar offline.
       setStatus(data.online ? 'online' : 'offline');
     } catch (err: unknown) {
-      // BUG-M01: loguear para trazabilidad; la UI sigue mostrando modo offline
+      // BUG-M01: loguear para trazabilidad.
       const msg = (err as { message?: string })?.message ?? String(err);
       console.warn('[useNetworkStatus] ping fallido:', msg);
-      setStatus('offline');
+      failCountRef.current += 1;
+      // Recién marcamos offline tras varios fallos consecutivos.
+      if (failCountRef.current >= FAILS_BEFORE_OFFLINE) setStatus('offline');
     }
   }, [isAuthenticated]);
 
