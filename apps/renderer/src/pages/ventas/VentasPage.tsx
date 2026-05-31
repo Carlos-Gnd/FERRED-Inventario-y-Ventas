@@ -13,7 +13,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button }  from '../../components/ui/Button';
 import { Input }   from '../../components/ui/Input';
 import { Modal }   from '../../components/ui/Modal';
-import { Toast }   from '../../components/ui';
+import { Toast, HelpTip }   from '../../components/ui';
 import type { ToastData } from '../../components/ui';
 import type { TipoUnidad } from '../../types';
 import { TIPO_UNIDAD_LABELS } from '../../types';
@@ -662,8 +662,10 @@ export default function VentasPage() {
           {tipoDte === '03' && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <Input label="NIT" value={clienteNit} onChange={setClienteNit} placeholder="0614-..." />
-                <Input label="NRC" value={clienteNrc} onChange={setClienteNrc} placeholder="123456-7" />
+                <Input label="NIT" value={clienteNit} onChange={setClienteNit} placeholder="0614-..."
+                  help={<HelpTip text="NIT del cliente (gran contribuyente). Va en el Crédito Fiscal y debe ser válido, o Hacienda rechaza el DTE." />} />
+                <Input label="NRC" value={clienteNrc} onChange={setClienteNrc} placeholder="123456-7"
+                  help={<HelpTip text="Número de Registro de Contribuyente del cliente. Obligatorio en CCF e incluido en el DTE." side="right" />} />
               </div>
               <Input label="Giro (opcional)" value={clienteGiro} onChange={setClienteGiro} placeholder="Actividad económica" />
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>

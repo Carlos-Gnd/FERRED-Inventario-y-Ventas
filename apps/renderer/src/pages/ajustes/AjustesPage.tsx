@@ -7,7 +7,7 @@ import { api }    from '../../services/api.client';
 import { Button } from '../../components/ui/Button';
 import { Input }  from '../../components/ui/Input';
 import { Modal }  from '../../components/ui/Modal';
-import { Toast, ConfirmDelete } from '../../components/ui';
+import { Toast, ConfirmDelete, HelpTip } from '../../components/ui';
 import type { ToastData } from '../../components/ui';
 
 // ── Tipos ─────────────────────────────────────────────────────
@@ -259,12 +259,14 @@ export default function AjustesPage() {
             value={fiscal.NIT}
             onChange={v => setFiscal(f => ({ ...f, NIT: v }))}
             placeholder="00000000000000"
+            help={<HelpTip text="NIT del negocio registrado en Hacienda. Va en cada DTE que se emite; si está mal, Hacienda rechaza los documentos. Verificalo contra tu tarjeta de IVA." />}
           />
           <Input
             label="NRC"
             value={fiscal.NRC}
             onChange={v => setFiscal(f => ({ ...f, NRC: v }))}
             placeholder="0000000"
+            help={<HelpTip text="Número de Registro de Contribuyente. También se incluye en los DTE. Debe coincidir exactamente con tu registro en Hacienda." />}
           />
         </div>
 
@@ -286,6 +288,7 @@ export default function AjustesPage() {
             value={bancaria.cuenta_bancaria}
             onChange={v => setBancaria(b => ({ ...b, cuenta_bancaria: v }))}
             placeholder="0000-0000-0000"
+            help={<HelpTip text="Esta cuenta se le muestra al cliente en la tienda online para pagos por transferencia. Si está mal, los clientes pagarán a una cuenta equivocada. Revisá el número con cuidado." />}
           />
         </div>
         <Input
@@ -376,6 +379,7 @@ export default function AjustesPage() {
           onChange={v => setCorreo({ correo_remitente: v })}
           placeholder="notificaciones@ejemplo.com"
           type="email"
+          help={<HelpTip text="Dirección que aparece como remitente ('De:') en los correos del sistema: comprobantes de venta, confirmaciones de pago y alertas de stock. No son las credenciales SMTP (esas van en el .env del servidor)." />}
         />
         <div style={{ marginTop: '16px' }}>
           <SaveBtn sec="correo" />
