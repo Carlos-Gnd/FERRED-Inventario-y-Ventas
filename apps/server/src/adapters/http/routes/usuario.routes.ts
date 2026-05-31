@@ -13,7 +13,8 @@ const crearSchema = z.object({
   email:      z.string().email('Email inválido'),
   contrasena: z.string().min(6, 'Mínimo 6 caracteres'),
   rol:        z.enum(['ADMIN', 'CAJERO', 'BODEGA']),
-  sucursalId: z.number().int().positive(),
+  // null = ADMIN global (acceso a todas las sucursales). Cajeros/bodegueros siempre con sucursal.
+  sucursalId: z.number().int().positive().nullable(),
   activo:     z.boolean().optional().default(true),
 });
 
@@ -26,6 +27,9 @@ const actualizarSchema = crearSchema.partial().omit({ contrasena: true }).extend
 async function validarSucursalTarget(req: Request, res: Response, next: NextFunction) {
   try {
     const adminSucursalId = req.usuario!.sucursalId;
+
+    // ADMIN global (sin sucursal asignada) puede operar usuarios de cualquier sucursal.
+    if (adminSucursalId == null) return next();
 
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ error: 'ID inválido' });
@@ -59,7 +63,8 @@ usuarioRoutes.get('/', roleMiddleware('ADMIN'), async (req: Request, res: Respon
     const skip   = (page - 1) * limit;
 
     const where = {
-      sucursalId,
+      // ADMIN global (sucursalId null) ve todos los usuarios; ADMIN de sucursal solo los suyos.
+      ...(sucursalId != null ? { sucursalId } : {}),
       ...(rol    ? { rol: String(rol) } : {}),
       ...(activo !== undefined ? { activo: activo === 'true' } : {}),
       ...(buscar ? {
@@ -116,9 +121,15 @@ usuarioRoutes.post('/', roleMiddleware('ADMIN'), async (req: Request, res: Respo
 
     const { nombre, email, contrasena, rol, sucursalId, activo } = parsed.data;
 
-    // BUG-N10: un ADMIN solo puede crear usuarios en su propia sucursal
+    // Solo un ADMIN puede ser global (sin sucursal); cajeros y bodegueros requieren una.
+    if (rol !== 'ADMIN' && sucursalId == null) {
+      return res.status(400).json({ error: 'Cajeros y bodegueros requieren una sucursal' });
+    }
+
+    // BUG-N10: un ADMIN de sucursal solo puede crear usuarios en su propia sucursal.
+    // Un ADMIN global (sin sucursal asignada, sucursalId null) puede crear en cualquier sucursal.
     const adminSucursalId = req.usuario!.sucursalId;
-    if (sucursalId !== adminSucursalId) {
+    if (adminSucursalId != null && sucursalId !== adminSucursalId) {
       return res.status(403).json({
         error: 'No tenés permisos para crear usuarios en otra sucursal',
       });
