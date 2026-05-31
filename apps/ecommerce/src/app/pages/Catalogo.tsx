@@ -32,66 +32,72 @@ export function Catalogo() {
           <h1 className="text-4xl font-bold">Catálogo de Productos</h1>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <aside className="lg:col-span-1">
-            <div className="bg-white rounded-xl p-6 shadow-md sticky top-24">
-              <div className="flex items-center gap-2 mb-6">
-                <SlidersHorizontal size={20} className="text-[#D97706]" />
-                <h2 className="font-bold text-[#2B2D31]">Filtros</h2>
-              </div>
-              <div className="mb-6">
-                <h3 className="font-semibold text-[#2B2D31] mb-3">Categoría</h3>
-                <div className="space-y-2">
-                  {categories.map((cat) => (
-                    <label key={cat} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="category"
-                        checked={selectedCategory === cat}
-                        onChange={() => setSelectedCategory(cat)}
-                        aria-label={cat === 'all' ? 'Todas las categorías' : cat}
-                      />
-                      <span className="text-[#5F6368]">{cat === 'all' ? 'Todas' : cat}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={inStock}
-                  onChange={(e) => setInStock(e.target.checked)}
-                  aria-label="Mostrar solo productos en stock"
-                />
-                <span className="text-[#5F6368]">Solo en stock</span>
-              </label>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Cinta de filtros horizontal (sticky) */}
+        <div className="bg-white rounded-xl p-4 shadow-md sticky top-16 z-10 mb-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-[#2B2D31] font-semibold mr-1">
+              <SlidersHorizontal size={18} className="text-[#D97706]" />
+              <span>Filtros</span>
             </div>
-          </aside>
 
-          <div className="lg:col-span-3">
-            <div className="flex justify-between items-center mb-6">
-              <p className="text-[#5F6368]">{filteredProducts.length} productos encontrados</p>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="border border-[#E5E2DA] rounded-xl px-4 py-2"
-                aria-label="Ordenar productos"
-              >
-                <option value="nombre-asc">Nombre A-Z</option>
-                <option value="precio-asc">Precio: Menor a Mayor</option>
-                <option value="precio-desc">Precio: Mayor a Menor</option>
-              </select>
+            {/* Categorías como chips */}
+            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+              {categories.map((cat) => {
+                const active = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    aria-pressed={active}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      active
+                        ? 'bg-[#D97706] text-white'
+                        : 'bg-[#F5F2EB] text-[#5F6368] hover:bg-[#E5E2DA]'
+                    }`}
+                  >
+                    {cat === 'all' ? 'Todas' : cat}
+                  </button>
+                );
+              })}
             </div>
-            {loadingProducts && <p className="text-[#5F6368]">Cargando productos…</p>}
-            {productsError && <p className="text-red-600">{productsError}</p>}
-            {!loadingProducts && !productsError && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map((product) => <ProductCard key={product.id} product={product} onAddToCart={addToCart} />)}
-              </div>
-            )}
+
+            {/* Solo en stock */}
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-[#5F6368] whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={inStock}
+                onChange={(e) => setInStock(e.target.checked)}
+                aria-label="Mostrar solo productos en stock"
+                className="accent-[#D97706]"
+              />
+              Solo en stock
+            </label>
+
+            {/* Orden */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="border border-[#E5E2DA] rounded-lg px-3 py-1.5 text-sm"
+              aria-label="Ordenar productos"
+            >
+              <option value="nombre-asc">Nombre A-Z</option>
+              <option value="precio-asc">Precio: Menor a Mayor</option>
+              <option value="precio-desc">Precio: Mayor a Menor</option>
+            </select>
           </div>
         </div>
+
+        <p className="text-sm text-[#5F6368] mb-4">{filteredProducts.length} productos encontrados</p>
+
+        {loadingProducts && <p className="text-[#5F6368]">Cargando productos…</p>}
+        {productsError && <p className="text-red-600">{productsError}</p>}
+        {!loadingProducts && !productsError && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredProducts.map((product) => <ProductCard key={product.id} product={product} onAddToCart={addToCart} />)}
+          </div>
+        )}
       </div>
     </div>
   );

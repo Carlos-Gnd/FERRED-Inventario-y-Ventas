@@ -15,6 +15,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { useAuth } from '../context/AuthContext';
 import { getAuthHeader } from '../services/ecommerceApi';
+import { HelpTip } from '../components/HelpTip';
 import type { PedidoOnline } from '../types';
 
 // ── Constantes ────────────────────────────────────────────────────────────
@@ -322,7 +323,10 @@ export function PagoPage() {
 
             {/* Selector de método */}
             <div className="bg-white rounded-xl p-6 shadow-md">
-              <h2 className="text-lg font-bold text-[#2B2D31] mb-4">Método de pago</h2>
+              <h2 className="text-lg font-bold text-[#2B2D31] mb-4 flex items-center gap-1.5">
+                Método de pago
+                <HelpTip text="Efectivo: pagás al retirar tu pedido. Tarjeta: pago en línea seguro con Stripe. Transferencia: enviás el dinero al banco y subís el comprobante para revisión." />
+              </h2>
               <div className="grid grid-cols-3 gap-3">
                 <MetodoBtn
                   selected={metodo === 'EFECTIVO'}

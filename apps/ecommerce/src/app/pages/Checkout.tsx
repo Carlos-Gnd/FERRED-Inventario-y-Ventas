@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Building2, ChevronRight, CreditCard, MapPin, Truck, User } from 'lucide-react';
 import { useEcommerce } from '../context/EcommerceContext';
 import { useAuth } from '../context/AuthContext';
+import { HelpTip } from '../components/HelpTip';
 import type { ZonaEnvio } from '../types';
 
 const checkoutSteps = [
@@ -111,7 +112,10 @@ function StepContent({
           </SelectableCard>
         </div>
 
-        <h3 className="text-lg font-bold text-[#2B2D31] mb-4">Método de entrega</h3>
+        <h3 className="text-lg font-bold text-[#2B2D31] mb-4 flex items-center gap-1.5">
+          Método de entrega
+          <HelpTip text="Recoger en sucursal es gratis: retirás tu pedido en la tienda. Envío a domicilio tiene un costo según la zona y llega en 3-5 días hábiles." />
+        </h3>
         <div className="space-y-3 mb-8">
           <button type="button" onClick={() => setTipoEntrega('RETIRO')} className="w-full text-left">
             <SelectableCard selected={tipoEntrega === 'RETIRO'}>
@@ -143,7 +147,7 @@ function StepContent({
         </div>
 
         {tipoEntrega === 'ENVIO' && (
-          <Field label="Zona de envío" className="mb-8">
+          <Field label="Zona de envío — define el costo de envío según tu ubicación" className="mb-8">
             <select value={zonaEnvioId ?? ''} onChange={(e) => setZonaEnvioId(Number(e.target.value))} className="checkout-input" aria-label="Zona de envío">
               <option value="" disabled>Selecciona una zona…</option>
               {zonasEnvio.map((zona) => (

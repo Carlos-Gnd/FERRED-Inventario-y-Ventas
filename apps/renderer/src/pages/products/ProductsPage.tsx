@@ -3,7 +3,7 @@ import { api } from '../../services/api.client';
 import { Button } from '../../components/ui/Button';
 import { Input }  from '../../components/ui/Input';
 import { Modal }  from '../../components/ui/Modal';
-import { Badge, Select, Toast, ConfirmDelete } from '../../components/ui';
+import { Badge, Select, Toast, ConfirmDelete, HelpTip } from '../../components/ui';
 import type { Producto, Categoria, TipoUnidad } from '../../types';
 import { TIPO_UNIDAD_LABELS } from '../../types';
 import type { ToastData } from '../../components/ui';
@@ -67,7 +67,8 @@ function ProductForm({ form, formErr, saving, categorias, caracteristicas, onCha
         <Select label="Categoría" options={catOptions} value={form.categoriaId}
           onChange={v => onChange('categoriaId', v)} />
         <Input label="Stock mínimo" type="number" min="0" placeholder="0"
-          value={form.stockMinimo} onChange={v => onChange('stockMinimo', v)} />
+          value={form.stockMinimo} onChange={v => onChange('stockMinimo', v)}
+          help={<HelpTip text="Umbral de alerta: cuando el stock llega a este valor o menos, el producto se marca como 'por revisar' / crítico en el inventario." />} />
       </div>
 
       <Input label="Código de barras (opcional)" placeholder="Ej: 7501234567890"
@@ -84,14 +85,16 @@ function ProductForm({ form, formErr, saving, categorias, caracteristicas, onCha
           <Input label="Costo base ($)" type="number" min="0" placeholder="0.00"
             value={form.precioCompra} onChange={v => onChange('precioCompra', v)} />
           <Input label="Ganancia %" type="number" min="0" placeholder="30"
-            value={form.porcentajeGanancia} onChange={v => onChange('porcentajeGanancia', v)} />
+            value={form.porcentajeGanancia} onChange={v => onChange('porcentajeGanancia', v)}
+            help={<HelpTip text="Margen sobre el costo base. El precio de venta se calcula automáticamente: costo × (1 + ganancia/100), y luego se le suma el IVA si está activado." />} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
           <input type="checkbox" id="iva-check" checked={form.tieneIva}
             onChange={e => onChange('tieneIva', e.target.checked)}
             style={{ accentColor: 'var(--accent)' }} />
-          <label htmlFor="iva-check" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <label htmlFor="iva-check" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             Incluir IVA (13%)
+            <HelpTip text="Si está activo, al precio de venta se le suma el 13% de IVA. Desactivalo para productos exentos de impuesto." />
           </label>
         </div>
         <div style={{
@@ -113,16 +116,18 @@ function ProductForm({ form, formErr, saving, categorias, caracteristicas, onCha
         <input type="checkbox" id="ecommerce-check" checked={form.disponibleEcommerce}
           onChange={e => onChange('disponibleEcommerce', e.target.checked)}
           style={{ accentColor: 'var(--accent)' }} />
-        <label htmlFor="ecommerce-check" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+        <label htmlFor="ecommerce-check" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           Disponible en la tienda online (ecommerce)
+          <HelpTip text="Si está activo, el producto aparece en el catálogo de la tienda online (siempre que tenga stock). Si no, solo se vende en el punto de venta." />
         </label>
       </div>
 
       {/* Características adicionales (atributos dinámicos clave-valor) */}
       <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: caracteristicas.length ? '10px' : '0' }}>
-          <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             Características adicionales
+            <HelpTip text="Atributos opcionales del producto como pares clave-valor (ej: Color → Rojo, Voltaje → 110V). Se muestran en el detalle del producto en la tienda online." />
           </p>
           <Button variant="ghost" type="button"
             onClick={() => onCaracteristicasChange([...caracteristicas, { clave: '', valor: '' }])}

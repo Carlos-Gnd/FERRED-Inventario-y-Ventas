@@ -1,5 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 
+export { HelpTip } from './HelpTip';
+
 // ─── BADGE ───────────────────────────────────────────────────
 type BadgeVariant = 'success' | 'danger' | 'warning' | 'info' | 'neutral';
 
