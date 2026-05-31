@@ -1,0 +1,52 @@
+# CD: despliegue automático del backend al VPS.
+# Se dispara cuando el workflow "CI" termina con éxito sobre la rama main,
+# así nunca se despliega código que no pasó typecheck/tests/build.
+name: Deploy backend (VPS)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+# Un solo despliegue a la vez; no cancelar uno en curso para no dejar PM2 a medias.
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy a VPS
+    runs-on: ubuntu-latest
+    # Solo si CI pasó. Si CI falló, no se toca producción.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: SSH al VPS y desplegar
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key:      ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd ~/ferred/Ferred-proyect
+
+            # Traer exactamente main (descarta cambios locales en archivos versionados;
+            # .env, uploads/ y data/ están en .gitignore y no se tocan)
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
+
+            # Dependencias (respeta el lockfile)
+            pnpm install --frozen-lockfile
+
+            # Aplicar migraciones pendientes a Postgres (no interactivo, solo migraciones ya commiteadas).
+            # Carga las vars del .env para que Prisma vea DATABASE_URL / DIRECT_URL.
+            set -a; . ./.env; set +a
+            npx prisma migrate deploy --schema apps/server/prisma/schema.prisma
+
+            # Compilar el server y reiniciar PM2 tomando el .env actualizado
+            pnpm build:server
+            pm2 restart ferred-api --update-env
+            pm2 save
