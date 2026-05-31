@@ -5,6 +5,7 @@
  * HU-08B — T-08B.3: Servicio de reimpresión de tickets
  */
 import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { prisma }          from '../../db/prisma/prisma.client';
@@ -12,7 +13,7 @@ import { roleMiddleware }  from '../middleware/role.middleware';
 import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente }    from '../../sync/sync.service';
 import { sincronizarStockTotal } from '../services/stock-sync.service';
-import { enviarDteHacienda }    from '../../dte/dte.service';
+import { enviarDteHacienda, dteAmbiente }    from '../../dte/dte.service';
 
 export const ventasRoutes = Router();
 
@@ -150,11 +151,17 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
         throw Object.assign(new Error('Stock insuficiente'), { stockErrors: erroresStock });
       }
 
+      // codigoGeneracion se genera ya en la venta (no solo al enviar el DTE) para que el ticket
+      // tenga una referencia única estable e imprima un QR real de consulta. construirJsonDTE
+      // lo reutiliza si ya existe, así no se duplica.
+      const codigoGeneracion = crypto.randomUUID().toUpperCase();
+
       const nuevaFactura = await tx.facturaDte.create({
         data: {
           sucursalId,
           usuarioId,
           tipoDte,
+          codigoGeneracion,
           clienteNombre,
           clienteNit:    tipoDte === '03' ? clienteNit  ?? null : null,
           clienteNrc:    tipoDte === '03' ? clienteNrc  ?? null : null,
@@ -241,9 +248,10 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     });
 
     return res.status(201).json({
-      ok:      true,
-      factura: facturaCompleta,
-      resumen: { subtotal: subtotalFix, iva, ivaRete1, total },
+      ok:       true,
+      factura:  facturaCompleta,
+      ambiente: dteAmbiente(),
+      resumen:  { subtotal: subtotalFix, iva, ivaRete1, total },
     });
 
   } catch (err: unknown) {
@@ -367,6 +375,7 @@ ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: R
       clienteNrc:       factura.clienteNrc,
       clienteGiro:      factura.clienteGiro,
       tipoDte:          factura.tipoDte,
+      ambiente:         dteAmbiente(),
       estado:           factura.estado,
       items: factura.detalles.map(d => ({
         nombre:     d.producto.nombre,

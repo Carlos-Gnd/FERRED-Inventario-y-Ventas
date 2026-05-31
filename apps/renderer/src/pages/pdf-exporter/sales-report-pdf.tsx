@@ -19,6 +19,7 @@ export interface SalesReportSale {
   estado: string;
   totalSinIva: number;
   iva: number;
+  ivaRete1?: number;
   total: number;
   items: SalesReportItem[];
 }
@@ -223,6 +224,7 @@ function buildRows(ventas: SalesReportSale[]) {
       `#${venta.id}`,
       venta.cajero || 'N/D',
       venta.clienteNombre || 'Cliente general',
+      venta.tipoDte === '03' ? 'CCF' : 'CF',
       venta.sucursal || 'N/D',
       `${products || 'Sin productos'}${extra}\n${formatNumber(units)} uds`,
       formatCurrency(venta.total),
@@ -271,6 +273,18 @@ function drawTotals(doc: jsPDF, options: ExportSalesReportPdfOptions, finalY: nu
   doc.setFontSize(13);
   doc.setTextColor(BRAND.dark);
   doc.text(formatCurrency(options.summary.totalVentas), pageWidth - 18, totalsY + 14, { align: 'right' });
+
+  // Retención IVA 1% acumulada del período (solo si hubo Créditos Fiscales con retención).
+  const totalRetencion = options.ventas.reduce((sum, v) => sum + (v.ivaRete1 ?? 0), 0);
+  if (totalRetencion > 0) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(BRAND.muted);
+    doc.text(
+      `Incluye retención IVA 1%: ${formatCurrency(totalRetencion)}`,
+      pageWidth - 18, totalsY + 22, { align: 'right' },
+    );
+  }
 }
 export function exportSalesReportPdf(options: ExportSalesReportPdfOptions) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' }) as JsPdfWithAutoTable;
@@ -282,7 +296,7 @@ export function exportSalesReportPdf(options: ExportSalesReportPdfOptions) {
 
   autoTable(doc, {
     startY: 110,
-    head: [['Fecha', 'Factura', 'Cajero', 'Cliente', 'Sucursal', 'Productos', 'Total']],
+    head: [['Fecha', 'Factura', 'Cajero', 'Cliente', 'Doc.', 'Sucursal', 'Productos', 'Total']],
     body: buildRows(options.ventas),
     margin: { top: 36, left: 14, right: 14, bottom: 22 },
     tableWidth: pageWidth - 28,
@@ -305,13 +319,14 @@ export function exportSalesReportPdf(options: ExportSalesReportPdfOptions) {
       fillColor: '#F8FAFC',
     },
     columnStyles: {
-      0: { cellWidth: 30 },
+      0: { cellWidth: 28 },
       1: { cellWidth: 18 },
-      2: { cellWidth: 34 },
-      3: { cellWidth: 42 },
-      4: { cellWidth: 34 },
-      5: { cellWidth: 72 },
-      6: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
+      2: { cellWidth: 32 },
+      3: { cellWidth: 40 },
+      4: { cellWidth: 14, halign: 'center' },
+      5: { cellWidth: 32 },
+      6: { cellWidth: 64 },
+      7: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
     },
     didDrawPage: (data) => {
       if (data.pageNumber > 1) {

@@ -211,11 +211,20 @@ export async function construirJsonDTE(facturaId: number): Promise<{
   return { codigoGeneracion, numeroControl, dteJson };
 }
 
+// Ambiente DTE según configuración: '00' sandbox (pruebas), '01' producción.
+export function dteAmbiente(): string {
+  return env.dte.env === 'sandbox' ? '00' : '01';
+}
+
+// URL de consulta pública del DTE en el portal de Hacienda (la que codifica el QR del ticket).
+export function construirUrlConsultaDte(codigoGeneracion: string, fechaEmi: string): string {
+  return `https://admin.factura.gob.sv/consultaPublica?ambiente=${dteAmbiente()}&codGen=${codigoGeneracion}&fechaEmi=${fechaEmi}`;
+}
+
 // T-08B.1: Generar QR del DTE como base64
 // fechaEmi debe ser YYYY-MM-DD (la fecha real de emisión de la factura)
 export async function generarQRDte(codigoGeneracion: string, fechaEmi: string): Promise<string> {
-  const ambiente = env.dte.env === 'sandbox' ? '00' : '01';
-  const url = `https://admin.factura.gob.sv/consultaPublica?ambiente=${ambiente}&codGen=${codigoGeneracion}&fechaEmi=${fechaEmi}`;
+  const url = construirUrlConsultaDte(codigoGeneracion, fechaEmi);
   return QRCode.toDataURL(url, {
     errorCorrectionLevel: 'M',
     width:  200,

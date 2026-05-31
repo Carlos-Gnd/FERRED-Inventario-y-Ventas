@@ -130,6 +130,8 @@ export default function VentasPage() {
   const [confirming,   setConfirming]   = useState(false);
   const [nroFactura,   setNroFactura]   = useState<string | null>(null);
   const [facturaId,    setFacturaId]    = useState<number | null>(null);
+  const [codigoGeneracion, setCodigoGeneracion] = useState<string | null>(null);
+  const [ambienteDte,      setAmbienteDte]      = useState<string>('00');
   const [toast,        setToast]        = useState<ToastData | null>(null);
   const [clienteNombreInput, setClienteNombreInput] = useState('');
   const [clienteNombre,      setClienteNombre]      = useState('Consumidor Final');
@@ -266,6 +268,7 @@ export default function VentasPage() {
     setProdSelec(null);
     setNroFactura(null);
     setFacturaId(null);
+    setCodigoGeneracion(null);
     setClienteNombre('Consumidor Final');
     setClienteNombreInput('');
     setTipoDte('01');
@@ -313,6 +316,8 @@ export default function VentasPage() {
       const factura = data.factura;
       setNroFactura(`F-${factura.id}`);
       setFacturaId(factura.id);
+      setCodigoGeneracion(factura.codigoGeneracion ?? null);
+      setAmbienteDte(data.ambiente ?? '00');
       setVentaFecha(new Date());
       setConfirming(false);
       setModalConfirm(false);
@@ -698,6 +703,11 @@ export default function VentasPage() {
           ivaTotal={ivaTotal}
           retencion={retencion}
           totalFinal={totalFinal}
+          tipoDte={tipoDte}
+          clienteNit={clienteNit}
+          clienteNrc={clienteNrc}
+          codigoGeneracion={codigoGeneracion}
+          ambiente={ambienteDte}
         />
       )}
 

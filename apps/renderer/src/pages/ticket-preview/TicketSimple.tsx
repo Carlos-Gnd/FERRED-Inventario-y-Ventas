@@ -16,6 +16,12 @@ export interface TicketSimpleProps {
   ivaTotal: number;
   retencion?: number;
   totalFinal: number;
+  // Datos fiscales (DTE)
+  tipoDte?: string;
+  clienteNit?: string | null;
+  clienteNrc?: string | null;
+  codigoGeneracion?: string | null;
+  ambiente?: string; // '00' sandbox, '01' producción
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -75,6 +81,7 @@ function QRBadge({ value }: { value: string }) {
 export function TicketSimple({
   nroFactura, facturaId, fecha, clienteNombre, cajero, sucursal,
   items, subtotalSinIva, ivaTotal, retencion = 0, totalFinal,
+  tipoDte = '01', clienteNit, clienteNrc, codigoGeneracion, ambiente = '00',
 }: TicketSimpleProps) {
   const dd   = pad2(fecha.getDate());
   const mm   = pad2(fecha.getMonth() + 1);
@@ -85,7 +92,12 @@ export function TicketSimple({
 
   const fechaStr = `${dd}/${mm}/${yyyy}`;
   const horaStr  = `${hh}:${min}:${ss}`;
-  const qrData   = `FERRED|${nroFactura}|${totalFinal.toFixed(2)}|${fechaStr}`;
+  const esCredito = tipoDte === '03';
+  // QR real: URL de consulta pública de Hacienda con el código de generación único del DTE.
+  // Si aún no hay codigoGeneracion (caso extremo), cae a una referencia interna no-mock por factura.
+  const qrData = codigoGeneracion
+    ? `https://admin.factura.gob.sv/consultaPublica?ambiente=${ambiente}&codGen=${codigoGeneracion}&fechaEmi=${yyyy}-${mm}-${dd}`
+    : `FERRED|F-${facturaId}|${totalFinal.toFixed(2)}|${fechaStr}`;
 
   const base: React.CSSProperties = {
     fontFamily: "'Courier New', Courier, monospace",
@@ -111,9 +123,15 @@ export function TicketSimple({
       <div>Cajero: {cajero}</div>
 
       <div>{DASH}</div>
+      <div style={{ textAlign: 'center', fontWeight: 700 }}>
+        {esCredito ? 'COMPROBANTE DE CRÉDITO FISCAL' : 'FACTURA — CONSUMIDOR FINAL'}
+      </div>
+      <div>{DASH}</div>
       <div>FOLIO: F-{facturaId}</div>
       <div>FECHA: {fechaStr} {horaStr}</div>
       <div>CLIENTE: {clienteNombre}</div>
+      {esCredito && clienteNit && <div>NIT: {clienteNit}</div>}
+      {esCredito && clienteNrc && <div>NRC: {clienteNrc}</div>}
       <div>{DASH}</div>
 
       <div style={{ display: 'flex' }}>
@@ -160,7 +178,16 @@ export function TicketSimple({
       <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0 6px' }}>
         <QRBadge value={qrData} />
       </div>
-      <div style={{ textAlign: 'center' }}>VALIDACIÓN INTERNA FERRED</div>
+      {codigoGeneracion ? (
+        <>
+          <div style={{ textAlign: 'center', fontWeight: 700 }}>CONSULTA DTE — MINISTERIO DE HACIENDA</div>
+          <div style={{ textAlign: 'center', fontSize: '9px', wordBreak: 'break-all' }}>
+            Cód. Generación: {codigoGeneracion}
+          </div>
+        </>
+      ) : (
+        <div style={{ textAlign: 'center' }}>VALIDACIÓN INTERNA FERRED</div>
+      )}
       <div style={{ textAlign: 'center' }}>No. {nroFactura}</div>
 
       <div style={{ textAlign: 'center', marginTop: '12px' }}>Gracias por su compra</div>

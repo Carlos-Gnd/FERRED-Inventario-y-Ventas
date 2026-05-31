@@ -31,6 +31,7 @@ interface VentaReporte {
   estado: string;
   totalSinIva: number;
   iva: number;
+  ivaRete1?: number;
   total: number;
   items: ReportItem[];
 }

@@ -134,6 +134,7 @@ reportesRoutes.get(
           estado:        f.estado,
           totalSinIva:   f.totalSinIva,
           iva:           f.iva,
+          ivaRete1:      f.ivaRete1 ?? 0,
           total:         f.total,
           items: f.detalles.map(d => ({
             producto:   d.producto.nombre,
