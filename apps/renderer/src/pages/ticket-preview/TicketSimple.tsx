@@ -14,6 +14,7 @@ export interface TicketSimpleProps {
   items: TicketSimpleItem[];
   subtotalSinIva: number;
   ivaTotal: number;
+  retencion?: number;
   totalFinal: number;
 }
 
@@ -73,7 +74,7 @@ function QRBadge({ value }: { value: string }) {
 
 export function TicketSimple({
   nroFactura, facturaId, fecha, clienteNombre, cajero, sucursal,
-  items, subtotalSinIva, ivaTotal, totalFinal,
+  items, subtotalSinIva, ivaTotal, retencion = 0, totalFinal,
 }: TicketSimpleProps) {
   const dd   = pad2(fecha.getDate());
   const mm   = pad2(fecha.getMonth() + 1);
@@ -142,6 +143,12 @@ export function TicketSimple({
         <span>IVA (13%):</span>
         <span>${ivaTotal.toFixed(2)}</span>
       </div>
+      {retencion > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>RETENCION IVA (1%):</span>
+          <span>-${retencion.toFixed(2)}</span>
+        </div>
+      )}
 
       <div style={{ textAlign: 'center' }}>{SEP}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>

@@ -24,6 +24,7 @@ interface TicketModalProps {
   carrito: TicketLineItem[];
   subtotalSinIva: number;
   ivaTotal: number;
+  retencion?: number;
   totalFinal: number;
   onClose: () => void;
   onConfirm: () => void;
@@ -52,6 +53,7 @@ export function TicketModal({
   carrito,
   subtotalSinIva,
   ivaTotal,
+  retencion = 0,
   totalFinal,
   onClose,
   onConfirm,
@@ -185,6 +187,12 @@ export function TicketModal({
             <span>IVA (13%)</span>
             <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{fmt(ivaTotal)}</span>
           </div>
+          {retencion > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
+              <span>Retención IVA (1%)</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>-{fmt(retencion)}</span>
+            </div>
+          )}
           <div
             style={{
               display: 'flex',

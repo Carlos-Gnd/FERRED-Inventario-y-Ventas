@@ -52,10 +52,10 @@ function numeroALetras(monto: number): string {
   return `${entero} DOLARES CON ${decimal.toString().padStart(2, '0')}/100`;
 }
 
-async function generarNumeroControl(sucursalId: number, facturaId: number): Promise<string> {
+async function generarNumeroControl(sucursalId: number, facturaId: number, tipoDte: string): Promise<string> {
   const seq   = String(facturaId).padStart(15, '0');
   const estab = String(sucursalId).padStart(4, '0');
-  return `DTE-01-${estab}P001-${seq}`;
+  return `DTE-${tipoDte}-${estab}P001-${seq}`;
 }
 
 async function obtenerConfigNegocio(claves: string[]): Promise<Record<string, string>> {
@@ -89,8 +89,10 @@ export async function construirJsonDTE(facturaId: number): Promise<{
 
   if (!factura) throw new Error(`Factura ${facturaId} no encontrada`);
 
+  const tipoDte          = factura.tipoDte ?? '01';
+  const esCredito        = tipoDte === '03';
   const codigoGeneracion = factura.codigoGeneracion ?? crypto.randomUUID().toUpperCase();
-  const numeroControl    = factura.numeroControl    ?? await generarNumeroControl(factura.sucursalId!, factura.id);
+  const numeroControl    = factura.numeroControl    ?? await generarNumeroControl(factura.sucursalId!, factura.id, tipoDte);
   const fechaEmision     = factura.creadoEn.toISOString().split('T')[0];
   const horaEmision      = factura.creadoEn.toISOString().split('T')[1].substring(0, 8);
   const configNegocio    = await obtenerConfigNegocio(['NIT', 'NRC', 'correo_remitente']);
@@ -110,13 +112,15 @@ export async function construirJsonDTE(facturaId: number): Promise<{
 
   const totalGravada = parseFloat((factura.totalSinIva ?? 0).toFixed(2));
   const totalIva     = parseFloat((factura.iva         ?? 0).toFixed(2));
+  const ivaRete1     = parseFloat((factura.ivaRete1    ?? 0).toFixed(2));
   const totalPagar   = parseFloat((factura.total        ?? 0).toFixed(2));
+  const montoOperacion = parseFloat((totalGravada + totalIva).toFixed(2));
 
   const dteJson = {
     identificacion: {
-      version:          1,
+      version:          esCredito ? 3 : 1,
       ambiente:         env.dte.env === 'sandbox' ? '00' : '01',
-      tipoDte:          '01',
+      tipoDte,
       numeroControl,
       codigoGeneracion,
       tipoModelo:       1,
@@ -148,17 +152,31 @@ export async function construirJsonDTE(facturaId: number): Promise<{
       codPuntoVentaMH: null,
       codPuntoVenta:   null,
     },
-    receptor: {
-      tipoDocumento: null,
-      numDocumento:  null,
-      nrc:           null,
-      nombre:        factura.clienteNombre ?? 'Consumidor Final',
-      codActividad:  null,
-      descActividad: null,
-      direccion:     null,
-      telefono:      null,
-      correo:        null,
-    },
+    // En CCF (tipo 03) el receptor debe identificarse con NIT, NRC y giro.
+    // En Factura a consumidor final (tipo 01) el receptor es opcional.
+    receptor: esCredito
+      ? {
+          nit:           factura.clienteNit ?? '',
+          nrc:           factura.clienteNrc ?? '',
+          nombre:        factura.clienteNombre ?? '',
+          codActividad:  null,
+          descActividad: factura.clienteGiro ?? null,
+          nombreComercial: factura.clienteNombre ?? null,
+          direccion:     null,
+          telefono:      null,
+          correo:        null,
+        }
+      : {
+          tipoDocumento: null,
+          numDocumento:  null,
+          nrc:           null,
+          nombre:        factura.clienteNombre ?? 'Consumidor Final',
+          codActividad:  null,
+          descActividad: null,
+          direccion:     null,
+          telefono:      null,
+          correo:        null,
+        },
     otrosDocumentos: null,
     ventaTercero:    null,
     cuerpoDocumento,
@@ -174,9 +192,9 @@ export async function construirJsonDTE(facturaId: number): Promise<{
       totalDescu:          0,
       tributos: [{ codigo: '20', descripcion: 'Impuesto al Valor Agregado 13%', valor: totalIva }],
       subTotal:            totalGravada,
-      ivaRete1:            0,
+      ivaRete1,
       reteRenta:           0,
-      montoTotalOperacion: totalPagar,
+      montoTotalOperacion: montoOperacion,
       totalNoGravado:      0,
       totalPagar,
       totalLetras:         numeroALetras(totalPagar),
@@ -223,7 +241,8 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
     });
 
     // Generar QR con la fecha real de emisión del DTE
-    const fechaEmi = (dteJson as { identificacion: { fecEmi: string } }).identificacion.fecEmi;
+    const identificacion = (dteJson as { identificacion: { fecEmi: string; tipoDte: string; version: number } }).identificacion;
+    const fechaEmi = identificacion.fecEmi;
     const qrBase64 = await generarQRDte(codigoGeneracion, fechaEmi);
 
     // Intentar enviar al Sandbox de Hacienda
@@ -247,8 +266,8 @@ export async function enviarDteHacienda(facturaId: number): Promise<{
         {
           ambiente:         (dteJson as { identificacion: { ambiente: string } }).identificacion.ambiente,
           idEnvio:          facturaId,
-          version:          1,
-          tipoDte:          '01',
+          version:          identificacion.version,
+          tipoDte:          identificacion.tipoDte,
           documento:        Buffer.from(JSON.stringify(dteJson)).toString('base64'),
           codigoGeneracion,
         },

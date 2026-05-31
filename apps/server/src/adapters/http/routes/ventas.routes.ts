@@ -28,7 +28,17 @@ const VentaSchema = z.object({
   items:          z.array(ItemVentaSchema).min(1, 'El carrito no puede estar vacío'),
   clienteNombre:  z.string().optional().default('Consumidor Final'),
   tipoPago:       z.string().optional().default('efectivo'),
-});
+  // Tipo de documento: '01' = Factura (Consumidor Final), '03' = Comprobante de Crédito Fiscal.
+  tipoDte:        z.enum(['01', '03']).optional().default('01'),
+  clienteNit:     z.string().optional(),
+  clienteNrc:     z.string().optional(),
+  clienteGiro:    z.string().optional(),
+  // Retención IVA 1% (anticipo a cuenta), aplica solo en CCF a grandes contribuyentes.
+  aplicaRetencion: z.boolean().optional().default(false),
+}).refine(
+  (v) => v.tipoDte !== '03' || (!!v.clienteNit && !!v.clienteNrc && v.clienteNombre !== 'Consumidor Final'),
+  { message: 'Para Crédito Fiscal se requieren nombre, NIT y NRC del cliente', path: ['clienteNit'] },
+);
 
 // ── Validar cantidad según tipoUnidad (T-09B.3) ──────────────
 const VentasSemanalesQuerySchema = z.object({
@@ -82,7 +92,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       });
     }
 
-    const { sucursalId, items, clienteNombre, tipoPago } = parsed.data;
+    const { sucursalId, items, clienteNombre, tipoPago, tipoDte, clienteNit, clienteNrc, clienteGiro, aplicaRetencion } = parsed.data;
     const usuarioId = req.usuario?.id;
 
     // DT-08: usa assertSameSucursal (fail-closed) en vez de checks inline
@@ -111,8 +121,11 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
 
     const subtotal    = items.reduce((acc, i) => acc + parseFloat((i.cantidad * i.precioUnit).toFixed(2)), 0);
     const iva         = parseFloat((subtotal * 0.13).toFixed(2));
-    const total       = parseFloat((subtotal + iva).toFixed(2));
     const subtotalFix = parseFloat(subtotal.toFixed(2));
+    // Retención IVA 1% (anticipo a cuenta) — solo en CCF cuando el cliente es gran contribuyente.
+    // La retención la descuenta el comprador, así que reduce lo que cobra FERRED.
+    const ivaRete1    = (tipoDte === '03' && aplicaRetencion) ? parseFloat((subtotal * 0.01).toFixed(2)) : 0;
+    const total       = parseFloat((subtotal + iva - ivaRete1).toFixed(2));
 
     const factura = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Verificar stock DENTRO de la transacción para evitar race conditions
@@ -141,10 +154,14 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
         data: {
           sucursalId,
           usuarioId,
-          tipoDte:       '01',
+          tipoDte,
           clienteNombre,
+          clienteNit:    tipoDte === '03' ? clienteNit  ?? null : null,
+          clienteNrc:    tipoDte === '03' ? clienteNrc  ?? null : null,
+          clienteGiro:   tipoDte === '03' ? clienteGiro ?? null : null,
           totalSinIva:   subtotalFix,
           iva,
+          ivaRete1,
           total,
           estado:        'SIMULADO',
           sincronizado:  false,
@@ -226,7 +243,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
     return res.status(201).json({
       ok:      true,
       factura: facturaCompleta,
-      resumen: { subtotal: subtotalFix, iva, total },
+      resumen: { subtotal: subtotalFix, iva, ivaRete1, total },
     });
 
   } catch (err: unknown) {
@@ -346,6 +363,9 @@ ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: R
       sucursal:         factura.sucursal,
       cajero:           factura.usuario?.nombre ?? 'Sistema',
       clienteNombre:    factura.clienteNombre,
+      clienteNit:       factura.clienteNit,
+      clienteNrc:       factura.clienteNrc,
+      clienteGiro:      factura.clienteGiro,
       tipoDte:          factura.tipoDte,
       estado:           factura.estado,
       items: factura.detalles.map(d => ({
@@ -358,6 +378,7 @@ ventasRoutes.get('/:id/ticket', roleMiddleware('ADMIN', 'CAJERO'), async (req: R
       resumen: {
         subtotal: factura.totalSinIva,
         iva:      factura.iva,
+        ivaRete1: factura.ivaRete1 ?? 0,
         total:    factura.total,
       },
       dteJson: factura.dteJson ?? null,

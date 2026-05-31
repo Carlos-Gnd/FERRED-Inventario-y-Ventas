@@ -19,6 +19,7 @@ interface TicketPrintModalProps {
   carrito: CartItem[];
   subtotalSinIva: number;
   ivaTotal: number;
+  retencion?: number;
   totalFinal: number;
 }
 
@@ -40,7 +41,7 @@ const IcoDownload = () => (
 
 export function TicketPrintModal({
   open, onClose, nroFactura, facturaId, fecha, clienteNombre,
-  cajero, sucursal, carrito, subtotalSinIva, ivaTotal, totalFinal,
+  cajero, sucursal, carrito, subtotalSinIva, ivaTotal, retencion = 0, totalFinal,
 }: TicketPrintModalProps) {
   function handleDownloadPdf() {
     // El navegador abre el diálogo de impresión y permite guardar como PDF.
@@ -71,6 +72,7 @@ export function TicketPrintModal({
           items={items}
           subtotalSinIva={subtotalSinIva}
           ivaTotal={ivaTotal}
+          retencion={retencion}
           totalFinal={totalFinal}
         />
       </div>

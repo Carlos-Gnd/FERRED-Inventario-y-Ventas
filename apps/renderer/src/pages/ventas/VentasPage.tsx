@@ -133,6 +133,12 @@ export default function VentasPage() {
   const [toast,        setToast]        = useState<ToastData | null>(null);
   const [clienteNombreInput, setClienteNombreInput] = useState('');
   const [clienteNombre,      setClienteNombre]      = useState('Consumidor Final');
+  // Datos fiscales para Crédito Fiscal (DTE tipo 03)
+  const [tipoDte,         setTipoDte]         = useState<'01' | '03'>('01');
+  const [clienteNit,      setClienteNit]      = useState('');
+  const [clienteNrc,      setClienteNrc]      = useState('');
+  const [clienteGiro,     setClienteGiro]     = useState('');
+  const [aplicaRetencion, setAplicaRetencion] = useState(false);
   const [modalCliente,       setModalCliente]       = useState(false);
   const [modalTicketPrint,   setModalTicketPrint]   = useState(false);
   const [ventaFecha,         setVentaFecha]         = useState<Date>(new Date());
@@ -262,13 +268,20 @@ export default function VentasPage() {
     setFacturaId(null);
     setClienteNombre('Consumidor Final');
     setClienteNombreInput('');
+    setTipoDte('01');
+    setClienteNit('');
+    setClienteNrc('');
+    setClienteGiro('');
+    setAplicaRetencion(false);
     setTimeout(() => barcodeRef.current?.focus(), 50);
   }
 
   // T-02A.4: Totales calculados en tiempo real
   const subtotalSinIva = carrito.reduce((acc, l) => acc + (l.producto.precioVenta * l.cantidad), 0);
   const ivaTotal       = carrito.reduce((acc, l) => acc + ((l.producto.precioConIva - l.producto.precioVenta) * l.cantidad), 0);
-  const totalFinal     = carrito.reduce((acc, l) => acc + l.subtotal, 0);
+  // Retención IVA 1% (solo CCF + gran contribuyente): la descuenta el comprador.
+  const retencion      = (tipoDte === '03' && aplicaRetencion) ? Math.round(subtotalSinIva * 0.01 * 100) / 100 : 0;
+  const totalFinal     = carrito.reduce((acc, l) => acc + l.subtotal, 0) - retencion;
 
   // T-02A.4: Confirmar venta via POST /api/ventas
   async function confirmarVenta() {
@@ -288,6 +301,13 @@ export default function VentasPage() {
         })),
         clienteNombre,
         tipoPago:      'efectivo',
+        tipoDte,
+        ...(tipoDte === '03' ? {
+          clienteNit:      clienteNit.trim(),
+          clienteNrc:      clienteNrc.trim(),
+          clienteGiro:     clienteGiro.trim() || undefined,
+          aplicaRetencion,
+        } : {}),
       });
 
       const factura = data.factura;
@@ -586,6 +606,7 @@ export default function VentasPage() {
         carrito={carrito}
         subtotalSinIva={subtotalSinIva}
         ivaTotal={ivaTotal}
+        retencion={retencion}
         totalFinal={totalFinal}
         onClose={() => setModalConfirm(false)}
         onConfirm={confirmarVenta}
@@ -596,22 +617,58 @@ export default function VentasPage() {
       <Modal
         open={modalCliente}
         onClose={() => setModalCliente(false)}
-        title="¿A nombre de quién?"
-        maxWidth={360}
+        title="Datos del documento"
+        maxWidth={400}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Selector de tipo de documento */}
+          <div style={{ display: 'flex', gap: '6px', padding: '3px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+            {([['01', 'Consumidor Final'], ['03', 'Crédito Fiscal']] as const).map(([t, label]) => (
+              <button key={t} type="button" onClick={() => setTipoDte(t)}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: 600, fontFamily: 'inherit',
+                  background: tipoDte === t ? 'var(--accent)' : 'transparent',
+                  color: tipoDte === t ? '#fff' : 'var(--text-muted)',
+                }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
           <Input
+            label={tipoDte === '03' ? 'Nombre / Razón social' : 'A nombre de (opcional)'}
             value={clienteNombreInput}
             onChange={setClienteNombreInput}
             placeholder="Consumidor Final"
           />
+
+          {tipoDte === '03' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <Input label="NIT" value={clienteNit} onChange={setClienteNit} placeholder="0614-..." />
+                <Input label="NRC" value={clienteNrc} onChange={setClienteNrc} placeholder="123456-7" />
+              </div>
+              <Input label="Giro (opcional)" value={clienteGiro} onChange={setClienteGiro} placeholder="Actividad económica" />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={aplicaRetencion} onChange={e => setAplicaRetencion(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+                Aplica retención IVA 1% (gran contribuyente)
+              </label>
+            </>
+          )}
+
           <div style={{ display: 'flex', gap: '10px' }}>
             <Button variant="ghost" onClick={() => setModalCliente(false)} style={{ flex: 1 }}>
               Cancelar
             </Button>
             <Button
               onClick={() => {
-                setClienteNombre(clienteNombreInput.trim() || 'Consumidor Final');
+                const nombre = clienteNombreInput.trim() || 'Consumidor Final';
+                if (tipoDte === '03' && (!clienteNit.trim() || !clienteNrc.trim() || nombre === 'Consumidor Final')) {
+                  showToast('Para Crédito Fiscal: nombre, NIT y NRC son obligatorios', 'warning');
+                  return;
+                }
+                setClienteNombre(nombre);
                 setClienteNombreInput('');
                 setModalCliente(false);
                 setModalConfirm(true);
@@ -639,6 +696,7 @@ export default function VentasPage() {
           carrito={carrito}
           subtotalSinIva={subtotalSinIva}
           ivaTotal={ivaTotal}
+          retencion={retencion}
           totalFinal={totalFinal}
         />
       )}
