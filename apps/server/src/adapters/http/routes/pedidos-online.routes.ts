@@ -212,6 +212,7 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
     const productos = await prisma.producto.findMany({
       where: {
         activo: true,
+        disponibleEcommerce: true,
         stocks: {
           some: {
             sucursalId,
@@ -227,6 +228,7 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
         precioVenta: true,
         precioConIva: true,
         imageUrl: true,
+        caracteristicas: true,
         categoria: { select: { id: true, nombre: true } },
         ofertas: {
           where: {
@@ -268,6 +270,7 @@ productosPublicosRoutes.get('/publico/:sucursalId', async (req: Request, res: Re
         precioVenta: producto.precioVenta,
         precioConIva: producto.precioConIva,
         imageUrl: producto.imageUrl,
+        caracteristicas: producto.caracteristicas,
         precioOferta: oferta?.precioOferta ?? null,
         oferta,
         categoria: producto.categoria,

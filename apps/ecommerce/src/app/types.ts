@@ -14,6 +14,7 @@ export interface Product {
     fechaFin: string;
   } | null;
   categoria: { id: number; nombre: string } | null;
+  caracteristicas?: Record<string, string | number | boolean> | null;
   sucursalId: number;
   stockDisponible: number;
 }

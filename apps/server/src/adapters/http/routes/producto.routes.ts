@@ -67,6 +67,8 @@ const schema = z.object({
   tieneIva: z.boolean().optional().default(true),
   stockActual: z.number().int().min(0).optional().default(0),
   stockMinimo: z.number().int().min(0).optional().default(0),
+  disponibleEcommerce: z.boolean().optional().default(false),
+  caracteristicas: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
   imageUrl: z.string().nullable().optional(),
 });
 

@@ -91,6 +91,20 @@ export function ProductoDetalle() {
                   Comprar ahora
                 </button>
               </div>
+
+              {product.caracteristicas && Object.keys(product.caracteristicas).length > 0 && (
+                <div className="mt-8 border-t border-[#E5E2DA] pt-6">
+                  <h2 className="text-lg font-bold text-[#2B2D31] mb-4">Especificaciones</h2>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                    {Object.entries(product.caracteristicas).map(([clave, valor]) => (
+                      <div key={clave} className="flex justify-between gap-3 border-b border-[#F0EDE5] py-1.5">
+                        <dt className="text-[#5F6368]">{clave}</dt>
+                        <dd className="font-medium text-[#2B2D31] text-right">{String(valor)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
             </div>
           </div>
         </div>
