@@ -20,6 +20,7 @@ interface NavItem {
 interface NavGroup {
   // null = ítem(s) sueltos sin encabezado de grupo (ej. Dashboard).
   label: string | null;
+  icon?: React.ReactNode;
   items: NavItem[];
 }
 
@@ -35,6 +36,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'Inventario',
+    icon: <IcoInventory />,
     items: [
       { label: 'Productos',             to: '/productos',             icon: <IcoInventory />,  roles: ['ADMIN', 'BODEGA'] },
       { label: 'Stock',                 to: '/stock',                 icon: <IcoStock />,      roles: ['ADMIN', 'BODEGA'] },
@@ -47,6 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'Ventas',
+    icon: <IcoSales />,
     items: [
       { label: 'Ventas',         to: '/ventas',         icon: <IcoSales />,   roles: ['ADMIN', 'CAJERO'] },
       { label: 'Caja',           to: '/caja',           icon: <IcoCaja />,    roles: ['ADMIN', 'CAJERO'] },
@@ -57,6 +60,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'Administración',
+    icon: <IcoSettings />,
     items: [
       { label: 'Usuarios', to: '/usuarios', icon: <IcoUsers />,    roles: ['ADMIN'] },
       { label: 'Gastos',   to: '/gastos',   icon: <IcoReports />,  roles: ['ADMIN'] },
@@ -193,7 +197,40 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
       <nav style={{ flex: 1, padding: '8px 8px', overflowY: 'auto' }}>
         {visibleGroups.map((group, idx) => {
           if (!group.label) {
-            return <div key={`g-${idx}`} style={{ marginBottom: '6px' }}>{group.items.map(renderItem)}</div>;
+            // Ítems sueltos (Dashboard): mismo look que los encabezados de grupo
+            // (ícono de acento + texto en negrita mayúscula), pero como enlace con estado activo.
+            return (
+              <div key={`g-${idx}`} style={{ marginBottom: '6px' }}>
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={onClose}
+                    style={({ isActive }) => ({
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '9px 12px', marginBottom: '2px', borderRadius: '7px',
+                      textDecoration: 'none', fontSize: '12px', fontWeight: 800,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      color: isActive ? 'var(--accent)' : 'var(--text-primary)',
+                      background: isActive ? 'var(--accent-glow)' : 'transparent',
+                    })}
+                  >
+                    <span style={{ display: 'inline-flex', color: 'var(--accent)' }}>{item.icon}</span>
+                    <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
+                    {item.to === '/dashboard' && hasActiveAlerts && (
+                      <span
+                        title="Hay alertas activas"
+                        style={{
+                          width: '10px', height: '10px', borderRadius: '50%',
+                          background: 'var(--danger)', boxShadow: '0 0 0 4px rgba(239,68,68,0.16)',
+                          animation: 'pulse 1s infinite', flexShrink: 0,
+                        }}
+                      />
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            );
           }
           const isCollapsed = collapsed.has(group.label);
           return (
@@ -202,15 +239,16 @@ export function Sidebar({ onClose, hasActiveAlerts = false }: Props) {
                 onClick={() => toggleGroup(group.label!)}
                 aria-expanded={!isCollapsed}
                 style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer',
-                  fontFamily: 'inherit', fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em',
-                  textTransform: 'uppercase', color: 'var(--text-subtle)',
+                  width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '9px 12px', marginBottom: '2px', background: 'none', border: 'none', cursor: 'pointer',
+                  borderRadius: '7px', fontFamily: 'inherit', fontSize: '12px', fontWeight: 800,
+                  letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-primary)',
                 }}
               >
-                {group.label}
-                <span style={{ display: 'inline-flex', transition: 'transform 0.15s ease', transform: isCollapsed ? 'rotate(-90deg)' : 'none' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                <span style={{ display: 'inline-flex', color: 'var(--accent)' }}>{group.icon}</span>
+                <span style={{ flex: 1, textAlign: 'left' }}>{group.label}</span>
+                <span style={{ display: 'inline-flex', color: 'var(--text-muted)', transition: 'transform 0.15s ease', transform: isCollapsed ? 'rotate(-90deg)' : 'none' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
                 </span>
               </button>
               {!isCollapsed && group.items.map(renderItem)}
