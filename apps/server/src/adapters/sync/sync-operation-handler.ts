@@ -34,7 +34,7 @@ const CAMPOS_ESCALARES: Record<string, string[]> = {
   stockSucursal: ['id', 'productoId', 'sucursalId', 'cantidad', 'minimo', 'stockReservado', 'actualizadoEn', 'updatedAt'],
   facturaDte: [
     'id', 'sucursalId', 'usuarioId', 'codigoGeneracion', 'numeroControl', 'tipoDte',
-    'clienteNombre', 'clienteNit', 'clienteNrc', 'clienteGiro',
+    'clienteNombre', 'clienteEmail', 'clienteNit', 'clienteNrc', 'clienteGiro',
     'totalSinIva', 'iva', 'ivaRete1', 'total', 'dteJson', 'estado', 'sincronizado', 'creadoEn',
   ],
   detalleVenta: ['id', 'facturaId', 'productoId', 'cantidad', 'precioUnit', 'subtotal'],

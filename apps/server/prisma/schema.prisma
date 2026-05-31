@@ -122,6 +122,7 @@ model FacturaDte {
   numeroControl    String?  @unique @map("numero_control")
   tipoDte          String   @default("01") @map("tipo_dte")
   clienteNombre    String   @default("Consumidor Final") @map("cliente_nombre")
+  clienteEmail     String?  @map("cliente_email")
   clienteNit       String?  @map("cliente_nit")
   clienteNrc       String?  @map("cliente_nrc")
   clienteGiro      String?  @map("cliente_giro")

@@ -588,6 +588,7 @@
     ensureColumn(db, 'productos',     'image_url',      'TEXT');       // T-22.1
     ensureColumn(db, 'productos',     'disponible_ecommerce', 'INTEGER NOT NULL DEFAULT 0');
     ensureColumn(db, 'productos',     'caracteristicas', 'TEXT');
+    ensureColumn(db, 'facturas_dte',  'cliente_email',  'TEXT');
     ensureColumn(db, 'facturas_dte',  'cliente_nit',    'TEXT');
     ensureColumn(db, 'facturas_dte',  'cliente_nrc',    'TEXT');
     ensureColumn(db, 'facturas_dte',  'cliente_giro',   'TEXT');

@@ -137,6 +137,7 @@ export default function VentasPage() {
   const [clienteNombre,      setClienteNombre]      = useState('Consumidor Final');
   // Datos fiscales para Crédito Fiscal (DTE tipo 03)
   const [tipoDte,         setTipoDte]         = useState<'01' | '03'>('01');
+  const [clienteEmail,    setClienteEmail]    = useState('');
   const [clienteNit,      setClienteNit]      = useState('');
   const [clienteNrc,      setClienteNrc]      = useState('');
   const [clienteGiro,     setClienteGiro]     = useState('');
@@ -272,6 +273,7 @@ export default function VentasPage() {
     setClienteNombre('Consumidor Final');
     setClienteNombreInput('');
     setTipoDte('01');
+    setClienteEmail('');
     setClienteNit('');
     setClienteNrc('');
     setClienteGiro('');
@@ -305,6 +307,7 @@ export default function VentasPage() {
         clienteNombre,
         tipoPago:      'efectivo',
         tipoDte,
+        ...(clienteEmail.trim() ? { clienteEmail: clienteEmail.trim() } : {}),
         ...(tipoDte === '03' ? {
           clienteNit:      clienteNit.trim(),
           clienteNrc:      clienteNrc.trim(),
@@ -648,6 +651,14 @@ export default function VentasPage() {
             placeholder="Consumidor Final"
           />
 
+          <Input
+            label={tipoDte === '03' ? 'Correo del cliente (obligatorio)' : 'Correo del cliente (opcional)'}
+            type="email"
+            value={clienteEmail}
+            onChange={setClienteEmail}
+            placeholder="cliente@correo.com"
+          />
+
           {tipoDte === '03' && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -669,8 +680,18 @@ export default function VentasPage() {
             <Button
               onClick={() => {
                 const nombre = clienteNombreInput.trim() || 'Consumidor Final';
+                const email = clienteEmail.trim();
+                const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
                 if (tipoDte === '03' && (!clienteNit.trim() || !clienteNrc.trim() || nombre === 'Consumidor Final')) {
                   showToast('Para Crédito Fiscal: nombre, NIT y NRC son obligatorios', 'warning');
+                  return;
+                }
+                if (tipoDte === '03' && !emailValido) {
+                  showToast('Para Crédito Fiscal el correo del cliente es obligatorio', 'warning');
+                  return;
+                }
+                if (email && !emailValido) {
+                  showToast('El correo del cliente no tiene un formato válido', 'warning');
                   return;
                 }
                 setClienteNombre(nombre);

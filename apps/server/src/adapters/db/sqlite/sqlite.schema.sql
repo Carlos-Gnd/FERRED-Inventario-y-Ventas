@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS facturas_dte (
   numero_control TEXT UNIQUE,
   tipo_dte TEXT NOT NULL DEFAULT '01',
   cliente_nombre TEXT NOT NULL DEFAULT 'Consumidor Final',
+  cliente_email TEXT,
   cliente_nit TEXT,
   cliente_nrc TEXT,
   cliente_giro TEXT,

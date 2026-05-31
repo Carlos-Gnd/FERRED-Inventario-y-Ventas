@@ -14,6 +14,7 @@ import { assertSameSucursal } from '../middleware/sucursal.guard';
 import { logPendiente }    from '../../sync/sync.service';
 import { sincronizarStockTotal } from '../services/stock-sync.service';
 import { enviarDteHacienda, dteAmbiente }    from '../../dte/dte.service';
+import { enviarEmailComprobanteVenta }       from '../../email/email.service';
 
 export const ventasRoutes = Router();
 
@@ -28,6 +29,7 @@ const VentaSchema = z.object({
   sucursalId:     z.number().int().positive(),
   items:          z.array(ItemVentaSchema).min(1, 'El carrito no puede estar vacío'),
   clienteNombre:  z.string().optional().default('Consumidor Final'),
+  clienteEmail:   z.string().email().optional(),
   tipoPago:       z.string().optional().default('efectivo'),
   // Tipo de documento: '01' = Factura (Consumidor Final), '03' = Comprobante de Crédito Fiscal.
   tipoDte:        z.enum(['01', '03']).optional().default('01'),
@@ -39,6 +41,10 @@ const VentaSchema = z.object({
 }).refine(
   (v) => v.tipoDte !== '03' || (!!v.clienteNit && !!v.clienteNrc && v.clienteNombre !== 'Consumidor Final'),
   { message: 'Para Crédito Fiscal se requieren nombre, NIT y NRC del cliente', path: ['clienteNit'] },
+).refine(
+  // El correo es obligatorio en CCF (Hacienda exige enviar el DTE al receptor); opcional en Factura.
+  (v) => v.tipoDte !== '03' || !!v.clienteEmail,
+  { message: 'Para Crédito Fiscal se requiere el correo del cliente', path: ['clienteEmail'] },
 );
 
 // ── Validar cantidad según tipoUnidad (T-09B.3) ──────────────
@@ -93,7 +99,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
       });
     }
 
-    const { sucursalId, items, clienteNombre, tipoPago, tipoDte, clienteNit, clienteNrc, clienteGiro, aplicaRetencion } = parsed.data;
+    const { sucursalId, items, clienteNombre, clienteEmail, tipoPago, tipoDte, clienteNit, clienteNrc, clienteGiro, aplicaRetencion } = parsed.data;
     const usuarioId = req.usuario?.id;
 
     // DT-08: usa assertSameSucursal (fail-closed) en vez de checks inline
@@ -163,6 +169,7 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
           tipoDte,
           codigoGeneracion,
           clienteNombre,
+          clienteEmail:  clienteEmail ?? null,
           clienteNit:    tipoDte === '03' ? clienteNit  ?? null : null,
           clienteNrc:    tipoDte === '03' ? clienteNrc  ?? null : null,
           clienteGiro:   tipoDte === '03' ? clienteGiro ?? null : null,
@@ -236,6 +243,15 @@ ventasRoutes.post('/', roleMiddleware('ADMIN', 'CAJERO'), async (req: Request, r
         console.error(`[ventas] DTE post-venta falló (factura ${factura.id}):`, err.message)
       );
     });
+
+    // Enviar el comprobante por correo si el cliente dio email (obligatorio en CCF). No bloquea la venta.
+    if (clienteEmail) {
+      setImmediate(() => {
+        enviarEmailComprobanteVenta(factura.id).catch(err =>
+          console.error(`[ventas] Email de comprobante falló (factura ${factura.id}):`, err.message)
+        );
+      });
+    }
 
     const facturaCompleta = await prisma.facturaDte.findUnique({
       where:   { id: factura.id },
