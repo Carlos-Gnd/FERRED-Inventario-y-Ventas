@@ -1,12 +1,12 @@
 .expenses-page {
-  --expenses-panel: #060b1b;
-  --expenses-panel-2: #0b1226;
-  --expenses-panel-3: #111a2f;
-  --expenses-header: #202b40;
-  --expenses-input: #202b40;
-  --expenses-border: rgba(117, 137, 178, 0.22);
-  --expenses-muted: #8d98ad;
-  --expenses-row: #080f21;
+  --expenses-panel: var(--bg-surface);
+  --expenses-panel-2: var(--bg-elevated);
+  --expenses-panel-3: var(--bg-elevated);
+  --expenses-header: var(--bg-elevated);
+  --expenses-input: var(--bg-elevated);
+  --expenses-border: var(--border);
+  --expenses-muted: var(--text-muted);
+  --expenses-row: var(--bg-base);
   --expenses-blue: #2293f6;
   --expenses-green: #13ba68;
   --expenses-orange: #b76511;

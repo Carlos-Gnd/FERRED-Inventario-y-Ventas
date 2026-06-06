@@ -21,6 +21,8 @@ export function Topbar() {
   // ── Lógica de confirmación post-sync ──────────────────────
   const [showSynced, setShowSynced] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => Date.now());
   const prevPendientes = useRef<number>(syncState.pendientes);
   const syncTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,6 +47,16 @@ export function Topbar() {
   }, [syncState.pendientes, isOnline]);
 
   function handleLogout() { logout(); navigate('/login'); }
+
+  // Cerrar el menú de perfil al hacer clic fuera
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [menuOpen]);
 
   async function handleSyncNow() {
     try {
@@ -248,23 +260,62 @@ export function Topbar() {
         {isDark ? '☀️' : '🌙'}
       </button>
 
-      {/* Usuario */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {/* Usuario — menú de perfil */}
+      <div ref={menuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div className="hide-sm" style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{usuario?.nombre}</div>
           <div style={{ fontSize: '10px', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{usuario?.rol}</div>
         </div>
-        <div style={{
-          width: '32px', height: '32px', borderRadius: '50%',
-          background: 'var(--accent)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff',
-          cursor: 'pointer', flexShrink: 0,
-        }}
-          onClick={handleLogout}
-          title="Cerrar sesión"
+        <button
+          onClick={() => setMenuOpen(o => !o)}
+          title="Abrir menú de perfil"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          style={{
+            width: '32px', height: '32px', borderRadius: '50%',
+            background: 'var(--accent)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff',
+            cursor: 'pointer', flexShrink: 0, border: 'none', fontFamily: 'inherit',
+          }}
         >
           {initials(usuario?.nombre ?? 'U')}
-        </div>
+        </button>
+
+        {menuOpen && (
+          <div role="menu" style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 1000,
+            minWidth: '200px',
+            background: 'var(--bg-surface)', border: '1px solid var(--border)',
+            borderRadius: '10px', boxShadow: 'var(--shadow-modal)',
+            padding: '8px', animation: 'modalIn 0.16s ease',
+          }}>
+            <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', marginBottom: '6px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{usuario?.nombre}</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{usuario?.email}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
+                {usuario?.rol} · {branchLabel}
+              </div>
+            </div>
+            <button
+              role="menuitem"
+              onClick={() => { setMenuOpen(false); handleLogout(); }}
+              style={{
+                width: '100%', textAlign: 'left', padding: '9px 10px',
+                background: 'transparent', border: 'none', borderRadius: '6px',
+                color: 'var(--danger)', fontFamily: 'inherit', fontSize: '13px',
+                fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '8px',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Cerrar sesión
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

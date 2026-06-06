@@ -1,12 +1,12 @@
 .reports-page {
-  --reports-surface: #070d21;
-  --reports-surface-muted: #141d31;
-  --reports-filter-surface: #1b253a;
-  --reports-input-surface: #5e687d;
-  --reports-input-text: #f4f7fc;
-  --reports-input-placeholder: #d7dce6;
-  --reports-toggle-border: rgba(64, 112, 221, 0.28);
-  --reports-toggle-surface: rgba(18, 29, 55, 0.42);
+  --reports-surface: var(--bg-surface);
+  --reports-surface-muted: var(--bg-elevated);
+  --reports-filter-surface: var(--bg-elevated);
+  --reports-input-surface: var(--bg-elevated);
+  --reports-input-text: var(--text-primary);
+  --reports-input-placeholder: var(--text-muted);
+  --reports-toggle-border: var(--border);
+  --reports-toggle-surface: var(--bg-elevated);
   --reports-export-border: rgba(98, 74, 196, 0.9);
   --reports-export-text: #8f64ff;
   --reports-chip-surface: #6b7280;
