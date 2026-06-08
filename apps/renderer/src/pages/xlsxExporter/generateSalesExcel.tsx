@@ -18,6 +18,7 @@ export interface SalesExcelSale {
   estado: string;
   totalSinIva: number;
   iva: number;
+  ivaRete1?: number;
   total: number;
   items: SalesExcelItem[];
 }
@@ -85,18 +86,19 @@ function resolveRangeLabel(filters?: GenerateSalesExcelOptions['filters']) {
 
 function appendColumnWidths(sheet: XLSX.WorkSheet) {
   sheet['!cols'] = [
-    { wch: 19 },
-    { wch: 10 },
-    { wch: 22 },
-    { wch: 24 },
-    { wch: 22 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 40 },
-    { wch: 12 },
+    { wch: 19 }, // Fecha
+    { wch: 10 }, // Factura
+    { wch: 20 }, // Documento
+    { wch: 22 }, // Sucursal
+    { wch: 22 }, // Cajero
+    { wch: 24 }, // Cliente
+    { wch: 12 }, // Estado
+    { wch: 16 }, // Subtotal sin IVA
+    { wch: 14 }, // IVA
+    { wch: 14 }, // Retención IVA
+    { wch: 14 }, // Total
+    { wch: 10 }, // Unidades
+    { wch: 40 }, // Productos
   ];
 }
 
@@ -104,12 +106,12 @@ function applyNumericFormats(sheet: XLSX.WorkSheet) {
   const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
 
   for (let row = range.s.r + 1; row <= range.e.r; row += 1) {
-    ['G', 'H', 'I'].forEach((column) => {
+    ['H', 'I', 'J', 'K'].forEach((column) => {
       const cell = sheet[`${column}${row + 1}`];
       if (cell) cell.z = currencyFormat;
     });
 
-    const unitsCell = sheet[`J${row + 1}`];
+    const unitsCell = sheet[`L${row + 1}`];
     if (unitsCell) unitsCell.z = numberFormat;
   }
 }
@@ -118,16 +120,17 @@ function buildSalesRows(ventas: SalesExcelSale[]) {
   return ventas.map((venta) => ({
     Fecha: formatDate(venta.fecha),
     Factura: venta.id,
+    Documento: venta.tipoDte === '03' ? 'Crédito Fiscal (CCF)' : 'Consumidor Final (CF)',
     Sucursal: venta.sucursal || 'N/D',
     Cajero: venta.cajero || 'N/D',
     Cliente: venta.clienteNombre || 'Cliente general',
     Estado: venta.estado,
     'Subtotal sin IVA': venta.totalSinIva,
     IVA: venta.iva,
+    'Retención IVA': venta.ivaRete1 ?? 0,
     Total: venta.total,
     Unidades: getSaleUnits(venta),
     Productos: getProductsLabel(venta),
-    DTE: venta.tipoDte,
   }));
 }
 
@@ -156,6 +159,7 @@ function addSalesSheet(workbook: XLSX.WorkBook, sheetName: string, ventas: Sales
 function addSummarySheet(workbook: XLSX.WorkBook, options: GenerateSalesExcelOptions, groupByLabel: string) {
   const totalSinIva = options.ventas.reduce((sum, venta) => sum + venta.totalSinIva, 0);
   const iva = options.ventas.reduce((sum, venta) => sum + venta.iva, 0);
+  const retencion = options.ventas.reduce((sum, venta) => sum + (venta.ivaRete1 ?? 0), 0);
   const units = options.ventas.reduce((sum, venta) => sum + getSaleUnits(venta), 0);
 
   const rows = [
@@ -171,6 +175,7 @@ function addSummarySheet(workbook: XLSX.WorkBook, options: GenerateSalesExcelOpt
     ['Unidades vendidas', units],
     ['Subtotal sin IVA', totalSinIva],
     ['IVA', iva],
+    ['Retención IVA 1%', retencion],
     ['Total facturado', options.summary.totalVentas],
     ['Ticket promedio', options.summary.promedioVenta],
   ];
@@ -178,7 +183,8 @@ function addSummarySheet(workbook: XLSX.WorkBook, options: GenerateSalesExcelOpt
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   sheet['!cols'] = [{ wch: 26 }, { wch: 28 }];
 
-  ['B11', 'B12', 'B13', 'B14'].forEach((cellRef) => {
+  // Subtotal(B11), IVA(B12), Retención(B13), Total(B14), Ticket promedio(B15)
+  ['B11', 'B12', 'B13', 'B14', 'B15'].forEach((cellRef) => {
     const cell = sheet[cellRef];
     if (cell) cell.z = currencyFormat;
   });

@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, isOfflineError } from '../../services/api.client';
-import { useAuthStore } from '../../store/authStore';
-import { useThemeStore } from '../../store/themeStore';
 import './ReceptionHistoryPage.css';
 
 interface HistoryReceptionItem {
@@ -68,8 +66,6 @@ function getReceptionQuantity(item: HistoryReceptionItem) {
 }
 
 export default function ReceptionHistoryPage() {
-  const { usuario } = useAuthStore();
-  const { isDark, toggleTheme } = useThemeStore();
 
   const [receptions, setReceptions] = useState<HistoryReceptionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,8 +167,6 @@ export default function ReceptionHistoryPage() {
     }
   }, [currentPage, totalPages]);
 
-  const visibleName = usuario?.nombre?.trim() || 'Usuario desconocido';
-  const visibleRole = usuario?.rol === 'ADMIN' ? 'Administrador' : 'Bodeguero';
   const pageStart = filteredItems.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
   const pageEnd = filteredItems.length === 0 ? 0 : Math.min(safeCurrentPage * PAGE_SIZE, filteredItems.length);
   const emptyMessage = receptions.length === 0
@@ -188,22 +182,6 @@ export default function ReceptionHistoryPage() {
             <span className="reports-role-badge">Solo administrador / bodeguero</span>
           </div>
           <p>Registro de ingresos de mercancia por sucursal</p>
-        </div>
-
-        <div className="reports-user-card">
-          <button
-            type="button"
-            className="reports-theme-toggle"
-            onClick={toggleTheme}
-            title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-          >
-            {isDark ? '\u2600' : '\u263E'}
-          </button>
-          <div className="reports-user-card__meta">
-            <div className="reports-user-card__name">{visibleName}</div>
-            <div className="reports-user-card__role">{visibleRole}</div>
-          </div>
-          <div className="reports-user-card__avatar">{getInitials(visibleName)}</div>
         </div>
       </section>
 

@@ -3,7 +3,7 @@ import { api } from '../../services/api.client';
 import { Button } from '../../components/ui/Button';
 import { Input }  from '../../components/ui/Input';
 import { Modal }  from '../../components/ui/Modal';
-import { Select, Toast } from '../../components/ui';
+import { Select, Toast, HelpTip } from '../../components/ui';
 import type { ToastData } from '../../components/ui';
 
 interface Sucursal {
@@ -249,6 +249,7 @@ export default function TransfersPage() {
             />
             <Select
               label="Sucursal destino"
+              help={<HelpTip text="Sucursal que recibe el stock. Debe ser distinta de la de origen. La transferencia descuenta de origen y suma en destino: verificá que sea la correcta porque mueve inventario real." side="right" />}
               options={sucursalOptions}
               value={form.destinoId}
               onChange={v => handleChange('destinoId', v)}
@@ -265,6 +266,7 @@ export default function TransfersPage() {
               value={form.cantidad}
               onChange={v => handleChange('cantidad', v)}
               error={formErr.cantidad}
+              help={<HelpTip text="Unidades a mover. No puede superar el stock disponible en la sucursal de origen, o la transferencia se rechaza." />}
             />
             {/* Barra de validación en tiempo real */}
             {stockOrigen !== null && Number(form.cantidad) > 0 && (

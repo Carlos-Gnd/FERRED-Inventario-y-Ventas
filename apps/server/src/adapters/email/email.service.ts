@@ -2,6 +2,7 @@
 import nodemailer from 'nodemailer';
 import { env } from '../../config/env';
 import { prisma } from '../db/prisma/prisma.client';
+import { construirUrlConsultaDte } from '../dte/dte.service';
 
 export function crearTransporte() {
   if (env.smtp.host && env.smtp.user && env.smtp.pass) {
@@ -102,5 +103,98 @@ export async function enviarEmailConfirmacionPago(params: ConfirmacionPagoParams
     ultimaConfirmacion.set(params.pedidoId, Date.now());
   } catch (err: unknown) {
     console.error('[Email] Error al enviar confirmacion de pago:', (err as Error).message);
+  }
+}
+
+// Envía al cliente el comprobante de su venta del POS (Factura o Crédito Fiscal),
+// con el desglose, los datos fiscales y el enlace de consulta del DTE en Hacienda.
+// No-op si no hay SMTP configurado o si la factura no tiene correo de cliente.
+export async function enviarEmailComprobanteVenta(facturaId: number): Promise<void> {
+  const transporte = crearTransporte();
+  if (!transporte) return;
+
+  const factura = await prisma.facturaDte.findUnique({
+    where:   { id: facturaId },
+    include: {
+      detalles: { include: { producto: { select: { nombre: true } } } },
+      sucursal: { select: { nombre: true } },
+    },
+  });
+  if (!factura || !factura.clienteEmail) return;
+
+  const esCredito  = factura.tipoDte === '03';
+  const docLabel   = esCredito ? 'Comprobante de Crédito Fiscal' : 'Factura — Consumidor Final';
+  const fechaEmi   = factura.creadoEn.toISOString().split('T')[0];
+  const consultaUrl = factura.codigoGeneracion
+    ? construirUrlConsultaDte(factura.codigoGeneracion, fechaEmi)
+    : null;
+
+  const filas = factura.detalles.map(d => `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${escapeHtml(d.producto.nombre)}</td>
+      <td style="padding:8px 12px;text-align:center;border-bottom:1px solid #e5e7eb">${d.cantidad}</td>
+      <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #e5e7eb">$${Number(d.subtotal ?? 0).toFixed(2)}</td>
+    </tr>`).join('');
+
+  const retencion = Number(factura.ivaRete1 ?? 0);
+  const filaRetencion = retencion > 0
+    ? `<tr><td colspan="2" style="padding:6px 12px;text-align:right;color:#374151">Retención IVA (1%):</td>
+         <td style="padding:6px 12px;text-align:right;color:#374151">-$${retencion.toFixed(2)}</td></tr>`
+    : '';
+
+  const bloqueFiscal = esCredito
+    ? `<table style="width:100%;font-size:14px;color:#374151;margin-top:8px">
+         <tr><td style="padding:2px 0"><strong>NIT:</strong></td><td>${escapeHtml(factura.clienteNit ?? '')}</td></tr>
+         <tr><td style="padding:2px 0"><strong>NRC:</strong></td><td>${escapeHtml(factura.clienteNrc ?? '')}</td></tr>
+         ${factura.clienteGiro ? `<tr><td style="padding:2px 0"><strong>Giro:</strong></td><td>${escapeHtml(factura.clienteGiro)}</td></tr>` : ''}
+       </table>`
+    : '';
+
+  const bloqueDte = consultaUrl
+    ? `<p style="margin:16px 0 4px;font-size:14px;color:#374151"><strong>Documento Tributario Electrónico</strong></p>
+       <p style="font-size:12px;color:#6b7280;word-break:break-all">Código de generación: ${escapeHtml(factura.codigoGeneracion ?? '')}</p>
+       <p style="margin:8px 0"><a href="${consultaUrl}" style="color:#2563eb">Consultar el DTE en el Ministerio de Hacienda</a></p>`
+    : '';
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+      <div style="background:#1f2937;padding:20px;border-radius:8px 8px 0 0">
+        <h1 style="color:white;margin:0;font-size:20px">${docLabel}</h1>
+        <p style="color:#9ca3af;margin:4px 0 0">FERRED — Venta #${factura.id} · ${escapeHtml(factura.sucursal?.nombre ?? '')}</p>
+      </div>
+      <div style="background:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
+        <p>Hola <strong>${escapeHtml(factura.clienteNombre)}</strong>, gracias por tu compra. Este es tu comprobante.</p>
+        ${bloqueFiscal}
+        <table style="width:100%;border-collapse:collapse;background:white;border:1px solid #e5e7eb;margin:16px 0">
+          <thead>
+            <tr style="background:#1f2937;color:white">
+              <th style="padding:10px;text-align:left">Producto</th>
+              <th style="padding:10px;text-align:center">Cant.</th>
+              <th style="padding:10px;text-align:right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>${filas}</tbody>
+          <tfoot>
+            <tr><td colspan="2" style="padding:6px 12px;text-align:right;color:#374151">Subtotal sin IVA:</td><td style="padding:6px 12px;text-align:right;color:#374151">$${Number(factura.totalSinIva ?? 0).toFixed(2)}</td></tr>
+            <tr><td colspan="2" style="padding:6px 12px;text-align:right;color:#374151">IVA (13%):</td><td style="padding:6px 12px;text-align:right;color:#374151">$${Number(factura.iva ?? 0).toFixed(2)}</td></tr>
+            ${filaRetencion}
+            <tr style="background:#f3f4f6"><td colspan="2" style="padding:10px 12px;font-weight:bold;text-align:right">Total:</td><td style="padding:10px 12px;font-weight:bold;text-align:right">$${Number(factura.total ?? 0).toFixed(2)}</td></tr>
+          </tfoot>
+        </table>
+        ${bloqueDte}
+        <p style="color:#6b7280;font-size:12px;margin-top:16px">Guarda este correo como comprobante de tu compra.</p>
+      </div>
+    </div>`;
+
+  try {
+    const correoRemitente = await obtenerCorreoRemitente();
+    await transporte.sendMail({
+      from:    `"FERRED" <${correoRemitente}>`,
+      to:      factura.clienteEmail,
+      subject: `${docLabel} — Venta #${factura.id}`,
+      html,
+    });
+  } catch (err: unknown) {
+    console.error('[Email] Error al enviar comprobante de venta:', (err as Error).message);
   }
 }

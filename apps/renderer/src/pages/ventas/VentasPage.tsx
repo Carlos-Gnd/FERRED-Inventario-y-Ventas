@@ -13,7 +13,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button }  from '../../components/ui/Button';
 import { Input }   from '../../components/ui/Input';
 import { Modal }   from '../../components/ui/Modal';
-import { Toast }   from '../../components/ui';
+import { Toast, HelpTip }   from '../../components/ui';
 import type { ToastData } from '../../components/ui';
 import type { TipoUnidad } from '../../types';
 import { TIPO_UNIDAD_LABELS } from '../../types';
@@ -130,9 +130,18 @@ export default function VentasPage() {
   const [confirming,   setConfirming]   = useState(false);
   const [nroFactura,   setNroFactura]   = useState<string | null>(null);
   const [facturaId,    setFacturaId]    = useState<number | null>(null);
+  const [codigoGeneracion, setCodigoGeneracion] = useState<string | null>(null);
+  const [ambienteDte,      setAmbienteDte]      = useState<string>('00');
   const [toast,        setToast]        = useState<ToastData | null>(null);
   const [clienteNombreInput, setClienteNombreInput] = useState('');
   const [clienteNombre,      setClienteNombre]      = useState('Consumidor Final');
+  // Datos fiscales para Crédito Fiscal (DTE tipo 03)
+  const [tipoDte,         setTipoDte]         = useState<'01' | '03'>('01');
+  const [clienteEmail,    setClienteEmail]    = useState('');
+  const [clienteNit,      setClienteNit]      = useState('');
+  const [clienteNrc,      setClienteNrc]      = useState('');
+  const [clienteGiro,     setClienteGiro]     = useState('');
+  const [aplicaRetencion, setAplicaRetencion] = useState(false);
   const [modalCliente,       setModalCliente]       = useState(false);
   const [modalTicketPrint,   setModalTicketPrint]   = useState(false);
   const [ventaFecha,         setVentaFecha]         = useState<Date>(new Date());
@@ -145,29 +154,33 @@ export default function VentasPage() {
   // Focus automatico en barcode al montar
   useEffect(() => { barcodeRef.current?.focus(); }, []);
 
-  // T-02A.3: Busqueda manual con debounce 300ms via API
+  // T-02A.3: Busqueda manual con debounce 300ms via API.
+  // Con búsqueda vacía cargamos una lista de productos disponibles para navegar (sin teclear).
   useEffect(() => {
     if (busqTimer.current) clearTimeout(busqTimer.current);
-    if (!busqueda.trim()) { setResultados([]); setBuscando(false); return; }
+    const termino = busqueda.trim();
 
     setBuscando(true);
+    // Sin término no hace falta debounce (carga inicial / lista por defecto).
+    const delay = termino ? 300 : 0;
     busqTimer.current = setTimeout(async () => {
       try {
-        const params: Record<string, string> = { buscar: busqueda.trim() };
+        const params: Record<string, string> = {};
+        if (termino) params.buscar = termino;
         if (sucursalId) params.sucursalId = String(sucursalId);
 
         const { data } = await api.get('/productos', { params });
         const productos: ProductoPOS[] = (data as any[])
-          .slice(0, 10)
+          .slice(0, termino ? 10 : 24)
           .map(p => normalizarProducto(p, sucursalId));
         setResultados(productos);
       } catch {
         setResultados([]);
-        showToast('Error al buscar productos', 'error');
+        if (termino) showToast('Error al buscar productos', 'error');
       } finally {
         setBuscando(false);
       }
-    }, 300);
+    }, delay);
   }, [busqueda, sucursalId]);
 
   // T-02A.5: Agregar producto al carrito con validacion de stock real
@@ -196,8 +209,9 @@ export default function VentasPage() {
       return [...prev, { producto: prod, cantidad: 1, subtotal: calcLinea(prod, 1) }];
     });
     setProdSelec(prod);
+    // Limpiar la búsqueda recarga la lista de productos disponibles (el efecto repuebla
+    // `resultados`); no la vaciamos a mano para que el cajero siga navegando.
     setBusqueda('');
-    setResultados([]);
     setBarcode('');
     setTimeout(() => barcodeRef.current?.focus(), 50);
   }, []);
@@ -255,15 +269,24 @@ export default function VentasPage() {
     setProdSelec(null);
     setNroFactura(null);
     setFacturaId(null);
+    setCodigoGeneracion(null);
     setClienteNombre('Consumidor Final');
     setClienteNombreInput('');
+    setTipoDte('01');
+    setClienteEmail('');
+    setClienteNit('');
+    setClienteNrc('');
+    setClienteGiro('');
+    setAplicaRetencion(false);
     setTimeout(() => barcodeRef.current?.focus(), 50);
   }
 
   // T-02A.4: Totales calculados en tiempo real
   const subtotalSinIva = carrito.reduce((acc, l) => acc + (l.producto.precioVenta * l.cantidad), 0);
   const ivaTotal       = carrito.reduce((acc, l) => acc + ((l.producto.precioConIva - l.producto.precioVenta) * l.cantidad), 0);
-  const totalFinal     = carrito.reduce((acc, l) => acc + l.subtotal, 0);
+  // Retención IVA 1% (solo CCF + gran contribuyente): la descuenta el comprador.
+  const retencion      = (tipoDte === '03' && aplicaRetencion) ? Math.round(subtotalSinIva * 0.01 * 100) / 100 : 0;
+  const totalFinal     = carrito.reduce((acc, l) => acc + l.subtotal, 0) - retencion;
 
   // T-02A.4: Confirmar venta via POST /api/ventas
   async function confirmarVenta() {
@@ -283,11 +306,21 @@ export default function VentasPage() {
         })),
         clienteNombre,
         tipoPago:      'efectivo',
+        tipoDte,
+        ...(clienteEmail.trim() ? { clienteEmail: clienteEmail.trim() } : {}),
+        ...(tipoDte === '03' ? {
+          clienteNit:      clienteNit.trim(),
+          clienteNrc:      clienteNrc.trim(),
+          clienteGiro:     clienteGiro.trim() || undefined,
+          aplicaRetencion,
+        } : {}),
       });
 
       const factura = data.factura;
       setNroFactura(`F-${factura.id}`);
       setFacturaId(factura.id);
+      setCodigoGeneracion(factura.codigoGeneracion ?? null);
+      setAmbienteDte(data.ambiente ?? '00');
       setVentaFecha(new Date());
       setConfirming(false);
       setModalConfirm(false);
@@ -407,7 +440,7 @@ export default function VentasPage() {
             borderRadius: '10px', padding: '14px', flex: 1,
           }}>
             <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-subtle)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Busqueda manual
+              {busqueda.trim() ? 'Busqueda manual' : 'Productos disponibles'}
             </p>
             <Input
               value={busqueda}
@@ -581,6 +614,7 @@ export default function VentasPage() {
         carrito={carrito}
         subtotalSinIva={subtotalSinIva}
         ivaTotal={ivaTotal}
+        retencion={retencion}
         totalFinal={totalFinal}
         onClose={() => setModalConfirm(false)}
         onConfirm={confirmarVenta}
@@ -591,22 +625,78 @@ export default function VentasPage() {
       <Modal
         open={modalCliente}
         onClose={() => setModalCliente(false)}
-        title="¿A nombre de quién?"
-        maxWidth={360}
+        title="Datos del documento"
+        maxWidth={400}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Selector de tipo de documento */}
+          <div style={{ display: 'flex', gap: '6px', padding: '3px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+            {([['01', 'Consumidor Final'], ['03', 'Crédito Fiscal']] as const).map(([t, label]) => (
+              <button key={t} type="button" onClick={() => setTipoDte(t)}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: 600, fontFamily: 'inherit',
+                  background: tipoDte === t ? 'var(--accent)' : 'transparent',
+                  color: tipoDte === t ? '#fff' : 'var(--text-muted)',
+                }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
           <Input
+            label={tipoDte === '03' ? 'Nombre / Razón social' : 'A nombre de (opcional)'}
             value={clienteNombreInput}
             onChange={setClienteNombreInput}
             placeholder="Consumidor Final"
           />
+
+          <Input
+            label={tipoDte === '03' ? 'Correo del cliente (obligatorio)' : 'Correo del cliente (opcional)'}
+            type="email"
+            value={clienteEmail}
+            onChange={setClienteEmail}
+            placeholder="cliente@correo.com"
+          />
+
+          {tipoDte === '03' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <Input label="NIT" value={clienteNit} onChange={setClienteNit} placeholder="0614-..."
+                  help={<HelpTip text="NIT del cliente (gran contribuyente). Va en el Crédito Fiscal y debe ser válido, o Hacienda rechaza el DTE." />} />
+                <Input label="NRC" value={clienteNrc} onChange={setClienteNrc} placeholder="123456-7"
+                  help={<HelpTip text="Número de Registro de Contribuyente del cliente. Obligatorio en CCF e incluido en el DTE." side="right" />} />
+              </div>
+              <Input label="Giro (opcional)" value={clienteGiro} onChange={setClienteGiro} placeholder="Actividad económica" />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={aplicaRetencion} onChange={e => setAplicaRetencion(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+                Aplica retención IVA 1% (gran contribuyente)
+              </label>
+            </>
+          )}
+
           <div style={{ display: 'flex', gap: '10px' }}>
             <Button variant="ghost" onClick={() => setModalCliente(false)} style={{ flex: 1 }}>
               Cancelar
             </Button>
             <Button
               onClick={() => {
-                setClienteNombre(clienteNombreInput.trim() || 'Consumidor Final');
+                const nombre = clienteNombreInput.trim() || 'Consumidor Final';
+                const email = clienteEmail.trim();
+                const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+                if (tipoDte === '03' && (!clienteNit.trim() || !clienteNrc.trim() || nombre === 'Consumidor Final')) {
+                  showToast('Para Crédito Fiscal: nombre, NIT y NRC son obligatorios', 'warning');
+                  return;
+                }
+                if (tipoDte === '03' && !emailValido) {
+                  showToast('Para Crédito Fiscal el correo del cliente es obligatorio', 'warning');
+                  return;
+                }
+                if (email && !emailValido) {
+                  showToast('El correo del cliente no tiene un formato válido', 'warning');
+                  return;
+                }
+                setClienteNombre(nombre);
                 setClienteNombreInput('');
                 setModalCliente(false);
                 setModalConfirm(true);
@@ -634,7 +724,13 @@ export default function VentasPage() {
           carrito={carrito}
           subtotalSinIva={subtotalSinIva}
           ivaTotal={ivaTotal}
+          retencion={retencion}
           totalFinal={totalFinal}
+          tipoDte={tipoDte}
+          clienteNit={clienteNit}
+          clienteNrc={clienteNrc}
+          codigoGeneracion={codigoGeneracion}
+          ambiente={ambienteDte}
         />
       )}
 

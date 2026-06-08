@@ -44,14 +44,16 @@ interface SelectProps {
   onChange:  (val: string) => void;
   disabled?: boolean;
   error?:    string;
+  help?:     ReactNode;
 }
 
-export function Select({ label, value, options, onChange, disabled, error }: SelectProps) {
+export function Select({ label, value, options, onChange, disabled, error, help }: SelectProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       {label && (
-        <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+        <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           {label}
+          {help}
         </label>
       )}
       <div style={{ position: 'relative' }}>

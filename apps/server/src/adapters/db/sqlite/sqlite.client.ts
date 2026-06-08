@@ -588,6 +588,11 @@
     ensureColumn(db, 'productos',     'image_url',      'TEXT');       // T-22.1
     ensureColumn(db, 'productos',     'disponible_ecommerce', 'INTEGER NOT NULL DEFAULT 0');
     ensureColumn(db, 'productos',     'caracteristicas', 'TEXT');
+    ensureColumn(db, 'facturas_dte',  'cliente_email',  'TEXT');
+    ensureColumn(db, 'facturas_dte',  'cliente_nit',    'TEXT');
+    ensureColumn(db, 'facturas_dte',  'cliente_nrc',    'TEXT');
+    ensureColumn(db, 'facturas_dte',  'cliente_giro',   'TEXT');
+    ensureColumn(db, 'facturas_dte',  'iva_rete1',      'REAL NOT NULL DEFAULT 0');
 
     db.prepare(`UPDATE categorias   SET updated_at = datetime('now')                  WHERE updated_at IS NULL`).run();
     db.prepare(`UPDATE productos    SET updated_at = COALESCE(creado_en, datetime('now')) WHERE updated_at IS NULL`).run();

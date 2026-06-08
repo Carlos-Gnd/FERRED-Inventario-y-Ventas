@@ -3,7 +3,7 @@ import { api } from '../../services/api.client';
 import { Button } from '../../components/ui/Button';
 import { Input }  from '../../components/ui/Input';
 import { Modal }  from '../../components/ui/Modal';
-import { Badge, Select, Toast, ConfirmDelete } from '../../components/ui';
+import { Badge, Select, Toast, ConfirmDelete, HelpTip } from '../../components/ui';
 import type { ToastData } from '../../components/ui';
 import type { Usuario, UserRole } from '../../types';
 import { ROLE_LABELS } from '../../types';
@@ -21,7 +21,9 @@ const ROLE_OPTIONS    = [{ value: '', label: 'Todos los roles' }, { value: 'ADMI
 const ROL_FORM_OPTIONS = [{ value: 'ADMIN', label: 'Administrador' }, { value: 'CAJERO', label: 'Cajero' }, { value: 'BODEGA', label: 'Bodeguero' }];
 const SUCURSAL_OPTIONS = [{ value: '1', label: 'Sucursal Central' }, { value: '2', label: 'Sucursal Norte' }];
 
-const EMPTY_FORM = { nombre: '', email: '', contrasena: '', rol: 'CAJERO' as UserRole, sucursalId: 1, activo: true };
+const EMPTY_FORM = { nombre: '', email: '', contrasena: '', rol: 'CAJERO' as UserRole, sucursalId: 1 as number | null, activo: true };
+// Opción "sin sucursal" = ADMIN global (acceso a todas las sucursales).
+const SUCURSAL_GLOBAL = { value: 'null', label: 'Sin sucursal (global)' };
 
 export default function UsersPage() {
   const [usuarios,    setUsuarios]    = useState<Usuario[]>([]);
@@ -36,6 +38,8 @@ export default function UsersPage() {
   const [saving,      setSaving]      = useState(false);
   const [formErr,     setFormErr]     = useState<Record<string,string>>({});
   const [form,        setForm]        = useState({ ...EMPTY_FORM });
+  // Solo un ADMIN puede ser global (sin sucursal); cajeros/bodegueros siempre con sucursal.
+  const sucursalOptions = form.rol === 'ADMIN' ? [...SUCURSAL_OPTIONS, SUCURSAL_GLOBAL] : SUCURSAL_OPTIONS;
 
   const showToast = (msg: string, type: ToastData['type']) => {
     setToast({ msg, type }); setTimeout(() => setToast(null), 3000);
@@ -60,7 +64,7 @@ export default function UsersPage() {
   function openNew()  { setForm({ ...EMPTY_FORM }); setFormErr({}); setModalNew(true); }
   function openEdit() {
     if (!selectedUser) return;
-    setForm({ nombre: selectedUser.nombre, email: selectedUser.email, contrasena: '', rol: selectedUser.rol, sucursalId: selectedUser.sucursalId ?? 1, activo: selectedUser.activo });
+    setForm({ nombre: selectedUser.nombre, email: selectedUser.email, contrasena: '', rol: selectedUser.rol, sucursalId: selectedUser.sucursalId ?? null, activo: selectedUser.activo });
     setFormErr({});
     setModalEdit(true);
   }
@@ -207,11 +211,11 @@ export default function UsersPage() {
           <Input label="Correo Electrónico" type="email" placeholder="usuario@ferred.com" {...field('email')} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <Input label="Contraseña" type="password" placeholder="••••••••" {...field('contrasena')} />
-            <Select label="Rol" options={ROL_FORM_OPTIONS} value={form.rol}
+            <Select label="Rol" help={<HelpTip text="Define qué puede hacer el usuario. ADMIN: acceso total y multi-sucursal. CAJERO: ventas y caja. BODEGA: inventario y recepciones. Cambiarlo afecta de inmediato a qué pantallas y datos accede." />} options={ROL_FORM_OPTIONS} value={form.rol}
               onChange={v => setForm(f => ({ ...f, rol: v as UserRole }))} />
           </div>
-          <Select label="Sucursal" options={SUCURSAL_OPTIONS} value={String(form.sucursalId)}
-            onChange={v => setForm(f => ({ ...f, sucursalId: Number(v) }))} />
+          <Select label="Sucursal" help={<HelpTip text="Sucursal a la que pertenece el usuario. Un usuario no-ADMIN solo ve y opera datos de su sucursal (ventas, stock, caja). Asignar mal la sucursal le bloquea el acceso a su información o lo deja sin permisos." />} options={sucursalOptions} value={String(form.sucursalId)}
+            onChange={v => setForm(f => ({ ...f, sucursalId: v === 'null' ? null : Number(v) }))} />
           <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
             <Button variant="ghost" onClick={() => setModalNew(false)} style={{ flex: 1 }}>Cancelar</Button>
             <Button loading={saving} onClick={handleSave} style={{ flex: 1 }}>Crear Usuario</Button>
@@ -228,12 +232,12 @@ export default function UsersPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <Input label="Nueva Contraseña (opcional)" type="password" placeholder="Dejar vacío para no cambiar"
               value={form.contrasena} onChange={v => setForm(f => ({ ...f, contrasena: v }))} />
-            <Select label="Rol" options={ROL_FORM_OPTIONS} value={form.rol}
+            <Select label="Rol" help={<HelpTip text="Define qué puede hacer el usuario. ADMIN: acceso total y multi-sucursal. CAJERO: ventas y caja. BODEGA: inventario y recepciones. Cambiarlo afecta de inmediato a qué pantallas y datos accede." />} options={ROL_FORM_OPTIONS} value={form.rol}
               onChange={v => setForm(f => ({ ...f, rol: v as UserRole }))} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <Select label="Sucursal" options={SUCURSAL_OPTIONS} value={String(form.sucursalId)}
-              onChange={v => setForm(f => ({ ...f, sucursalId: Number(v) }))} />
+            <Select label="Sucursal" help={<HelpTip text="Sucursal a la que pertenece el usuario. Un usuario no-ADMIN solo ve y opera datos de su sucursal (ventas, stock, caja). Asignar mal la sucursal le bloquea el acceso a su información o lo deja sin permisos." />} options={sucursalOptions} value={String(form.sucursalId)}
+              onChange={v => setForm(f => ({ ...f, sucursalId: v === 'null' ? null : Number(v) }))} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Estado</label>
               <div style={{ padding: '10px 12px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
