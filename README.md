@@ -254,20 +254,6 @@ pnpm dev:electron
 
 ---
 
-## 🔐 Acceso al Sistema
-
-> **Panel de gestión:** https://ferred.netlify.app
-
-Credenciales disponibles para pruebas en producción:
-
-| Rol | Correo | Contraseña | Permisos |
-|-----|--------|------------|----------|
-| **Administrador** | admin@ferred.com | admin123 | Acceso total al sistema |
-| **Cajero** | cajero@ferred.com | cajero123 | Ventas y consulta de stock |
-| **Bodeguero** | bodega@ferred.com | bodega123 | Inventario, recepción y pedidos online de su sucursal |
-
----
-
 ## 👨‍💻 Equipo
 
 | Nombre | Código | Rol Scrum | Responsabilidad técnica |
