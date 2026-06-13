@@ -55,6 +55,7 @@ import { errorMiddleware }  from './adapters/http/middleware/error.middleware';
 import { jwtMiddleware }    from './adapters/http/middleware/jwt.middleware';
 import { SyncService }      from './adapters/sync/sync.service';
 import { SnapshotService }  from './adapters/sync/snapshot.service';
+import { KeepAliveService } from './adapters/keepalive/keepalive.service';
 import { syncRoutes }           from './adapters/http/routes/sync.routes';
 import { reportesRoutes }       from './adapters/http/routes/reportes.routes';
 import { stripeWebhookRoutes }  from './adapters/http/routes/webhook.routes';
@@ -172,3 +173,4 @@ app.listen(PORT, () => {
 SyncService.start();
 AlertasService.start();
 SnapshotService.start(Number(branchId));
+KeepAliveService.start();
