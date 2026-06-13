@@ -1,0 +1,60 @@
+# Blueprint de Render para el backend FERRED (@ferred/server).
+# Render → New → Blueprint → conectar este repo. Pedirá los secretos (sync:false) en el dashboard.
+# La base de datos sigue siendo Supabase (no se crea Postgres en Render).
+
+services:
+  - type: web
+    name: ferred-api
+    runtime: node
+    plan: free
+    region: virginia            # us-east, lo más cercano a El Salvador
+    branch: main
+    # Monorepo pnpm: instalar desde la raíz (postinstall corre prisma generate) y compilar el server.
+    buildCommand: corepack enable && corepack prepare pnpm@9 --activate && pnpm install --frozen-lockfile && pnpm build:server
+    # cwd = apps/server porque uploads/ y el fallback de SQLite usan process.cwd().
+    startCommand: cd apps/server && node dist/index.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render inyecta PORT automáticamente; el server ya lee process.env.PORT.
+      - key: BRANCH_ID
+        value: "1"
+      # ── Secretos: se cargan en el dashboard, NO en el repo ──
+      - key: DATABASE_URL          # Supabase pooler (6543, pgbouncer=true)
+        sync: false
+      - key: DIRECT_URL            # Supabase directo (5432) para migraciones
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ECOMMERCE_SECRET
+        sync: false
+      - key: CRYPTO_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY     # REQUERIDA: el server no arranca sin esta
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET  # REQUERIDA
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: DTE_ENV
+        value: sandbox
+      - key: DTE_SANDBOX_URL
+        sync: false
