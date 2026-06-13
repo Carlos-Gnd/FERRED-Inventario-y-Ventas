@@ -1,7 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserRole } from '../../../types/roles';
 
-// Uso: roleMiddleware('ADMIN') o roleMiddleware('ADMIN', 'CAJERO')
+/**
+ * Middleware factory que restringe una ruta a los roles indicados.
+ *
+ * Requiere que `jwtMiddleware` ya haya corrido (`req.usuario`). Responde `401` si no
+ * hay usuario autenticado, o `403` si su rol no está en la lista permitida.
+ *
+ * @param rolesPermitidos Roles autorizados, p.ej. `roleMiddleware('ADMIN', 'CAJERO')`.
+ */
 export function roleMiddleware(...rolesPermitidos: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.usuario) {

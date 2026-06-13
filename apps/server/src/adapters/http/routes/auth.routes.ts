@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../../db/prisma/prisma.client';
 import { env } from '../../../config/env';
 import type { UserRole } from '../../../types/roles';
-import { getSqliteDb } from '../../db/sqlite.client';
+import { getSqliteDb } from '../../db/sqlite/sqlite.client';
 import { issueJwt as signJwt } from '../services/jwt.service';
 
 export const authRoutes = Router();

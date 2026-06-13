@@ -76,6 +76,15 @@ function getModel(tabla: string): PrismaDelegate {
   return model;
 }
 
+/**
+ * Filtra un payload dejando solo los campos escalares permitidos para la tabla.
+ *
+ * ⚠️ Allowlist por nombre **Prisma camelCase** ({@link CAMPOS_ESCALARES}). Un campo
+ * ausente de la lista se descarta SILENCIOSAMENTE (no lanza). Al agregar una columna
+ * hay que añadirla aquí o el sync la perderá. Descarta también valores `undefined`.
+ *
+ * @throws Si la tabla no está en `CAMPOS_ESCALARES`.
+ */
 export function limpiarPayload(tabla: string, payload: Record<string, unknown>): Record<string, unknown> {
   const campos = CAMPOS_ESCALARES[tabla];
   if (!campos) throw new Error(`Tabla no soportada: ${tabla}`);
@@ -84,6 +93,20 @@ export function limpiarPayload(tabla: string, payload: Record<string, unknown>):
   );
 }
 
+/**
+ * Aplica una operación pendiente contra Postgres (Prisma) durante el drenaje del sync.
+ *
+ * Solo acepta tablas en {@link TABLAS_PERMITIDAS} y limpia el payload con
+ * {@link limpiarPayload}. Reglas por operación:
+ *  - `CREATE`: `upsert` por `id` si viene id, si no `create`. `producto`,
+ *    `configuracionNegocio` y `unidadMedida` tienen paths especiales (upsert por
+ *    clave natural).
+ *  - `UPDATE`: `update` por `id`.
+ *  - `DELETE`: soft-delete (`activo = false`), nunca borra físicamente.
+ *
+ * @throws Si la tabla no está permitida, el payload es inválido, o falta `id` cuando
+ *         la operación lo requiere.
+ */
 export async function aplicarOperacion(
   tabla: string,
   op: string,
@@ -158,6 +181,12 @@ async function upsertUnidadMedida(payload: Record<string, unknown>): Promise<voi
   });
 }
 
+/**
+ * Path especial de `producto` en el drenaje: upsert por `codigoBarras` (clave natural
+ * estable entre sucursales) y, si el payload trae `sucursalId`, crea/actualiza el
+ * `stockSucursal` correspondiente en la misma operación. Descarta `id`/`localId`/
+ * `creadoEn` locales para que Postgres asigne los suyos.
+ */
 async function crearProductoDesdePendiente(payload: Record<string, unknown>): Promise<void> {
   const { id: _id, localId: _localId, sucursalId, creadoEn: _creadoEn, ...rest } = payload;
   const productoData: Record<string, unknown> = limpiarPayload('producto', rest);

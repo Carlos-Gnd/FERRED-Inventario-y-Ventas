@@ -10,6 +10,13 @@ interface JwtPayload {
   email: string;
 }
 
+/**
+ * Middleware de autenticación. Verifica el `Authorization: Bearer <token>`, y al ser
+ * válido popula `req.usuario = { id, rol, sucursalId, email }` para el resto del pipeline.
+ *
+ * Montado GLOBALMENTE en `index.ts` después de las rutas públicas: toda ruta posterior
+ * exige token. Responde `401` si falta el header o el token es inválido/expirado.
+ */
 export function jwtMiddleware(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
 

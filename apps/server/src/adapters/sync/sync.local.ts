@@ -1,3 +1,9 @@
+/**
+ * sync.local.ts — Cola de pendientes en SQLite (`sync_log`).
+ *
+ * Capa de persistencia local del motor offline-first: encola mutaciones, las lee para
+ * el drenaje y registra su resultado. Es la única fuente de verdad mientras no hay red.
+ */
 import { getSqlite } from '../db/sqlite/sqlite.client';
 
 const TABLAS_SYNC = new Set([
@@ -26,6 +32,16 @@ export interface SyncLocalLog {
   sincEn: string | null;
 }
 
+/**
+ * Inserta una operación pendiente en el `sync_log` de SQLite con status `PENDIENTE`.
+ *
+ * Valida que `tabla` esté en `TABLAS_SYNC`. El `usuarioId` se conserva solo si el
+ * usuario existe en la réplica local (FK segura); de lo contrario se guarda `null`
+ * para no romper la inserción cuando el snapshot aún no trajo al autor.
+ *
+ * @returns El `id` autoincremental del registro insertado.
+ * @throws  Si `tabla` no está permitida para sync local.
+ */
 export function logPendienteLocal(
   tabla: string,
   operacion: 'CREATE' | 'UPDATE' | 'DELETE',
@@ -45,6 +61,11 @@ export function logPendienteLocal(
   return Number(result.lastInsertRowid);
 }
 
+/**
+ * Lee los pendientes (`status = 'PENDIENTE'`) en orden FIFO para su drenaje.
+ *
+ * @param limit Máximo de registros a devolver (default 50).
+ */
 export function leerPendientesLocal(limit = 50) {
   const db = getSqlite();
 
@@ -85,6 +106,7 @@ function existeUsuarioLocal(db: ReturnType<typeof getSqlite>, usuarioId?: number
   return Boolean(row);
 }
 
+/** Marca un pendiente como `SINCRONIZADO`, limpia el error y sella `sinc_en`. */
 export function marcarSincronizado(id: number) {
   const db = getSqlite();
 
@@ -97,6 +119,12 @@ export function marcarSincronizado(id: number) {
   `).run('SINCRONIZADO', id);
 }
 
+/**
+ * Incrementa el contador de intentos de un pendiente y registra el error.
+ *
+ * Si los intentos alcanzan `limiteIntentos` el registro pasa a `ERROR` (deja de
+ * reintentarse); si no, vuelve a `PENDIENTE` para el próximo ciclo.
+ */
 export function marcarError(id: number, error: string, limiteIntentos: number) {
   const db = getSqlite();
 
@@ -118,6 +146,14 @@ export function marcarError(id: number, error: string, limiteIntentos: number) {
   `).run(intentos, error, status, id);
 }
 
+/**
+ * Cuenta los registros pendientes y en error del `sync_log`.
+ *
+ * Expuesto por el endpoint `/sync/pendientes-local` para mostrar el badge de
+ * "pendientes por sincronizar" en el frontend.
+ *
+ * @returns `{ pendientes, errores }`.
+ */
 export function contarPendientes() {
   const db = getSqlite();
 

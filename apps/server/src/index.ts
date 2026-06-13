@@ -1,3 +1,25 @@
+/**
+ * index.ts — Composition root del backend FERRED.
+ *
+ * Ensambla la app Express en un orden deliberado de middlewares y monta los jobs
+ * en segundo plano. El orden NO debe alterarse a la ligera:
+ *
+ *   1. helmet → cabeceras de seguridad.
+ *   2. Webhook de Stripe (body crudo) ANTES de express.json() — la firma se verifica
+ *      sobre el body sin parsear.
+ *   3. CORS con allowlist explícita (+ CORS_ORIGINS desde env).
+ *   4. express.json (límite 100kb).
+ *   5. Rate limiters: login 10/min, API general 100/min.
+ *   6. Rutas públicas (sin JWT): auth, ecommerce/auth, health, uploads, catálogo y
+ *      pedidos públicos, pagos.
+ *   7. jwtMiddleware GLOBAL — de aquí en adelante todo exige Bearer.
+ *   8. Rutas de dominio protegidas.
+ *   9. errorMiddleware (siempre al final).
+ *  10. listen() + arranque de SyncService, AlertasService y SnapshotService.
+ *
+ * @see config/env.ts        para las variables de entorno requeridas.
+ * @see adapters/sync/        para el motor offline-first.
+ */
 import express from 'express';
 import cors    from 'cors';
 import helmet  from 'helmet';
@@ -45,15 +67,20 @@ try { initSqlite(); } catch (e) { console.warn('[sqlite] Modo offline no disponi
 const app = express();
 const branchId = process.env.BRANCH_ID || '1';
 
+// Hardening: detrás de Nginx/proxy en la VM (Oracle Cloud). Sin esto express-rate-limit
+// ve la IP del proxy en vez de la del cliente y las cabeceras X-Forwarded-* se ignoran.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 
 // T-19.3: El webhook de Stripe necesita el body SIN parsear para verificar la firma.
 // Debe montarse ANTES de express.json() — de lo contrario la verificación de firma falla.
 app.use('/api/pagos/webhook', express.raw({ type: 'application/json' }), stripeWebhookRoutes);
 
-const ALLOWED_ORIGINS = [
-  'https://ferred.netlify.app',
-  'https://tienda-ferred.netlify.app',
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// Orígenes de desarrollo (Vite dev/preview). Hardening: solo se permiten fuera de producción.
+const DEV_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -63,7 +90,13 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5175',
   'http://127.0.0.1:4173',
   'http://127.0.0.1:5176',
-  'null', // Electron renderer en producción (file:// origin)
+];
+
+const ALLOWED_ORIGINS = [
+  'https://ferred.netlify.app',
+  'https://tienda-ferred.netlify.app',
+  'null', // Electron renderer (file:// origin) → server forked local; se mantiene en prod.
+  ...(IS_PROD ? [] : DEV_ORIGINS),
   // SP4-B03: orígenes adicionales desde env (útil para staging sin redeploy)
   ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : []),
 ];
