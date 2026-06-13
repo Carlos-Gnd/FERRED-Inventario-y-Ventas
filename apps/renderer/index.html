@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Hardening: CSP. Renderer no usa Stripe ni scripts inline; corre también en
+         Electron (file:// → API en http://127.0.0.1:3001), por eso connect-src admite http/ws. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; font-src 'self' data:; connect-src 'self' https: http: ws: wss:; object-src 'none'; base-uri 'self'" />
     <title>Ferred — Inventario &amp; Ventas</title>
     <meta name="description" content="Sistema de gestión de inventario y ventas para Ferretería FERRED" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

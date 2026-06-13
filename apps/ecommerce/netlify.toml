@@ -8,7 +8,7 @@
 
 [[redirects]]
   from   = "/api/*"
-  to     = "https://ferred-api.duckdns.org/api/:splat"
+  to     = "https://ferred.onrender.com/api/:splat"
   status = 200
   force  = true
 

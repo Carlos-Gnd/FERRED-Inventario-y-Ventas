@@ -1,9 +1,0 @@
-[build]
-builder = "NIXPACKS"
-installCommand = "npm install -g pnpm@9 && pnpm install"
-buildCommand = "cd apps/server && npx prisma generate && cd ../.. && pnpm --filter server build"
-
-[deploy]
-startCommand = "node apps/server/dist/index.js"
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3

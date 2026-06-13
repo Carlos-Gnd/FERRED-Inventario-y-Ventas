@@ -1,3 +1,10 @@
+/**
+ * env.ts — Única fuente de verdad para variables de entorno.
+ *
+ * Carga el `.env` (busca primero `cwd/.env` y luego `../../.env` para cubrir tanto
+ * `apps/server/` como la raíz del monorepo) y expone un objeto `env` tipado e inmutable.
+ * Lanza al importarse si falta una variable requerida (fail-fast en el arranque).
+ */
 import dotenv from 'dotenv';
 import path from 'node:path';
 
@@ -10,12 +17,14 @@ for (const envPath of envPaths) {
   dotenv.config({ path: envPath, override: false });
 }
 
+/** Devuelve la variable `name` o lanza si no está definida. */
 function required(name: string): string {
   const val = process.env[name];
   if (!val) throw new Error(`Variable de entorno requerida: ${name}`);
   return val;
 }
 
+/** Devuelve la primera de `names` que esté definida, o lanza si ninguna lo está. */
 function requiredAny(...names: string[]): string {
   for (const name of names) {
     const val = process.env[name];

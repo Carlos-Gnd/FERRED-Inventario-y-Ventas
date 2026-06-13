@@ -9,6 +9,20 @@ import { aplicarOperacion } from './sync-operation-handler';
 
 export { onConnectivityChange, OfflineCache };
 
+/**
+ * Encola una mutación de dominio para sincronización offline-first.
+ *
+ * Paso 2 del patrón de escritura doble: escribe SIEMPRE en el `sync_log` de SQLite
+ * (vía {@link logPendienteLocal}) y, solo si hay conexión, además crea el `SyncLog`
+ * espejo en Postgres. Si la escritura remota falla, se loguea pero NO se lanza: el
+ * pendiente local garantiza que el dato se reconcilie en el próximo drenaje.
+ *
+ * @param tabla     Nombre de la tabla/agregado (debe estar en `TABLAS_SYNC`).
+ * @param operacion Tipo de mutación: 'CREATE' | 'UPDATE' | 'DELETE'.
+ * @param payload   Objeto con los campos a persistir (se serializa a JSON).
+ * @param usuarioId Autor de la operación; opcional para jobs del sistema.
+ */
+
 const INTERVAL_MS = 30_000;
 const MAX_INTENTOS = 5;
 // Tolerancia a fallos transitorios de conectividad: solo marcamos offline tras varios
@@ -43,18 +57,35 @@ export async function logPendiente(
   }
 }
 
+/**
+ * Orquestador de sincronización offline ↔ online.
+ *
+ * Corre un loop cada {@link INTERVAL_MS} (30 s): verifica conectividad y, si hay red,
+ * drena los pendientes locales contra Postgres. Es un singleton (objeto literal) que
+ * se arranca una vez desde el composition root con {@link SyncService.start}.
+ */
 export const SyncService = {
+  /** Arranca el loop: una corrida inmediata y luego cada {@link INTERVAL_MS}. */
   start() {
     void this.run();
     setInterval(() => void this.run(), INTERVAL_MS);
   },
 
+  /** Una iteración del loop: chequea conexión y, si hay, empuja pendientes. */
   async run() {
     const online = await this.checkConnectivity();
     if (!online) return;
     await this.pushPendientes();
   },
 
+  /**
+   * Sondea Postgres con `SELECT 1` y actualiza el estado online/offline.
+   *
+   * Tolera blips del pooler: solo declara offline tras {@link FALLOS_PARA_OFFLINE}
+   * fallos consecutivos; cualquier éxito resetea el contador y marca online de inmediato.
+   *
+   * @returns `true` si la consulta tuvo éxito en esta llamada.
+   */
   async checkConnectivity(): Promise<boolean> {
     try {
       await prisma.$queryRaw`SELECT 1`;
@@ -72,10 +103,16 @@ export const SyncService = {
     }
   },
 
+  /** Estado de conectividad actual (sin sondear; usa el último valor conocido). */
   isOnline() {
     return isOnline();
   },
 
+  /**
+   * Drena el `sync_log` de SQLite: lee hasta 50 pendientes (que no hayan agotado
+   * {@link MAX_INTENTOS}), aplica cada uno con {@link aplicarOperacion} y los marca
+   * sincronizados o con error. Invalida la {@link OfflineCache} si aplicó al menos uno.
+   */
   async pushPendientes() {
     const pendientes = leerPendientesLocal(50).filter(log => log.intentos < MAX_INTENTOS);
     if (!pendientes.length) return;

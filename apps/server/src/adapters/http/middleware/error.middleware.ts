@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 
+/**
+ * Error de dominio con código HTTP explícito. Lanzar `new AppError(404, '...')` para
+ * que el {@link errorMiddleware} responda con ese status en vez de un 500 genérico.
+ */
 export class AppError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -10,6 +14,11 @@ export class AppError extends Error {
   }
 }
 
+/**
+ * Manejador de errores central (último middleware del pipeline). Propaga el status de
+ * un {@link AppError}; para cualquier otro error responde `500` y **oculta el mensaje
+ * en producción** (nunca se filtra el stack al cliente).
+ */
 export function errorMiddleware(
   err: Error,
   _req: Request,
