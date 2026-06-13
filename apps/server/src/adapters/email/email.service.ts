@@ -2,7 +2,7 @@
 import nodemailer from 'nodemailer';
 import { env } from '../../config/env';
 import { prisma } from '../db/prisma/prisma.client';
-import { construirUrlConsultaDte } from '../dte/dte.service';
+import { construirUrlConsultaDte, generarQRDte } from '../dte/dte.service';
 
 export function crearTransporte() {
   if (env.smtp.host && env.smtp.user && env.smtp.pass) {
@@ -129,6 +129,23 @@ export async function enviarEmailComprobanteVenta(facturaId: number): Promise<vo
     ? construirUrlConsultaDte(factura.codigoGeneracion, fechaEmi)
     : null;
 
+  // QR del DTE como adjunto inline (CID): los clientes de correo bloquean las
+  // imágenes data: en <img>, por eso se adjunta el PNG y se referencia con cid.
+  const adjuntos: Array<{ filename: string; content: Buffer; cid: string }> = [];
+  let qrCid: string | null = null;
+  if (factura.codigoGeneracion) {
+    try {
+      const qrDataUrl = await generarQRDte(factura.codigoGeneracion, fechaEmi);
+      const base64    = qrDataUrl.split(',')[1];
+      if (base64) {
+        qrCid = 'qr-dte-venta';
+        adjuntos.push({ filename: 'qr-dte.png', content: Buffer.from(base64, 'base64'), cid: qrCid });
+      }
+    } catch (err: unknown) {
+      console.error('[Email] No se pudo generar el QR del DTE:', (err as Error).message);
+    }
+  }
+
   const filas = factura.detalles.map(d => `
     <tr>
       <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${escapeHtml(d.producto.nombre)}</td>
@@ -153,6 +170,8 @@ export async function enviarEmailComprobanteVenta(facturaId: number): Promise<vo
   const bloqueDte = consultaUrl
     ? `<p style="margin:16px 0 4px;font-size:14px;color:#374151"><strong>Documento Tributario Electrónico</strong></p>
        <p style="font-size:12px;color:#6b7280;word-break:break-all">Código de generación: ${escapeHtml(factura.codigoGeneracion ?? '')}</p>
+       ${qrCid ? `<p style="margin:8px 0"><img src="cid:${qrCid}" width="180" height="180" alt="Código QR de consulta del DTE" style="border:1px solid #e5e7eb;padding:6px;background:#fff;border-radius:6px" /></p>
+       <p style="font-size:12px;color:#6b7280;margin:0 0 8px">Escaneá el código para consultar tu comprobante en Hacienda.</p>` : ''}
        <p style="margin:8px 0"><a href="${consultaUrl}" style="color:#2563eb">Consultar el DTE en el Ministerio de Hacienda</a></p>`
     : '';
 
@@ -193,6 +212,7 @@ export async function enviarEmailComprobanteVenta(facturaId: number): Promise<vo
       to:      factura.clienteEmail,
       subject: `${docLabel} — Venta #${factura.id}`,
       html,
+      attachments: adjuntos,
     });
   } catch (err: unknown) {
     console.error('[Email] Error al enviar comprobante de venta:', (err as Error).message);
