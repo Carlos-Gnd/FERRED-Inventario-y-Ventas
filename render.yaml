@@ -21,12 +21,8 @@ services:
       # Render inyecta PORT automáticamente; el server ya lee process.env.PORT.
       - key: BRANCH_ID
         value: "1"
-      # Keep-alive: el server se auto-pinguea para no dormirse (Render inyecta
-      # RENDER_EXTERNAL_URL, pero lo fijamos explícito por si acaso).
-      - key: KEEPALIVE_URL
-        value: https://ferred.onrender.com
-      - key: KEEPALIVE_INTERVAL_MS
-        value: "180000"
+      # Sin keep-alive: en el plan free el servicio se duerme tras ~15 min sin tráfico
+      # y despierta con la primera petición (~50 s). Así no se agotan las 750 h/mes.
       # ── Secretos: se cargan en el dashboard, NO en el repo ──
       - key: DATABASE_URL          # Supabase pooler (6543, pgbouncer=true)
         sync: false
